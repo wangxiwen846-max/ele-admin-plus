@@ -11,7 +11,7 @@
       ref="formRef"
       :model="form"
       :rules="rules"
-      label-width="96px"
+      label-width="110px"
       @submit.prevent=""
     >
       <el-divider content-position="left" class="section-divider">
@@ -182,20 +182,10 @@
             :sm="12"
             :xs="24"
           >
-            <el-form-item :label="item.name">
-              <template #label>
-                <span>{{ item.name }}</span>
-                <el-tag
-                  v-if="item.required"
-                  type="danger"
-                  size="small"
-                  effect="plain"
-                  :disable-transitions="true"
-                  style="margin-left: 4px"
-                >
-                  必填
-                </el-tag>
-              </template>
+            <el-form-item
+              :label="item.name"
+              :class="['item-field', { 'is-required': item.required }]"
+            >
               <el-input
                 v-model="form.scores[item.code]"
                 :placeholder="`请输入 ${item.name}`"
@@ -444,5 +434,17 @@
     font-size: 13px;
     margin-left: 8px;
     font-weight: normal;
+  }
+  /* 项目 label 必填：用红色星号代替“必填”标签，避免宽度溢出折行 */
+  .item-field.is-required :deep(.el-form-item__label)::before {
+    content: '*';
+    color: var(--el-color-danger);
+    margin-right: 4px;
+    font-family: SimSun, sans-serif;
+  }
+  .item-field :deep(.el-form-item__label) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 </style>
