@@ -637,7 +637,8 @@
 
 <script setup>
   import { ref, reactive, computed } from 'vue';
-  import { EleMessage, EleMessageBox, useModal } from 'ele-admin-plus';
+  import { EleMessage, useModal } from 'ele-admin-plus';
+  import { ElMessageBox } from 'element-plus';
   import {
     FileOutlined,
     CloudUploadOutlined,
@@ -1003,7 +1004,7 @@
 
   /** 删除一行（仅允许删除失败行，相当于“忽略此条”） */
   const handleRemoveRow = (row) => {
-    EleMessageBox.confirm(
+    ElMessageBox.confirm(
       '确定要忽略此条数据？忽略后该条数据将不会被导入。',
       '提示',
       { type: 'warning' }
