@@ -168,7 +168,7 @@
         </span>
       </el-divider>
 
-      <ele-empty
+      <el-empty
         v-if="!form.planId"
         description="请先选择体测方案以加载测试项目"
         :image-size="88"
