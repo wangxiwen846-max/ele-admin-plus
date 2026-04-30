@@ -342,11 +342,7 @@
         style="margin-bottom: 12px"
       >
         <template #title>
-          数据校验通过，共 {{ successCount + confirmedCount }} 条数据可导入
-          <span v-if="confirmedCount">
-            （其中 {{ confirmedCount }} 条为已确认数据，导入后请及时复核）
-          </span>
-          。
+          数据校验通过，共 {{ successCount + confirmedCount }} 条数据可导入。
         </template>
       </ele-alert>
 
@@ -377,7 +373,7 @@
         </el-tab-pane>
         <el-tab-pane name="confirmed">
           <template #label>
-            <span style="color: var(--el-color-primary)">
+            <span style="color: var(--el-color-success)">
               已确认 ({{ confirmedCount }})
             </span>
           </template>
@@ -418,8 +414,9 @@
             </el-tag>
             <el-tag
               v-else-if="row._confirmed"
-              type="primary"
+              type="success"
               size="small"
+              effect="plain"
               :disable-transitions="true"
             >
               已确认
@@ -1422,7 +1419,7 @@
       color: var(--el-color-warning);
     }
     .summary-confirmed .summary-count {
-      color: var(--el-color-primary);
+      color: var(--el-color-success);
     }
   }
   .result-tabs {
