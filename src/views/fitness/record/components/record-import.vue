@@ -281,6 +281,10 @@
           <div class="summary-count">{{ pendingCount }}</div>
           <div class="summary-label">待确认</div>
         </div>
+        <div class="summary-item summary-confirmed">
+          <div class="summary-count">{{ confirmedCount }}</div>
+          <div class="summary-label">已确认</div>
+        </div>
       </div>
 
       <!-- 提示区：三态 -->
@@ -308,6 +312,29 @@
         </template>
       </ele-alert>
       <ele-alert
+        v-else-if="pendingCount > 0"
+        type="warning"
+        show-icon
+        :closable="false"
+        style="margin-bottom: 12px"
+      >
+        <template #title>
+          有 {{ pendingCount }} 条数据存在异常提示（待确认），核对无误后请点击“确认无误”，或点击“修改”进行调整。
+        </template>
+        <template #default>
+          <div style="margin-top: 4px">
+            <el-button
+              type="warning"
+              size="small"
+              :icon="CheckOutlined"
+              @click="confirmAllPending"
+            >
+              全部确认无误
+            </el-button>
+          </div>
+        </template>
+      </ele-alert>
+      <ele-alert
         v-else
         type="success"
         show-icon
@@ -315,9 +342,9 @@
         style="margin-bottom: 12px"
       >
         <template #title>
-          数据校验通过，共 {{ successCount + pendingCount }} 条数据可导入
-          <span v-if="pendingCount">
-            （其中 {{ pendingCount }} 条为待确认，导入后请及时复核）
+          数据校验通过，共 {{ successCount + confirmedCount }} 条数据可导入
+          <span v-if="confirmedCount">
+            （其中 {{ confirmedCount }} 条为已确认数据，导入后请及时复核）
           </span>
           。
         </template>
@@ -348,6 +375,13 @@
             </span>
           </template>
         </el-tab-pane>
+        <el-tab-pane name="confirmed">
+          <template #label>
+            <span style="color: var(--el-color-primary)">
+              已确认 ({{ confirmedCount }})
+            </span>
+          </template>
+        </el-tab-pane>
       </el-tabs>
 
       <el-table
@@ -364,7 +398,7 @@
           align="center"
           fixed="left"
         />
-        <el-table-column label="状态" width="88" align="center" fixed="left">
+        <el-table-column label="状态" width="92" align="center" fixed="left">
           <template #default="{ row }">
             <el-tag
               v-if="row.result === 'success'"
@@ -381,6 +415,14 @@
               :disable-transitions="true"
             >
               失败
+            </el-tag>
+            <el-tag
+              v-else-if="row._confirmed"
+              type="primary"
+              size="small"
+              :disable-transitions="true"
+            >
+              已确认
             </el-tag>
             <el-tag
               v-else
@@ -445,7 +487,7 @@
         </el-table-column>
         <el-table-column
           label="操作"
-          width="120"
+          width="180"
           align="center"
           fixed="right"
         >
@@ -458,6 +500,26 @@
               @click="handleEditRow(row)"
             >
               修改
+            </el-button>
+            <el-button
+              v-if="row.result === 'pending' && !row._confirmed"
+              type="warning"
+              size="small"
+              link
+              :icon="CheckOutlined"
+              @click="handleConfirmRow(row)"
+            >
+              确认无误
+            </el-button>
+            <el-button
+              v-else-if="row.result === 'pending' && row._confirmed"
+              type="info"
+              size="small"
+              link
+              :icon="UndoOutlined"
+              @click="handleUnconfirmRow(row)"
+            >
+              撤销确认
             </el-button>
             <el-button
               v-if="row.result === 'fail'"
@@ -648,7 +710,9 @@
     ReloadOutlined,
     EditOutlined,
     DeleteOutlined,
-    InfoCircleFilled
+    InfoCircleFilled,
+    CheckOutlined,
+    UndoOutlined
   } from '@/components/icons';
   import {
     SCHOOL_OPTIONS,
@@ -751,8 +815,13 @@
   const failCount = computed(
     () => rows.value.filter((r) => r.result === 'fail').length
   );
+  /** 待确认（异常但未确认）的条数 */
   const pendingCount = computed(
-    () => rows.value.filter((r) => r.result === 'pending').length
+    () => rows.value.filter((r) => r.result === 'pending' && !r._confirmed).length
+  );
+  /** 已确认（异常但用户已确认无误）的条数 */
+  const confirmedCount = computed(
+    () => rows.value.filter((r) => r.result === 'pending' && r._confirmed).length
   );
 
   const filteredRows = computed(() => {
@@ -761,7 +830,9 @@
     if (resultTab.value === 'fail')
       return rows.value.filter((d) => d.result === 'fail');
     if (resultTab.value === 'pending')
-      return rows.value.filter((d) => d.result === 'pending');
+      return rows.value.filter((d) => d.result === 'pending' && !d._confirmed);
+    if (resultTab.value === 'confirmed')
+      return rows.value.filter((d) => d.result === 'pending' && d._confirmed);
     return rows.value;
   });
 
@@ -769,6 +840,8 @@
     if (dirty.value) return '存在已修改但未重新校验的数据，请先点击“重新校验”';
     if (failCount.value > 0)
       return `仍有 ${failCount.value} 条失败数据，请先修改后重新校验`;
+    if (pendingCount.value > 0)
+      return `仍有 ${pendingCount.value} 条待确认数据，请逐条核对后点击“确认无误”`;
     return '';
   });
 
@@ -873,7 +946,8 @@
         remark: '',
         result: 'success',
         issues: [],
-        _dirty: false
+        _dirty: false,
+        _confirmed: false
       };
       // 插入问题行
       if (i === 2) {
@@ -969,9 +1043,16 @@
       });
     }
     row.issues = issues;
+    const prevResult = row.result;
     if (issues.some((d) => d.level === 'error')) row.result = 'fail';
     else if (issues.some((d) => d.level === 'warning')) row.result = 'pending';
     else row.result = 'success';
+    // 校验结果不再是 pending，则清除确认标记；若仍是 pending 但是从其它状态回到 pending，则需重新确认
+    if (row.result !== 'pending') {
+      row._confirmed = false;
+    } else if (prevResult !== 'pending') {
+      row._confirmed = false;
+    }
   }
 
   /** 批量校验所有行 */
@@ -991,15 +1072,64 @@
       });
       dirty.value = false;
       revalidating.value = false;
-      const msg =
-        failCount.value === 0
-          ? `校验通过，${successCount.value + pendingCount.value} 条数据可导入`
-          : `仍有 ${failCount.value} 条失败数据，请继续修改`;
-      EleMessage[failCount.value === 0 ? 'success' : 'warning']({
+      let msg;
+      let type = 'success';
+      if (failCount.value > 0) {
+        msg = `仍有 ${failCount.value} 条失败数据，请继续修改`;
+        type = 'warning';
+      } else if (pendingCount.value > 0) {
+        msg = `失败 0 条，存在 ${pendingCount.value} 条待确认数据，请逐条确认后再导入`;
+        type = 'warning';
+      } else {
+        msg = `校验通过，${successCount.value + confirmedCount.value} 条数据可导入`;
+      }
+      EleMessage[type]({
         message: msg,
         plain: true
       });
     }, 400);
+  };
+
+  /** 确认无误：标记当前 pending 行已被人工核对，可参与导入 */
+  const handleConfirmRow = (row) => {
+    row._confirmed = true;
+    EleMessage.success({
+      message: `已确认第 ${row.row} 行数据`,
+      plain: true
+    });
+  };
+
+  /** 撤销确认：恢复为待确认状态 */
+  const handleUnconfirmRow = (row) => {
+    row._confirmed = false;
+    EleMessage.info({
+      message: `已撤销第 ${row.row} 行的确认状态`,
+      plain: true
+    });
+  };
+
+  /** 批量确认所有 pending 行 */
+  const confirmAllPending = () => {
+    const targets = rows.value.filter(
+      (r) => r.result === 'pending' && !r._confirmed
+    );
+    if (!targets.length) {
+      EleMessage.info({ message: '当前没有待确认的数据', plain: true });
+      return;
+    }
+    ElMessageBox.confirm(
+      `共 ${targets.length} 条待确认数据，确认全部已核对无误并允许导入？`,
+      '批量确认',
+      { type: 'warning' }
+    )
+      .then(() => {
+        targets.forEach((r) => (r._confirmed = true));
+        EleMessage.success({
+          message: `已确认 ${targets.length} 条数据`,
+          plain: true
+        });
+      })
+      .catch(() => {});
   };
 
   /** 删除一行（仅允许删除失败行，相当于“忽略此条”） */
@@ -1050,6 +1180,8 @@
     r.remark = editingRow.value.remark;
     r.scores = { ...editingRow.value.scores };
     r._dirty = true;
+    // 数据被修改后，原先的"已确认"标记应失效，需重新校验
+    r._confirmed = false;
     dirty.value = true;
     editDialogVisible.value = false;
     EleMessage.success({
@@ -1103,7 +1235,7 @@
         });
       confirmLoading.value = false;
       EleMessage.success({
-        message: `导入成功，共 ${successCount.value + pendingCount.value} 条记录`,
+        message: `导入成功，共 ${successCount.value + confirmedCount.value} 条记录`,
         plain: true
       });
       emit('done');
@@ -1288,6 +1420,9 @@
     }
     .summary-pending .summary-count {
       color: var(--el-color-warning);
+    }
+    .summary-confirmed .summary-count {
+      color: var(--el-color-primary);
     }
   }
   .result-tabs {
