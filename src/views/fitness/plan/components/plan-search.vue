@@ -76,20 +76,17 @@
         <!-- 展开区 -->
         <el-col v-if="expand" :lg="6" :md="12" :sm="12" :xs="24">
           <el-form-item label="适用地区">
-            <el-select
-              clearable
-              v-model="form.region"
+            <el-cascader
+              v-model="regionSearchPath"
+              :options="regionCascaderOptions"
+              :props="{ checkStrictly: true, emitPath: true }"
               placeholder="全部地区"
+              clearable
+              filterable
               class="ele-fluid"
               :disabled="form.scopeType === 'general'"
-            >
-              <el-option
-                v-for="opt in REGION_OPTIONS"
-                :key="opt.value"
-                :label="opt.label"
-                :value="opt.value"
-              />
-            </el-select>
+              @change="handleRegionSearchChange"
+            />
           </el-form-item>
         </el-col>
         <el-col v-if="expand" :lg="6" :md="12" :sm="12" :xs="24">
@@ -151,9 +148,9 @@
     STAGE_OPTIONS,
     SCHOOL_YEAR_OPTIONS,
     TERM_OPTIONS,
-    SCOPE_OPTIONS,
-    REGION_OPTIONS
+    SCOPE_OPTIONS
   } from '@/views/fitness/data.js';
+  import { regionCascaderOptions, pathToCode } from '@/utils/region-data.js';
 
   const emit = defineEmits(['search']);
 
@@ -169,9 +166,18 @@
     status: ''
   });
 
+  /** cascader 单选路径（搜索用，非多选） */
+  const regionSearchPath = ref([]);
+
+  const handleRegionSearchChange = (path) => {
+    form.region = pathToCode(path ?? []);
+  };
+
   const handleScopeChange = (val) => {
-    // 切换为通用时清空地区筛选
-    if (val === 'general') form.region = '';
+    if (val === 'general') {
+      form.region = '';
+      regionSearchPath.value = [];
+    }
   };
 
   const search = () => emit('search', { ...form });
@@ -183,6 +189,7 @@
     form.schoolYear = '';
     form.term = '';
     form.status = '';
+    regionSearchPath.value = [];
     search();
   };
 </script>

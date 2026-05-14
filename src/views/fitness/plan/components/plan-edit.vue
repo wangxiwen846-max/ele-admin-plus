@@ -39,24 +39,22 @@
           </el-form-item>
         </el-col>
 
-        <!-- 适用地区（指定地区时显示，多选） -->
+        <!-- 适用地区（指定地区时显示，省市两级级联多选） -->
         <el-col v-if="form.scopeType === 'region'" :xs="24">
           <el-form-item label="适用地区" prop="regions">
-            <el-select
-              multiple
+            <el-cascader
+              v-model="regionPaths"
+              :options="regionCascaderOptions"
+              :props="cascaderProps"
+              placeholder="请选择省/市（可多选）"
               collapse-tags
               collapse-tags-tooltip
-              v-model="form.regions"
-              placeholder="请选择适用地区（可多选）"
+              :max-collapse-tags="3"
+              filterable
+              clearable
               class="ele-fluid"
-            >
-              <el-option
-                v-for="opt in REGION_OPTIONS"
-                :key="opt.value"
-                :label="opt.label"
-                :value="opt.value"
-              />
-            </el-select>
+              @change="handleRegionChange"
+            />
           </el-form-item>
         </el-col>
 
@@ -236,9 +234,13 @@
     TERM_OPTIONS,
     FITNESS_ITEMS,
     GRADE_OPTIONS,
-    REGION_OPTIONS,
     planStore
   } from '@/views/fitness/data.js';
+  import {
+    regionCascaderOptions,
+    codeToPath,
+    pathToCode
+  } from '@/utils/region-data.js';
 
   const props = defineProps({ data: Object });
   const emit = defineEmits(['done']);
@@ -298,6 +300,33 @@
   });
 
   const gradeOptions = computed(() => GRADE_OPTIONS[form.stage] ?? []);
+
+  /** el-cascader 多选配置：多选、只显示叶子节点 */
+  const cascaderProps = {
+    multiple: true,
+    checkStrictly: false,
+    emitPath: true,
+    value: 'value',
+    label: 'label',
+    children: 'children'
+  };
+
+  /**
+   * el-cascader 的 v-model 值：每个选中项是 [provinceCode, cityCode] 路径数组
+   * 与 form.regions（城市 code 字符串数组）双向映射
+   */
+  const regionPaths = computed({
+    get() {
+      return (form.regions ?? []).map((code) => codeToPath(code));
+    },
+    set(paths) {
+      form.regions = (paths ?? []).map((path) => pathToCode(path));
+    }
+  });
+
+  const handleRegionChange = () => {
+    formRef.value?.clearValidate('regions');
+  };
 
   if (props.data) {
     const source = JSON.parse(JSON.stringify(props.data));
