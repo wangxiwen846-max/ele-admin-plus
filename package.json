@@ -23,6 +23,7 @@
     "@vueuse/core": "13.9.0",
     "axios": "1.12.2",
     "bytemd": "1.22.0",
+    "china-area-data": "^5.0.1",
     "countup.js": "2.9.0",
     "cropperjs": "1.6.2",
     "dayjs": "1.11.18",
