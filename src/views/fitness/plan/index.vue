@@ -39,6 +39,45 @@
           </el-tag>
         </template>
 
+        <template #scopeType="{ row }">
+          <el-tag
+            :type="row.scopeType === 'region' ? 'warning' : 'info'"
+            size="small"
+            effect="plain"
+            :disable-transitions="true"
+          >
+            {{ getScopeLabel(row.scopeType) }}
+          </el-tag>
+        </template>
+
+        <template #regions="{ row }">
+          <span v-if="row.scopeType === 'general'" class="text-secondary">
+            通用
+          </span>
+          <template v-else>
+            <span v-if="!row.regions || row.regions.length === 0" class="text-secondary">—</span>
+            <span v-else>
+              <span
+                v-for="(r, idx) in row.regions.slice(0, 2)"
+                :key="r"
+              >
+                <span>{{ getRegionLabel(r) }}</span>
+                <span v-if="idx < Math.min(row.regions.length, 2) - 1">、</span>
+              </span>
+              <el-tag
+                v-if="row.regions.length > 2"
+                size="small"
+                type="info"
+                effect="plain"
+                :disable-transitions="true"
+                style="margin-left: 4px"
+              >
+                +{{ row.regions.length - 2 }}
+              </el-tag>
+            </span>
+          </template>
+        </template>
+
         <template #stage="{ row }">
           {{ getStageLabel(row.stage) }}
         </template>
@@ -47,8 +86,8 @@
           <span>{{ (row.grades || []).join('、') }}</span>
         </template>
 
-        <template #term="{ row }">
-          {{ getTermLabel(row.term) }}
+        <template #schoolYearTerm="{ row }">
+          {{ row.schoolYear }} {{ getTermLabel(row.term) }}
         </template>
 
         <template #status="{ row }">
@@ -103,58 +142,63 @@
   import {
     planStore,
     getStageLabel,
-    getTermLabel
+    getTermLabel,
+    getScopeLabel,
+    getRegionLabel
   } from '@/views/fitness/data.js';
 
   defineOptions({ name: 'FitnessPlan' });
 
   const { openModal } = useModal();
 
-  /** 表格实例 */
   const tableRef = ref(null);
-
-  /** 搜索参数 */
   const lastWhere = reactive({});
 
-  /** 表格列 */
   const columns = ref([
     { type: 'index', columnKey: 'index', width: 60, align: 'center' },
     {
       prop: 'planName',
       label: '方案名称',
-      minWidth: 220,
+      minWidth: 200,
       slot: 'planName'
+    },
+    {
+      prop: 'scopeType',
+      label: '适用范围',
+      width: 100,
+      align: 'center',
+      slot: 'scopeType'
+    },
+    {
+      prop: 'regions',
+      label: '适用地区',
+      minWidth: 160,
+      slot: 'regions'
     },
     {
       prop: 'stage',
       label: '学段',
-      width: 90,
+      width: 80,
       align: 'center',
       slot: 'stage'
     },
     {
       prop: 'grades',
       label: '适用年级',
-      minWidth: 180,
+      minWidth: 160,
       slot: 'grades'
     },
     {
-      prop: 'schoolYear',
-      label: '学年',
-      width: 110,
-      align: 'center'
-    },
-    {
-      prop: 'term',
-      label: '学期',
-      width: 100,
+      columnKey: 'schoolYearTerm',
+      label: '学年学期',
+      width: 160,
       align: 'center',
-      slot: 'term'
+      slot: 'schoolYearTerm'
     },
     {
       prop: 'status',
       label: '状态',
-      width: 100,
+      width: 90,
       align: 'center',
       slot: 'status'
     },
@@ -175,26 +219,18 @@
     }
   ]);
 
-  /** 数据源：本地 mock 过滤 */
   const datasource = ({ pages }) => {
     const keyword = lastWhere.planName?.trim();
     let result = [...planStore.list];
-    if (keyword) {
-      result = result.filter((d) => d.planName.includes(keyword));
-    }
-    if (lastWhere.stage) {
-      result = result.filter((d) => d.stage === lastWhere.stage);
-    }
-    if (lastWhere.schoolYear) {
-      result = result.filter((d) => d.schoolYear === lastWhere.schoolYear);
-    }
-    if (lastWhere.term) {
-      result = result.filter((d) => d.term === lastWhere.term);
-    }
+    if (keyword) result = result.filter((d) => d.planName.includes(keyword));
+    if (lastWhere.scopeType) result = result.filter((d) => d.scopeType === lastWhere.scopeType);
+    if (lastWhere.region) result = result.filter((d) => (d.regions || []).includes(lastWhere.region));
+    if (lastWhere.stage) result = result.filter((d) => d.stage === lastWhere.stage);
+    if (lastWhere.schoolYear) result = result.filter((d) => d.schoolYear === lastWhere.schoolYear);
+    if (lastWhere.term) result = result.filter((d) => d.term === lastWhere.term);
     if (lastWhere.status !== '' && lastWhere.status != null) {
       result = result.filter((d) => d.status === lastWhere.status);
     }
-    // 启用状态优先 + 更新时间倒序
     result.sort((a, b) => {
       if (a.status !== b.status) return b.status - a.status;
       return b.updateTime.localeCompare(a.updateTime);
@@ -202,32 +238,24 @@
     const total = result.length;
     const { page = 1, limit = 10 } = pages || {};
     const start = (page - 1) * limit;
-    const list = result.slice(start, start + limit);
-    return Promise.resolve({ list, count: total });
+    return Promise.resolve({ list: result.slice(start, start + limit), count: total });
   };
 
-  /** 搜索 */
   const handleSearch = (where) => {
     Object.assign(lastWhere, where);
     tableRef.value?.reload?.({ page: 1 });
   };
 
-  /** 刷新 */
   const reload = () => tableRef.value?.reload?.();
 
-  /** 新建 / 编辑方案弹窗 */
   const openEdit = (row) => {
     openModal({
       custom: true,
       asyncComponent: () => import('./components/plan-edit.vue'),
-      componentProps: {
-        data: row,
-        onDone: reload
-      }
+      componentProps: { data: row, onDone: reload }
     });
   };
 
-  /** 方案详情弹窗 */
   const openDetail = (row) => {
     openModal({
       custom: true,
@@ -236,10 +264,9 @@
     });
   };
 
-  /** 复制方案 */
   const copyPlan = (row) => {
     ElMessageBox.confirm(
-      `确定复制方案“${row.planName}”吗？将创建一份副本并置为停用状态。`,
+      `确定复制方案"${row.planName}"吗？将创建一份副本并置为停用状态。`,
       '复制方案',
       { type: 'info', draggable: true }
     )
@@ -260,22 +287,17 @@
       .catch(() => {});
   };
 
-  /** 启用 / 停用 */
   const toggleStatus = (row) => {
     const next = row.status === 1 ? 0 : 1;
-    const title = next === 1 ? '启用方案' : '停用方案';
     ElMessageBox.confirm(
-      `确定${next === 1 ? '启用' : '停用'}方案“${row.planName}”吗？`,
-      title,
+      `确定${next === 1 ? '启用' : '停用'}方案"${row.planName}"吗？`,
+      next === 1 ? '启用方案' : '停用方案',
       { type: 'warning', draggable: true }
     )
       .then(() => {
         row.status = next;
         row.updateTime = formatNow();
-        EleMessage.success({
-          message: `已${next === 1 ? '启用' : '停用'}`,
-          plain: true
-        });
+        EleMessage.success({ message: `已${next === 1 ? '启用' : '停用'}`, plain: true });
       })
       .catch(() => {});
   };
@@ -286,3 +308,9 @@
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 </script>
+
+<style scoped>
+  .text-secondary {
+    color: var(--el-text-color-secondary);
+  }
+</style>

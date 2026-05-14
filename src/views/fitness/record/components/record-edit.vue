@@ -24,14 +24,24 @@
               v-model="form.school"
               placeholder="请选择学校"
               class="ele-fluid"
+              @change="handleSchoolChange"
             >
               <el-option
                 v-for="opt in SCHOOL_OPTIONS"
-                :key="opt"
-                :label="opt"
-                :value="opt"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
               />
             </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :sm="12" :xs="24">
+          <el-form-item label="适用地区">
+            <el-input
+              :model-value="form.schoolRegionLabel || (form.school ? '—' : '')"
+              placeholder="选择学校后自动带出"
+              readonly
+            />
           </el-form-item>
         </el-col>
         <el-col :sm="12" :xs="24">
@@ -58,6 +68,7 @@
               placeholder="请选择年级"
               class="ele-fluid"
               :disabled="!form.stage"
+              @change="() => { form.planId = ''; form.scores = {}; }"
             >
               <el-option
                 v-for="g in gradeOptions"
@@ -90,6 +101,7 @@
               v-model="form.planId"
               placeholder="请选择体测方案"
               class="ele-fluid"
+              :disabled="noPlansAvailable"
               @change="handlePlanChange"
             >
               <el-option
@@ -99,6 +111,9 @@
                 :value="p.planId"
               />
             </el-select>
+            <div v-if="noPlansAvailable" class="no-plan-tip">
+              暂无可用体测方案，请先配置方案
+            </div>
           </el-form-item>
         </el-col>
         <el-col :sm="12" :xs="24">
@@ -243,7 +258,9 @@
     CLASS_OPTIONS,
     GRADE_OPTIONS,
     planStore,
-    recordStore
+    recordStore,
+    getSchoolInfo,
+    matchPlans
   } from '@/views/fitness/data.js';
 
   const props = defineProps({ data: Object });
@@ -258,6 +275,8 @@
   const form = reactive({
     recordId: void 0,
     school: '',
+    schoolRegion: '',      // 只读，由学校自动带出
+    schoolRegionLabel: '', // 展示用
     stage: '',
     grade: '',
     className: '',
@@ -303,13 +322,18 @@
 
   const gradeOptions = computed(() => GRADE_OPTIONS[form.stage] ?? []);
 
-  /** 按学段过滤方案 */
+  /** 按地区、学段、年级匹配方案（指定地区优先） */
   const availablePlans = computed(() => {
-    if (!form.stage) return planStore.list.filter((d) => d.status === 1);
-    return planStore.list.filter(
-      (d) => d.status === 1 && d.stage === form.stage
-    );
+    const { prioritized } = matchPlans({
+      region: form.schoolRegion || undefined,
+      stage: form.stage || undefined,
+      grade: form.grade || undefined
+    });
+    return prioritized;
   });
+
+  /** 方案下拉框是否无可用项 */
+  const noPlansAvailable = computed(() => availablePlans.value.length === 0 && !!form.stage);
 
   /** 当前方案适用该性别的项目 */
   const applicableItems = computed(() => {
@@ -332,9 +356,19 @@
     return (w / Math.pow(h / 100, 2)).toFixed(1);
   });
 
+  /** 学校改变时自动带出地区，并重置方案 */
+  const handleSchoolChange = (schoolName) => {
+    const info = getSchoolInfo(schoolName);
+    form.schoolRegion = info?.region ?? '';
+    form.schoolRegionLabel = info?.regionLabel ?? '';
+    form.planId = '';
+    form.scores = {};
+  };
+
   const handleStageChange = () => {
     form.grade = '';
     form.planId = '';
+    form.scores = {};
   };
 
   const handlePlanChange = (planId) => {
@@ -352,9 +386,12 @@
   /** 修改赋值 */
   if (props.data) {
     const src = JSON.parse(JSON.stringify(props.data));
+    const schoolInfo = getSchoolInfo(src.school);
     Object.assign(form, {
       recordId: src.recordId,
       school: src.school,
+      schoolRegion: schoolInfo?.region ?? '',
+      schoolRegionLabel: schoolInfo?.regionLabel ?? '',
       stage: src.stage,
       grade: src.grade,
       className: src.className,
@@ -436,6 +473,12 @@
     font-weight: normal;
   }
   /* 项目 label 必填：用红色星号代替“必填”标签，避免宽度溢出折行 */
+  .no-plan-tip {
+    font-size: 12px;
+    color: var(--el-color-warning);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
   .item-field.is-required :deep(.el-form-item__label)::before {
     content: '*';
     color: var(--el-color-danger);

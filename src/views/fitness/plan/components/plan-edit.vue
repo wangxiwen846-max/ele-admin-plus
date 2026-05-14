@@ -2,7 +2,7 @@
 <template>
   <ele-modal
     form
-    :width="860"
+    :width="900"
     :title="isUpdate ? '编辑方案' : '新建方案'"
     :loading="loading"
     v-bind="modalProps"
@@ -11,13 +11,14 @@
       ref="formRef"
       :model="form"
       :rules="rules"
-      label-width="96px"
+      label-width="100px"
       @submit.prevent=""
     >
       <el-divider content-position="left" class="section-divider">
         基础信息
       </el-divider>
       <el-row :gutter="16">
+        <!-- 方案名称 -->
         <el-col :sm="12" :xs="24">
           <el-form-item label="方案名称" prop="planName">
             <el-input
@@ -27,6 +28,39 @@
             />
           </el-form-item>
         </el-col>
+
+        <!-- 适用范围类型 -->
+        <el-col :sm="12" :xs="24">
+          <el-form-item label="适用范围" prop="scopeType">
+            <el-radio-group v-model="form.scopeType" @change="handleScopeChange">
+              <el-radio value="general">通用</el-radio>
+              <el-radio value="region">指定地区</el-radio>
+            </el-radio-group>
+          </el-form-item>
+        </el-col>
+
+        <!-- 适用地区（指定地区时显示，多选） -->
+        <el-col v-if="form.scopeType === 'region'" :xs="24">
+          <el-form-item label="适用地区" prop="regions">
+            <el-select
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
+              v-model="form.regions"
+              placeholder="请选择适用地区（可多选）"
+              class="ele-fluid"
+            >
+              <el-option
+                v-for="opt in REGION_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </el-form-item>
+        </el-col>
+
+        <!-- 学段 -->
         <el-col :sm="12" :xs="24">
           <el-form-item label="学段" prop="stage">
             <el-select
@@ -44,6 +78,8 @@
             </el-select>
           </el-form-item>
         </el-col>
+
+        <!-- 适用年级 -->
         <el-col :sm="12" :xs="24">
           <el-form-item label="适用年级" prop="grades">
             <el-select
@@ -64,6 +100,8 @@
             </el-select>
           </el-form-item>
         </el-col>
+
+        <!-- 学年 -->
         <el-col :sm="12" :xs="24">
           <el-form-item label="学年" prop="schoolYear">
             <el-select
@@ -80,6 +118,8 @@
             </el-select>
           </el-form-item>
         </el-col>
+
+        <!-- 学期 -->
         <el-col :sm="12" :xs="24">
           <el-form-item label="学期" prop="term">
             <el-select
@@ -96,11 +136,15 @@
             </el-select>
           </el-form-item>
         </el-col>
+
+        <!-- 是否默认 -->
         <el-col :sm="12" :xs="24">
           <el-form-item label="是否默认">
             <el-switch v-model="form.isDefault" />
           </el-form-item>
         </el-col>
+
+        <!-- 状态 -->
         <el-col :sm="12" :xs="24">
           <el-form-item label="状态">
             <el-radio-group v-model="form.status">
@@ -109,6 +153,8 @@
             </el-radio-group>
           </el-form-item>
         </el-col>
+
+        <!-- 备注 -->
         <el-col :xs="24">
           <el-form-item label="备注">
             <el-input
@@ -190,6 +236,7 @@
     TERM_OPTIONS,
     FITNESS_ITEMS,
     GRADE_OPTIONS,
+    REGION_OPTIONS,
     planStore
   } from '@/views/fitness/data.js';
 
@@ -202,7 +249,6 @@
   const loading = ref(false);
   const formRef = ref(null);
 
-  /** 初始化项目配置 */
   function initItems() {
     return FITNESS_ITEMS.map((it, idx) => ({
       code: it.code,
@@ -218,6 +264,8 @@
   const form = reactive({
     planId: void 0,
     planName: '',
+    scopeType: 'general',
+    regions: [],
     stage: '',
     grades: [],
     schoolYear: '2025-2026',
@@ -229,39 +277,47 @@
   });
 
   const rules = reactive({
-    planName: [
-      { required: true, message: '请输入方案名称', trigger: 'blur' }
-    ],
-    stage: [{ required: true, message: '请选择学段', trigger: 'change' }],
-    grades: [
+    planName: [{ required: true, message: '请输入方案名称', trigger: 'blur' }],
+    scopeType: [{ required: true, message: '请选择适用范围类型', trigger: 'change' }],
+    regions: [
       {
-        required: true,
-        type: 'array',
-        message: '请选择适用年级',
+        validator: (_, value, cb) => {
+          if (form.scopeType === 'region' && (!value || value.length === 0)) {
+            cb(new Error('请选择适用地区'));
+          } else {
+            cb();
+          }
+        },
         trigger: 'change'
       }
     ],
-    schoolYear: [
-      { required: true, message: '请选择学年', trigger: 'change' }
-    ],
+    stage: [{ required: true, message: '请选择学段', trigger: 'change' }],
+    grades: [{ required: true, type: 'array', message: '请选择适用年级', trigger: 'change' }],
+    schoolYear: [{ required: true, message: '请选择学年', trigger: 'change' }],
     term: [{ required: true, message: '请选择学期', trigger: 'change' }]
   });
 
   const gradeOptions = computed(() => GRADE_OPTIONS[form.stage] ?? []);
 
-  /** 修改赋值 */
   if (props.data) {
     const source = JSON.parse(JSON.stringify(props.data));
-    // 把已有项目合并到所有项目列表中（未启用的也要能显示）
     const mergedItems = initItems().map((base) => {
       const existed = source.items?.find((d) => d.code === base.code);
       return existed ? { ...base, ...existed } : base;
     });
-    Object.assign(form, source, { items: mergedItems });
+    Object.assign(form, source, {
+      scopeType: source.scopeType ?? 'general',
+      regions: source.regions ?? [],
+      items: mergedItems
+    });
   }
 
+  const handleScopeChange = (val) => {
+    if (val === 'general') form.regions = [];
+    formRef.value?.clearValidate('regions');
+  };
+
   const handleStageChange = () => {
-    // 切换学段清空年级选择
     form.grades = [];
   };
 
@@ -270,12 +326,8 @@
   const save = () => {
     formRef.value?.validate?.((valid) => {
       if (!valid) return;
-      // 至少启用一个项目
       if (!form.items.some((d) => d.enabled)) {
-        EleMessage.error({
-          message: '请至少启用一个体测项目',
-          plain: true
-        });
+        EleMessage.error({ message: '请至少启用一个体测项目', plain: true });
         return;
       }
       loading.value = true;
@@ -283,12 +335,8 @@
         const now = formatNow();
         const payload = JSON.parse(JSON.stringify(form));
         if (isUpdate.value) {
-          const target = planStore.list.find(
-            (d) => d.planId === payload.planId
-          );
-          if (target) {
-            Object.assign(target, payload, { updateTime: now });
-          }
+          const target = planStore.list.find((d) => d.planId === payload.planId);
+          if (target) Object.assign(target, payload, { updateTime: now });
           EleMessage.success({ message: '修改成功', plain: true });
         } else {
           planStore.list.unshift({

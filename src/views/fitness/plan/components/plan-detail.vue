@@ -1,7 +1,7 @@
 <!-- 体测方案 详情弹窗 -->
 <template>
   <ele-modal
-    :width="760"
+    :width="780"
     title="方案详情"
     :footer="false"
     v-bind="modalProps"
@@ -25,6 +25,40 @@
           默认
         </el-tag>
       </el-descriptions-item>
+
+      <el-descriptions-item label="适用范围">
+        <el-tag
+          :type="data.scopeType === 'region' ? 'warning' : 'info'"
+          size="small"
+          effect="plain"
+          :disable-transitions="true"
+        >
+          {{ getScopeLabel(data.scopeType) }}
+        </el-tag>
+      </el-descriptions-item>
+
+      <el-descriptions-item label="适用地区">
+        <span v-if="data.scopeType === 'general'" class="text-secondary">
+          全部地区（通用）
+        </span>
+        <template v-else>
+          <span v-if="!data.regions || data.regions.length === 0" class="text-secondary">—</span>
+          <span v-else>
+            <el-tag
+              v-for="r in data.regions"
+              :key="r"
+              size="small"
+              type="warning"
+              effect="plain"
+              :disable-transitions="true"
+              style="margin-right: 4px; margin-bottom: 2px"
+            >
+              {{ getRegionLabel(r) }}
+            </el-tag>
+          </span>
+        </template>
+      </el-descriptions-item>
+
       <el-descriptions-item label="学段">
         {{ getStageLabel(data.stage) }}
       </el-descriptions-item>
@@ -62,12 +96,7 @@
     </el-descriptions>
 
     <div class="section-title">项目明细</div>
-    <el-table
-      :data="enabledItems"
-      border
-      size="default"
-      class="item-table"
-    >
+    <el-table :data="enabledItems" border size="default" class="item-table">
       <el-table-column label="#" width="56" align="center" type="index" />
       <el-table-column prop="name" label="项目名称" min-width="160" />
       <el-table-column prop="unit" label="单位" width="90" align="center" />
@@ -85,13 +114,7 @@
       </el-table-column>
       <el-table-column label="适用性别" width="100" align="center">
         <template #default="{ row }">
-          {{
-            row.gender === 'all'
-              ? '全部'
-              : row.gender === 'male'
-                ? '仅男'
-                : '仅女'
-          }}
+          {{ row.gender === 'all' ? '全部' : row.gender === 'male' ? '仅男' : '仅女' }}
         </template>
       </el-table-column>
       <el-table-column label="顺序" width="80" align="center" prop="sort" />
@@ -102,7 +125,12 @@
 <script setup>
   import { computed } from 'vue';
   import { useModal } from 'ele-admin-plus';
-  import { getStageLabel, getTermLabel } from '@/views/fitness/data.js';
+  import {
+    getStageLabel,
+    getTermLabel,
+    getScopeLabel,
+    getRegionLabel
+  } from '@/views/fitness/data.js';
 
   const props = defineProps({ data: { type: Object, required: true } });
   const { modalProps } = useModal();
@@ -132,5 +160,8 @@
   }
   .item-table {
     margin-bottom: 4px;
+  }
+  .text-secondary {
+    color: var(--el-text-color-secondary);
   }
 </style>

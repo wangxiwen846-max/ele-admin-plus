@@ -1,7 +1,7 @@
 <!-- 体测方案 - 搜索表单 -->
 <template>
   <ele-card :body-style="{ paddingBottom: '2px' }">
-    <el-form label-width="72px" @keyup.enter="search" @submit.prevent="">
+    <el-form label-width="88px" @keyup.enter="search" @submit.prevent="">
       <el-row :gutter="8">
         <el-col :lg="6" :md="12" :sm="12" :xs="24">
           <el-form-item label="方案名称">
@@ -10,6 +10,24 @@
               v-model.trim="form.planName"
               placeholder="请输入方案名称"
             />
+          </el-form-item>
+        </el-col>
+        <el-col :lg="6" :md="12" :sm="12" :xs="24">
+          <el-form-item label="适用范围">
+            <el-select
+              clearable
+              v-model="form.scopeType"
+              placeholder="全部"
+              class="ele-fluid"
+              @change="handleScopeChange"
+            >
+              <el-option
+                v-for="opt in SCOPE_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
           </el-form-item>
         </el-col>
         <el-col :lg="6" :md="12" :sm="12" :xs="24">
@@ -30,6 +48,51 @@
           </el-form-item>
         </el-col>
         <el-col :lg="6" :md="12" :sm="12" :xs="24">
+          <el-form-item label-width="16px">
+            <el-button type="primary" @click="search">查询</el-button>
+            <el-button @click="reset">重置</el-button>
+            <el-link
+              type="primary"
+              underline="never"
+              style="margin-left: 12px"
+              @click="expand = !expand"
+            >
+              <template v-if="expand">
+                <span>收起</span>
+                <el-icon style="vertical-align: -1px">
+                  <ArrowUpOutlined />
+                </el-icon>
+              </template>
+              <template v-else>
+                <span>展开</span>
+                <el-icon style="vertical-align: -2px">
+                  <ArrowDownOutlined />
+                </el-icon>
+              </template>
+            </el-link>
+          </el-form-item>
+        </el-col>
+
+        <!-- 展开区 -->
+        <el-col v-if="expand" :lg="6" :md="12" :sm="12" :xs="24">
+          <el-form-item label="适用地区">
+            <el-select
+              clearable
+              v-model="form.region"
+              placeholder="全部地区"
+              class="ele-fluid"
+              :disabled="form.scopeType === 'general'"
+            >
+              <el-option
+                v-for="opt in REGION_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col v-if="expand" :lg="6" :md="12" :sm="12" :xs="24">
           <el-form-item label="学年">
             <el-select
               clearable
@@ -76,31 +139,6 @@
             </el-select>
           </el-form-item>
         </el-col>
-        <el-col :lg="6" :md="12" :sm="12" :xs="24">
-          <el-form-item label-width="16px">
-            <el-button type="primary" @click="search">查询</el-button>
-            <el-button @click="reset">重置</el-button>
-            <el-link
-              type="primary"
-              underline="never"
-              style="margin-left: 12px"
-              @click="expand = !expand"
-            >
-              <template v-if="expand">
-                <span>收起</span>
-                <el-icon style="vertical-align: -1px">
-                  <ArrowUpOutlined />
-                </el-icon>
-              </template>
-              <template v-else>
-                <span>展开</span>
-                <el-icon style="vertical-align: -2px">
-                  <ArrowDownOutlined />
-                </el-icon>
-              </template>
-            </el-link>
-          </el-form-item>
-        </el-col>
       </el-row>
     </el-form>
   </ele-card>
@@ -112,7 +150,9 @@
   import {
     STAGE_OPTIONS,
     SCHOOL_YEAR_OPTIONS,
-    TERM_OPTIONS
+    TERM_OPTIONS,
+    SCOPE_OPTIONS,
+    REGION_OPTIONS
   } from '@/views/fitness/data.js';
 
   const emit = defineEmits(['search']);
@@ -121,15 +161,24 @@
 
   const form = reactive({
     planName: '',
+    scopeType: '',
+    region: '',
     stage: '',
     schoolYear: '',
     term: '',
     status: ''
   });
 
+  const handleScopeChange = (val) => {
+    // 切换为通用时清空地区筛选
+    if (val === 'general') form.region = '';
+  };
+
   const search = () => emit('search', { ...form });
   const reset = () => {
     form.planName = '';
+    form.scopeType = '';
+    form.region = '';
     form.stage = '';
     form.schoolYear = '';
     form.term = '';

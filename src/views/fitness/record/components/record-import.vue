@@ -29,14 +29,24 @@
                 v-model="params.school"
                 placeholder="请选择学校"
                 class="ele-fluid"
+                @change="handleSchoolChange"
               >
                 <el-option
                   v-for="opt in SCHOOL_OPTIONS"
-                  :key="opt"
-                  :label="opt"
-                  :value="opt"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.value"
                 />
               </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :sm="12" :xs="24">
+            <el-form-item label="适用地区">
+              <el-input
+                :model-value="params.schoolRegionLabel || (params.school ? '—' : '')"
+                placeholder="选择学校后自动带出"
+                readonly
+              />
             </el-form-item>
           </el-col>
           <el-col :sm="12" :xs="24">
@@ -128,6 +138,7 @@
                 v-model="params.planId"
                 placeholder="请选择体测方案"
                 class="ele-fluid"
+                :disabled="noPlansAvailable"
               >
                 <el-option
                   v-for="p in availablePlans"
@@ -136,6 +147,9 @@
                   :value="p.planId"
                 />
               </el-select>
+              <div v-if="noPlansAvailable" class="no-plan-tip">
+                暂无可用体测方案，请先配置方案
+              </div>
             </el-form-item>
           </el-col>
           <el-col :sm="12" :xs="24">
@@ -722,7 +736,9 @@
     recordStore,
     getStageLabel,
     getTermLabel,
-    getRecordTypeLabel
+    getRecordTypeLabel,
+    getSchoolInfo,
+    matchPlans
   } from '@/views/fitness/data.js';
 
   const emit = defineEmits(['done']);
@@ -738,6 +754,8 @@
 
   const params = reactive({
     school: '',
+    schoolRegion: '',
+    schoolRegionLabel: '',
     schoolYear: '2025-2026',
     term: 'fall',
     stage: '',
@@ -768,12 +786,22 @@
   };
 
   const gradeOptions = computed(() => GRADE_OPTIONS[params.stage] ?? []);
+
+  /** 按地区+学段+年级+学年+学期匹配，指定地区优先 */
   const availablePlans = computed(() => {
-    if (!params.stage) return planStore.list.filter((d) => d.status === 1);
-    return planStore.list.filter(
-      (d) => d.status === 1 && d.stage === params.stage
-    );
+    const { prioritized } = matchPlans({
+      region: params.schoolRegion || undefined,
+      stage: params.stage || undefined,
+      grade: params.grade || undefined,
+      schoolYear: params.schoolYear || undefined,
+      term: params.term || undefined
+    });
+    return prioritized;
   });
+
+  const noPlansAvailable = computed(
+    () => availablePlans.value.length === 0 && !!params.stage && !!params.grade
+  );
 
   /** 全局参数显示名 */
   const stageLabel = computed(() => getStageLabel(params.stage));
@@ -792,6 +820,14 @@
       .slice()
       .sort((a, b) => a.sort - b.sort);
   });
+
+  /** 选择学校后自动带出地区并清空方案 */
+  const handleSchoolChange = (schoolName) => {
+    const info = getSchoolInfo(schoolName);
+    params.schoolRegion = info?.region ?? '';
+    params.schoolRegionLabel = info?.regionLabel ?? '';
+    params.planId = '';
+  };
 
   const handleStageChange = () => {
     params.grade = '';
@@ -1258,6 +1294,12 @@
   .import-steps {
     padding: 0 24px 8px;
     margin-bottom: 24px;
+  }
+  .no-plan-tip {
+    font-size: 12px;
+    color: var(--el-color-warning);
+    margin-top: 4px;
+    line-height: 1.4;
   }
   .step-body {
     min-height: 320px;
