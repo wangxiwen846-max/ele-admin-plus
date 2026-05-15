@@ -11,7 +11,6 @@
       <div style="text-align: center">
         <el-button type="primary">返回列表</el-button>
         <el-button>查看项目</el-button>
-        <el-button>打印</el-button>
       </div>
       <div
         style="
