@@ -347,7 +347,7 @@ export const planStore = reactive({
   nextId: 15
 });
 
-// ─── 方案匹配 ──────────────────────────────────────────────────────────────
+// ─── 方案匹配 ────────────────────────────────────────���─────────────────────
 
 /**
  * 按条件筛选可用方案，优先级：
@@ -480,9 +480,3 @@ export const recordStore = reactive({
   nextId: 21
 });
 
-// ─── 记录工具 ──────────────────────────────────────────────────────────────
-
-export function countEnteredItems(record) {
-  if (!record?.scores) return 0;
-  return Object.values(record.scores).filter((v) => v !== '' && v != null).length;
-}
