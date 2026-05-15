@@ -90,6 +90,24 @@
           </el-form-item>
         </el-col>
         <el-col v-if="expand" :lg="6" :md="12" :sm="12" :xs="24">
+          <el-form-item label="适用时间">
+            <el-select
+              clearable
+              v-model="form.timeType"
+              placeholder="全部"
+              class="ele-fluid"
+              @change="handleTimeTypeChange"
+            >
+              <el-option
+                v-for="opt in TIME_TYPE_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col v-if="expand && form.timeType === 'specific'" :lg="6" :md="12" :sm="12" :xs="24">
           <el-form-item label="学年">
             <el-select
               clearable
@@ -106,7 +124,7 @@
             </el-select>
           </el-form-item>
         </el-col>
-        <el-col v-if="expand" :lg="6" :md="12" :sm="12" :xs="24">
+        <el-col v-if="expand && form.timeType === 'specific'" :lg="6" :md="12" :sm="12" :xs="24">
           <el-form-item label="学期">
             <el-select
               clearable
@@ -148,7 +166,8 @@
     STAGE_OPTIONS,
     SCHOOL_YEAR_OPTIONS,
     TERM_OPTIONS,
-    SCOPE_OPTIONS
+    SCOPE_OPTIONS,
+    TIME_TYPE_OPTIONS
   } from '@/views/fitness/data.js';
   import { regionCascaderOptions, pathToCode } from '@/utils/region-data.js';
 
@@ -161,12 +180,12 @@
     scopeType: '',
     region: '',
     stage: '',
+    timeType: '',
     schoolYear: '',
     term: '',
     status: ''
   });
 
-  /** cascader 单选路径（搜索用，非多选） */
   const regionSearchPath = ref([]);
 
   const handleRegionSearchChange = (path) => {
@@ -180,12 +199,20 @@
     }
   };
 
+  const handleTimeTypeChange = (val) => {
+    if (val !== 'specific') {
+      form.schoolYear = '';
+      form.term = '';
+    }
+  };
+
   const search = () => emit('search', { ...form });
   const reset = () => {
     form.planName = '';
     form.scopeType = '';
     form.region = '';
     form.stage = '';
+    form.timeType = '';
     form.schoolYear = '';
     form.term = '';
     form.status = '';

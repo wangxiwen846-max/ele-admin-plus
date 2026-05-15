@@ -65,11 +65,8 @@
       <el-descriptions-item label="适用年级">
         {{ (data.grades || []).join('、') }}
       </el-descriptions-item>
-      <el-descriptions-item label="学年">
-        {{ data.schoolYear }}
-      </el-descriptions-item>
-      <el-descriptions-item label="学期">
-        {{ getTermLabel(data.term) }}
+      <el-descriptions-item label="适用时间" :span="2">
+        {{ formatPlanTime(data) }}
       </el-descriptions-item>
       <el-descriptions-item label="状态">
         <ele-dot
@@ -127,9 +124,9 @@
   import { useModal } from 'ele-admin-plus';
   import {
     getStageLabel,
-    getTermLabel,
     getScopeLabel,
-    getRegionLabel
+    getRegionLabel,
+    formatPlanTime
   } from '@/views/fitness/data.js';
 
   const props = defineProps({ data: { type: Object, required: true } });

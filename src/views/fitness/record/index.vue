@@ -29,14 +29,6 @@
           >
             批量导入
           </el-button>
-          <el-button
-            :icon="DownloadOutlined"
-            class="ele-btn-icon"
-            style="margin-left: 12px"
-            @click="handleExport"
-          >
-            导出
-          </el-button>
         </template>
 
         <template #studentName="{ row }">
@@ -131,14 +123,14 @@
   import { EleMessage, useModal } from 'ele-admin-plus';
   import {
     PlusOutlined,
-    UploadOutlined,
-    DownloadOutlined
+    UploadOutlined
   } from '@/components/icons';
   import RecordSearch from './components/record-search.vue';
   import {
     recordStore,
     planStore,
-    countEnteredItems
+    countEnteredItems,
+    SCHOOL_OPTIONS
   } from '@/views/fitness/data.js';
 
   defineOptions({ name: 'FitnessRecord' });
@@ -147,11 +139,8 @@
 
   const tableRef = ref(null);
 
-  /** 默认筛选：当前学年 + 当前学期 */
-  const lastWhere = reactive({
-    schoolYear: '2025-2026',
-    term: 'fall'
-  });
+  /** 默认不预设筛选条件 */
+  const lastWhere = reactive({});
 
   const columns = ref([
     { type: 'index', columnKey: 'index', width: 60, align: 'center' },
@@ -164,7 +153,7 @@
     {
       prop: 'studentNo',
       label: '学号',
-      width: 90,
+      width: 80,
       align: 'center'
     },
     {
@@ -172,11 +161,6 @@
       label: '性别',
       width: 70,
       align: 'center'
-    },
-    {
-      prop: 'school',
-      label: '学校',
-      minWidth: 140
     },
     {
       columnKey: 'gradeClass',
@@ -241,6 +225,15 @@
 
   const datasource = ({ pages }) => {
     let result = [...recordStore.list];
+    if (lastWhere.unit) {
+      // unit 筛选：过滤学校所属单位（mock 中通过 SCHOOL_OPTIONS 关联）
+      const unitSchools = SCHOOL_OPTIONS
+        .filter((s) => s.unit === lastWhere.unit)
+        .map((s) => s.value);
+      if (unitSchools.length) {
+        result = result.filter((d) => unitSchools.includes(d.school));
+      }
+    }
     if (lastWhere.schoolYear) {
       result = result.filter((d) => d.schoolYear === lastWhere.schoolYear);
     }
@@ -249,9 +242,6 @@
     }
     if (lastWhere.school) {
       result = result.filter((d) => d.school === lastWhere.school);
-    }
-    if (lastWhere.stage) {
-      result = result.filter((d) => d.stage === lastWhere.stage);
     }
     if (lastWhere.grade) {
       result = result.filter((d) => d.grade === lastWhere.grade);
@@ -276,22 +266,15 @@
         (d) => d.studentName.includes(kw) || String(d.studentNo).includes(kw)
       );
     }
-    if (lastWhere.status) {
-      result = result.filter((d) => d.status === lastWhere.status);
-    }
-    // 测试日期倒序、更新时间倒序
+    // 排序：测试日期倒序
     result.sort((a, b) => {
-      if (a.testDate !== b.testDate) {
-        return b.testDate.localeCompare(a.testDate);
-      }
+      if (a.testDate !== b.testDate) return b.testDate.localeCompare(a.testDate);
       return b.updateTime.localeCompare(a.updateTime);
     });
-
     const total = result.length;
     const { page = 1, limit = 10 } = pages || {};
     const start = (page - 1) * limit;
-    const list = result.slice(start, start + limit);
-    return Promise.resolve({ list, count: total });
+    return Promise.resolve({ list: result.slice(start, start + limit), count: total });
   };
 
   const handleSearch = (where) => {
@@ -332,13 +315,6 @@
       custom: true,
       asyncComponent: () => import('./components/record-import.vue'),
       componentProps: { onDone: reload }
-    });
-  };
-
-  const handleExport = () => {
-    EleMessage.success({
-      message: '导出任务已提交，可在系统下载中心查看',
-      plain: true
     });
   };
 </script>

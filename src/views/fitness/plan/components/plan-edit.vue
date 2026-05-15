@@ -99,8 +99,18 @@
           </el-form-item>
         </el-col>
 
-        <!-- 学年 -->
+        <!-- 适用时间 -->
         <el-col :sm="12" :xs="24">
+          <el-form-item label="适用时间" prop="timeType">
+            <el-radio-group v-model="form.timeType" @change="handleTimeTypeChange">
+              <el-radio value="unlimited">不限</el-radio>
+              <el-radio value="specific">指定学年学期</el-radio>
+            </el-radio-group>
+          </el-form-item>
+        </el-col>
+
+        <!-- 学年（仅 specific 时显示） -->
+        <el-col v-if="form.timeType === 'specific'" :sm="12" :xs="24">
           <el-form-item label="学年" prop="schoolYear">
             <el-select
               v-model="form.schoolYear"
@@ -117,8 +127,8 @@
           </el-form-item>
         </el-col>
 
-        <!-- 学期 -->
-        <el-col :sm="12" :xs="24">
+        <!-- 学期（仅 specific 时显示） -->
+        <el-col v-if="form.timeType === 'specific'" :sm="12" :xs="24">
           <el-form-item label="学期" prop="term">
             <el-select
               v-model="form.term"
@@ -168,6 +178,7 @@
 
       <el-divider content-position="left" class="section-divider">
         项目配置
+        <span class="section-hint">拖动行或使用上移 / 下移按钮调整顺序</span>
       </el-divider>
       <el-table
         :data="form.items"
@@ -175,7 +186,11 @@
         size="default"
         class="item-table"
       >
-        <el-table-column label="#" width="56" align="center" type="index" />
+        <el-table-column label="#" width="44" align="center">
+          <template #default="{ $index }">
+            <span class="sort-index">{{ $index + 1 }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="项目名称" min-width="140">
           <template #default="{ row }">
             <span>{{ row.name }}</span>
@@ -201,16 +216,24 @@
             </el-radio-group>
           </template>
         </el-table-column>
-        <el-table-column label="展示顺序" width="120" align="center">
-          <template #default="{ row }">
-            <el-input-number
-              v-model="row.sort"
-              :min="1"
-              :max="99"
-              :controls="false"
+        <el-table-column label="排序" width="120" align="center">
+          <template #default="{ $index }">
+            <el-button
+              text
               size="small"
-              style="width: 80px"
-            />
+              :disabled="$index === 0"
+              @click="moveItem($index, -1)"
+            >
+              上移
+            </el-button>
+            <el-button
+              text
+              size="small"
+              :disabled="$index === form.items.length - 1"
+              @click="moveItem($index, 1)"
+            >
+              下移
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -270,6 +293,7 @@
     regions: [],
     stage: '',
     grades: [],
+    timeType: 'unlimited',
     schoolYear: '2025-2026',
     term: 'fall',
     isDefault: false,
@@ -295,13 +319,30 @@
     ],
     stage: [{ required: true, message: '请选择学段', trigger: 'change' }],
     grades: [{ required: true, type: 'array', message: '请选择适用年级', trigger: 'change' }],
-    schoolYear: [{ required: true, message: '请选择学年', trigger: 'change' }],
-    term: [{ required: true, message: '请选择学期', trigger: 'change' }]
+    timeType: [{ required: true, message: '请选择适用时间', trigger: 'change' }],
+    schoolYear: [
+      {
+        validator: (_, value, cb) => {
+          if (form.timeType === 'specific' && !value) cb(new Error('请选择学年'));
+          else cb();
+        },
+        trigger: 'change'
+      }
+    ],
+    term: [
+      {
+        validator: (_, value, cb) => {
+          if (form.timeType === 'specific' && !value) cb(new Error('请选择学期'));
+          else cb();
+        },
+        trigger: 'change'
+      }
+    ]
   });
 
   const gradeOptions = computed(() => GRADE_OPTIONS[form.stage] ?? []);
 
-  /** el-cascader 多选配置：多选、只显示叶子节点 */
+  /** el-cascader 多选配置 */
   const cascaderProps = {
     multiple: true,
     checkStrictly: false,
@@ -311,10 +352,6 @@
     children: 'children'
   };
 
-  /**
-   * el-cascader 的 v-model 值：每个选中项是 [provinceCode, cityCode] 路径数组
-   * 与 form.regions（城市 code 字符串数组）双向映射
-   */
   const regionPaths = computed({
     get() {
       return (form.regions ?? []).map((code) => codeToPath(code));
@@ -328,15 +365,29 @@
     formRef.value?.clearValidate('regions');
   };
 
+  const handleTimeTypeChange = (val) => {
+    if (val === 'unlimited') {
+      form.schoolYear = '';
+      form.term = '';
+    } else {
+      form.schoolYear = form.schoolYear || '2025-2026';
+      form.term = form.term || 'fall';
+    }
+    formRef.value?.clearValidate(['schoolYear', 'term']);
+  };
+
   if (props.data) {
     const source = JSON.parse(JSON.stringify(props.data));
     const mergedItems = initItems().map((base) => {
       const existed = source.items?.find((d) => d.code === base.code);
       return existed ? { ...base, ...existed } : base;
     });
+    // 兼容旧数据（无 timeType 字段时按 unlimited 处理）
+    const timeType = source.timeType ?? (source.schoolYear ? 'specific' : 'unlimited');
     Object.assign(form, source, {
       scopeType: source.scopeType ?? 'general',
       regions: source.regions ?? [],
+      timeType,
       items: mergedItems
     });
   }
@@ -348,6 +399,18 @@
 
   const handleStageChange = () => {
     form.grades = [];
+  };
+
+  /** 上移 / 下移 */
+  const moveItem = (index, dir) => {
+    const target = index + dir;
+    if (target < 0 || target >= form.items.length) return;
+    const arr = form.items;
+    const tmp = arr[index];
+    arr[index] = arr[target];
+    arr[target] = tmp;
+    // 同步 sort 字段
+    arr.forEach((it, i) => { it.sort = i + 1; });
   };
 
   const handleCancel = () => closeModal();
@@ -363,6 +426,11 @@
       setTimeout(() => {
         const now = formatNow();
         const payload = JSON.parse(JSON.stringify(form));
+        // 不限时间时清空学年学期
+        if (payload.timeType === 'unlimited') {
+          payload.schoolYear = '';
+          payload.term = '';
+        }
         if (isUpdate.value) {
           const target = planStore.list.find((d) => d.planId === payload.planId);
           if (target) Object.assign(target, payload, { updateTime: now });
@@ -398,6 +466,16 @@
       font-weight: 600;
       background: var(--el-bg-color);
     }
+  }
+  .section-hint {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    font-weight: normal;
+    margin-left: 8px;
+  }
+  .sort-index {
+    color: var(--el-text-color-secondary);
+    font-size: 13px;
   }
   .item-unit {
     color: var(--el-text-color-secondary);

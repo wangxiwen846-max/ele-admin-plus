@@ -10,18 +10,18 @@ import { getRegionPathLabel } from '@/utils/region-data.js';
 
 /** 体测项目全集 */
 export const FITNESS_ITEMS = [
-  { code: 'height',         name: '身高',         unit: 'cm', gender: 'all' },
-  { code: 'weight',         name: '体重',         unit: 'kg', gender: 'all' },
-  { code: 'vitalCapacity',  name: '肺活量',       unit: 'ml', gender: 'all' },
-  { code: 'sprint50',       name: '50米跑',       unit: '秒', gender: 'all' },
-  { code: 'sitAndReach',    name: '坐位体前屈',   unit: 'cm', gender: 'all' },
-  { code: 'ropeSkipping1Min', name: '1分钟跳绳', unit: '次', gender: 'all' },
-  { code: 'sitUp1Min',      name: '1分钟仰卧起坐', unit: '次', gender: 'all' },
-  { code: 'shuttleRun50x8', name: '50米×8往返跑', unit: '秒', gender: 'all' },
-  { code: 'longJump',       name: '立定跳远',     unit: 'cm', gender: 'all' },
-  { code: 'pullUp',         name: '引体向上',     unit: '次', gender: 'male' },
-  { code: 'run800',         name: '800米跑',      unit: '秒', gender: 'female' },
-  { code: 'run1000',        name: '1000米跑',     unit: '秒', gender: 'male' }
+  { code: 'height',           name: '身高',           unit: 'cm', gender: 'all' },
+  { code: 'weight',           name: '体重',           unit: 'kg', gender: 'all' },
+  { code: 'vitalCapacity',    name: '肺活量',         unit: 'ml', gender: 'all' },
+  { code: 'sprint50',         name: '50米跑',         unit: '秒', gender: 'all' },
+  { code: 'sitAndReach',      name: '坐位体前屈',     unit: 'cm', gender: 'all' },
+  { code: 'ropeSkipping1Min', name: '1分钟跳绳',      unit: '次', gender: 'all' },
+  { code: 'sitUp1Min',        name: '1分钟仰卧起坐',  unit: '次', gender: 'all' },
+  { code: 'shuttleRun50x8',   name: '50米×8往返跑',   unit: '秒', gender: 'all' },
+  { code: 'longJump',         name: '立定跳远',       unit: 'cm', gender: 'all' },
+  { code: 'pullUp',           name: '引体向上',       unit: '次', gender: 'male' },
+  { code: 'run800',           name: '800米跑',        unit: '秒', gender: 'female' },
+  { code: 'run1000',          name: '1000米跑',       unit: '秒', gender: 'male' }
 ];
 
 /** 学段选项 */
@@ -41,12 +41,18 @@ export const GRADE_OPTIONS = {
 };
 
 /** 学年选项 */
-export const SCHOOL_YEAR_OPTIONS = ['2025-2026', '2024-2025', '2023-2024'];
+export const SCHOOL_YEAR_OPTIONS = ['2025-2026', '2026-2027', '2024-2025', '2023-2024'];
 
 /** 学期选项 */
 export const TERM_OPTIONS = [
-  { value: 'fall',   label: '第一学期' },
-  { value: 'spring', label: '第二学期' }
+  { value: 'fall',   label: '上学期' },
+  { value: 'spring', label: '下学期' }
+];
+
+/** 适用时间类型 */
+export const TIME_TYPE_OPTIONS = [
+  { value: 'unlimited', label: '不限' },
+  { value: 'specific',  label: '指定学年学期' }
 ];
 
 /** 适用范围类型 */
@@ -60,13 +66,21 @@ export const SCOPE_OPTIONS = [
  * region 为市级 code（6位），与 china-area-data 对应
  */
 export const SCHOOL_OPTIONS = [
-  { value: '海淀实验学校',       label: '海淀实验学校',       region: '110100' },
-  { value: '南昌市育新学校',     label: '南昌市育新学校',     region: '360100' },
-  { value: '深圳南山实验学校',   label: '深圳南山实验学校',   region: '440300' },
-  { value: '育才中学',           label: '育才中学',           region: '360100' },
-  { value: '阳光实验小学',       label: '阳光实验小学',       region: '440100' },
-  { value: '第一高级中学',       label: '第一高级中学',       region: '440300' },
-  { value: '建华大学',           label: '建华大学',           region: '110100' }
+  { value: '海淀实验学校',       label: '海淀实验学校',       region: '110100', unit: '北京海淀区教育局' },
+  { value: '南昌市育新学校',     label: '南昌市育新学校',     region: '360100', unit: '江西省南昌市教育局' },
+  { value: '深圳南山实验学校',   label: '深圳南山实验学校',   region: '440300', unit: '广东省深圳市教育局' },
+  { value: '育才中学',           label: '育才中学',           region: '360100', unit: '江西省南昌市教育局' },
+  { value: '阳光实验小学',       label: '阳光实验小学',       region: '440100', unit: '广东省广州市教育局' },
+  { value: '第一高级中学',       label: '第一高级中学',       region: '440300', unit: '广东省深圳市教育局' },
+  { value: '建华大学',           label: '建华大学',           region: '110100', unit: '北京海淀区教育局' }
+];
+
+/** 所在单位（上级机构/区域/集团） */
+export const UNIT_OPTIONS = [
+  { value: '北京海淀区教育局',     label: '北京海淀区教育局' },
+  { value: '江西省南昌市教育局',   label: '江西省南昌市教育局' },
+  { value: '广东省深圳市教育局',   label: '广东省深圳市教育局' },
+  { value: '广东省广州市教育局',   label: '广东省广州市教育局' }
 ];
 
 /** 班级选项 */
@@ -83,6 +97,21 @@ export const RECORD_STATUS_OPTIONS = [
   { value: 'valid',   label: '有效' },
   { value: 'invalid', label: '已作废' }
 ];
+
+/**
+ * 模拟登录角色（用于演示按权限展示字段）
+ *   teacher  — 普通教师
+ *   school   — 学校管理员
+ *   admin    — 平台/区域管理员
+ */
+export const ROLE_OPTIONS = [
+  { value: 'teacher', label: '普通教师' },
+  { value: 'school',  label: '学校管理员' },
+  { value: 'admin',   label: '平台/区域管理员' }
+];
+
+/** 当前模拟登录角色（可在调试时切换） */
+export const currentRole = { value: 'admin' };
 
 // ─── 工具函数 ──────────────────────────────────────────────────────────────
 
@@ -112,7 +141,19 @@ export function getScopeLabel(value) {
 }
 
 /**
- * 根据城市 code（或省级 code）获取简短地区名（市名或省名）
+ * 格式化方案适用时间展示
+ *   timeType === 'unlimited'  => "不限"
+ *   timeType === 'specific'   => "2026-2027 上学期"
+ */
+export function formatPlanTime(plan) {
+  if (!plan) return '';
+  if (plan.timeType === 'unlimited' || !plan.timeType) return '不限';
+  const term = getTermLabel(plan.term);
+  return `${plan.schoolYear} ${term}`;
+}
+
+/**
+ * 根据城市 code 获取地区 label
  * 委托给 region-data.js，返回完整路径 "广东省 / 深圳市"
  */
 export function getRegionLabel(code) {
@@ -136,6 +177,14 @@ export function getItem(code) {
   return FITNESS_ITEMS.find((d) => d.code === code);
 }
 
+/** 计算一条记录中已填项目数 */
+export function countEnteredItems(record) {
+  if (!record?.scores) return 0;
+  return Object.values(record.scores).filter(
+    (v) => v !== '' && v != null && !Number.isNaN(Number(v)) && Number(v) > 0
+  ).length;
+}
+
 /** 构造方案项目配置 */
 function buildItemConfig(codes) {
   return codes.map((code, idx) => {
@@ -156,16 +205,19 @@ function buildItemConfig(codes) {
 
 /**
  * planStore.list 每条方案结构：
- *   regions: string[]  — 行政区划 code 数组（市级或省级），通用方案为 []
+ *   timeType:   'unlimited' | 'specific'  — 适用时间类型
+ *   schoolYear: string | ''               — 仅 timeType==='specific' 时有效
+ *   term:       'fall'|'spring'|''        — 仅 timeType==='specific' 时有效
+ *   regions:    string[]                  — 行政区划 code 数组，通用方案为 []
  */
 export const planStore = reactive({
   list: [
-    // ── 通用方案 ──
+    // ── 通用方案（不限时间） ──
     {
       planId: 1, planName: '通用小学1-2年级体测方案',
       scopeType: 'general', regions: [],
+      timeType: 'unlimited', schoolYear: '', term: '',
       stage: 'primary', grades: ['一年级', '二年级'],
-      schoolYear: '2025-2026', term: 'fall',
       isDefault: true, status: 1,
       remark: '全国通用，适用于小学低年级基础体测',
       updateTime: '2025-09-10 10:32:15', createTime: '2025-08-20 09:00:00',
@@ -174,8 +226,8 @@ export const planStore = reactive({
     {
       planId: 2, planName: '通用小学3-4年级体测方案',
       scopeType: 'general', regions: [],
+      timeType: 'unlimited', schoolYear: '', term: '',
       stage: 'primary', grades: ['三年级', '四年级'],
-      schoolYear: '2025-2026', term: 'fall',
       isDefault: false, status: 1, remark: '',
       updateTime: '2025-09-12 14:21:08', createTime: '2025-08-21 09:10:00',
       items: buildItemConfig(['height','weight','vitalCapacity','sprint50','sitAndReach','ropeSkipping1Min','sitUp1Min'])
@@ -183,8 +235,8 @@ export const planStore = reactive({
     {
       planId: 3, planName: '通用小学5-6年级体测方案',
       scopeType: 'general', regions: [],
+      timeType: 'unlimited', schoolYear: '', term: '',
       stage: 'primary', grades: ['五年级', '六年级'],
-      schoolYear: '2025-2026', term: 'fall',
       isDefault: false, status: 1, remark: '高年级增加往返跑',
       updateTime: '2025-09-15 11:02:30', createTime: '2025-08-22 09:20:00',
       items: buildItemConfig(['height','weight','vitalCapacity','sprint50','sitAndReach','ropeSkipping1Min','sitUp1Min','shuttleRun50x8'])
@@ -192,8 +244,8 @@ export const planStore = reactive({
     {
       planId: 4, planName: '通用初中体测方案',
       scopeType: 'general', regions: [],
+      timeType: 'unlimited', schoolYear: '', term: '',
       stage: 'junior', grades: ['初一', '初二', '初三'],
-      schoolYear: '2025-2026', term: 'fall',
       isDefault: true, status: 1,
       remark: '含男生引体向上/女生仰卧起坐、男生1000米/女生800米',
       updateTime: '2025-09-18 16:45:50', createTime: '2025-08-23 09:30:00',
@@ -202,8 +254,8 @@ export const planStore = reactive({
     {
       planId: 5, planName: '通用高中体测方案',
       scopeType: 'general', regions: [],
+      timeType: 'unlimited', schoolYear: '', term: '',
       stage: 'senior', grades: ['高一', '高二', '高三'],
-      schoolYear: '2025-2026', term: 'fall',
       isDefault: true, status: 1, remark: '',
       updateTime: '2025-09-20 09:18:24', createTime: '2025-08-24 09:40:00',
       items: buildItemConfig(['height','weight','vitalCapacity','sprint50','sitAndReach','longJump','pullUp','sitUp1Min','run1000','run800'])
@@ -211,75 +263,99 @@ export const planStore = reactive({
     {
       planId: 6, planName: '通用大学体测方案',
       scopeType: 'general', regions: [],
+      timeType: 'unlimited', schoolYear: '', term: '',
       stage: 'college', grades: ['大一', '大二', '大三', '大四'],
-      schoolYear: '2025-2026', term: 'fall',
       isDefault: true, status: 1, remark: '',
       updateTime: '2025-09-22 15:03:11', createTime: '2025-08-25 09:50:00',
       items: buildItemConfig(['height','weight','vitalCapacity','sprint50','sitAndReach','longJump','pullUp','sitUp1Min','run1000','run800'])
     },
-    // ── 指定地区方案（使用真实行政区划 code） ──
+    // ── 指定地区方案（不限时间） ──
     {
       planId: 7, planName: '南昌市小学5-6年级体测方案',
-      scopeType: 'region', regions: ['360100'],  // 江西省南昌市
+      scopeType: 'region', regions: ['360100'],
+      timeType: 'unlimited', schoolYear: '', term: '',
       stage: 'primary', grades: ['五年级', '六年级'],
-      schoolYear: '2025-2026', term: 'fall',
       isDefault: false, status: 1, remark: '南昌市地方标准，增加立定跳远',
       updateTime: '2025-09-16 09:00:00', createTime: '2025-09-01 10:00:00',
       items: buildItemConfig(['height','weight','vitalCapacity','sprint50','sitAndReach','ropeSkipping1Min','sitUp1Min','shuttleRun50x8','longJump'])
     },
     {
       planId: 8, planName: '深圳市高中体测方案',
-      scopeType: 'region', regions: ['440300'],  // 广东省深圳市
+      scopeType: 'region', regions: ['440300'],
+      timeType: 'unlimited', schoolYear: '', term: '',
       stage: 'senior', grades: ['高一', '高二', '高三'],
-      schoolYear: '2025-2026', term: 'fall',
       isDefault: false, status: 1, remark: '深圳市教育局标准',
       updateTime: '2025-09-17 14:30:00', createTime: '2025-09-02 11:00:00',
       items: buildItemConfig(['height','weight','vitalCapacity','sprint50','sitAndReach','longJump','pullUp','sitUp1Min','run1000','run800'])
     },
     {
       planId: 9, planName: '北京市大学体测方案',
-      scopeType: 'region', regions: ['110100'],  // 北京市（市辖区）
+      scopeType: 'region', regions: ['110100'],
+      timeType: 'unlimited', schoolYear: '', term: '',
       stage: 'college', grades: ['大一', '大二', '大三', '大四'],
-      schoolYear: '2025-2026', term: 'fall',
       isDefault: false, status: 1, remark: '北京市高校体测专项标准',
       updateTime: '2025-09-19 10:00:00', createTime: '2025-09-03 09:00:00',
       items: buildItemConfig(['height','weight','vitalCapacity','sprint50','sitAndReach','longJump','pullUp','sitUp1Min','run1000','run800'])
     },
     {
       planId: 10, planName: '南昌/九江初中体测方案',
-      scopeType: 'region', regions: ['360100', '360400'],  // 江西省南昌市、九江市
+      scopeType: 'region', regions: ['360100', '360400'],
+      timeType: 'unlimited', schoolYear: '', term: '',
       stage: 'junior', grades: ['初一', '初二', '初三'],
-      schoolYear: '2025-2026', term: 'fall',
       isDefault: false, status: 1, remark: '江西省南昌市、九江市地方标准',
       updateTime: '2025-09-21 11:00:00', createTime: '2025-09-04 09:30:00',
       items: buildItemConfig(['height','weight','vitalCapacity','sprint50','sitAndReach','longJump','pullUp','sitUp1Min','run1000','run800'])
     },
     {
       planId: 11, planName: '广州市小学1-2年级体测方案',
-      scopeType: 'region', regions: ['440100'],  // 广东省广州市
+      scopeType: 'region', regions: ['440100'],
+      timeType: 'unlimited', schoolYear: '', term: '',
       stage: 'primary', grades: ['一年级', '二年级'],
-      schoolYear: '2025-2026', term: 'fall',
       isDefault: false, status: 1, remark: '广州市教育局标准',
       updateTime: '2025-09-23 10:00:00', createTime: '2025-09-05 09:00:00',
       items: buildItemConfig(['height','weight','vitalCapacity','sprint50','sitAndReach','ropeSkipping1Min'])
     },
+    // ── 指定学年学期方案（示例） ──
     {
-      planId: 12, planName: '2024-2025通用小学1-2年级（历史）',
+      planId: 12, planName: '2025-2026上学期通用初中体测方案',
       scopeType: 'general', regions: [],
+      timeType: 'specific', schoolYear: '2025-2026', term: 'fall',
+      stage: 'junior', grades: ['初一', '初二', '初三'],
+      isDefault: false, status: 1, remark: '指定学年学期版本，优先于不限时间版本',
+      updateTime: '2025-09-25 09:00:00', createTime: '2025-09-10 09:00:00',
+      items: buildItemConfig(['height','weight','vitalCapacity','sprint50','sitAndReach','longJump','pullUp','sitUp1Min','run1000','run800'])
+    },
+    {
+      planId: 13, planName: '2025-2026上学期深圳高中体测方案',
+      scopeType: 'region', regions: ['440300'],
+      timeType: 'specific', schoolYear: '2025-2026', term: 'fall',
+      stage: 'senior', grades: ['高一', '高二', '高三'],
+      isDefault: false, status: 1, remark: '深圳市2025-2026学年上学期专项方案',
+      updateTime: '2025-09-26 10:00:00', createTime: '2025-09-11 09:00:00',
+      items: buildItemConfig(['height','weight','vitalCapacity','sprint50','sitAndReach','longJump','pullUp','sitUp1Min','run1000','run800'])
+    },
+    {
+      planId: 14, planName: '2024-2025历史小学1-2年级方案',
+      scopeType: 'general', regions: [],
+      timeType: 'specific', schoolYear: '2024-2025', term: 'spring',
       stage: 'primary', grades: ['一年级', '二年级'],
-      schoolYear: '2024-2025', term: 'spring',
       isDefault: false, status: 0, remark: '已停用，保留历史数据',
       updateTime: '2025-03-15 10:00:00', createTime: '2024-08-20 09:00:00',
       items: buildItemConfig(['height','weight','vitalCapacity','sprint50','sitAndReach','ropeSkipping1Min'])
     }
   ],
-  nextId: 13
+  nextId: 15
 });
 
-// ─── 方案匹配 ──────────────────────────────────────────────────────────────
+// ─── 方案匹配 ────────────────────────────────────────���─────────────────────
 
 /**
- * 按条件筛选可用方案，指定地区方案优先于通用方案
+ * 按条件筛选可用方案，优先级：
+ *   1. 指定地区 + 指定学年学期
+ *   2. 指定地区 + 不限时间
+ *   3. 通用    + 指定学年学期
+ *   4. 通用    + 不限时间
+ *
  * @param {{ region?: string, stage?: string, grade?: string, schoolYear?: string, term?: string }} opts
  */
 export function matchPlans(opts = {}) {
@@ -289,22 +365,36 @@ export function matchPlans(opts = {}) {
   const matchBase = (p) => {
     if (stage && p.stage !== stage) return false;
     if (grade && Array.isArray(p.grades) && !p.grades.includes(grade)) return false;
+    return true;
+  };
+
+  const matchTime = (p) => {
+    if (p.timeType === 'unlimited') return true;
+    if (!schoolYear && !term) return true; // 没有时间条件时不过滤
     if (schoolYear && p.schoolYear !== schoolYear) return false;
     if (term && p.term !== term) return false;
     return true;
   };
 
-  const regional = region
-    ? enabled.filter(
-        (p) => p.scopeType === 'region' && (p.regions ?? []).includes(region) && matchBase(p)
-      )
-    : [];
+  const isRegion = (p) =>
+    p.scopeType === 'region' && !!region && (p.regions ?? []).includes(region);
 
-  const general = enabled.filter((p) => p.scopeType === 'general' && matchBase(p));
+  const isGeneral = (p) => p.scopeType === 'general';
 
-  const prioritized = regional.length > 0 ? regional : general;
+  // 四个优先级桶
+  const tier1 = enabled.filter((p) => isRegion(p)   && p.timeType === 'specific' && matchBase(p) && matchTime(p));
+  const tier2 = enabled.filter((p) => isRegion(p)   && p.timeType === 'unlimited' && matchBase(p));
+  const tier3 = enabled.filter((p) => isGeneral(p)  && p.timeType === 'specific' && matchBase(p) && matchTime(p));
+  const tier4 = enabled.filter((p) => isGeneral(p)  && p.timeType === 'unlimited' && matchBase(p));
 
-  return { regional, general, prioritized };
+  // 取最高优先级非空桶
+  let prioritized;
+  if (tier1.length)      prioritized = tier1;
+  else if (tier2.length) prioritized = tier2;
+  else if (tier3.length) prioritized = tier3;
+  else                   prioritized = tier4;
+
+  return { tier1, tier2, tier3, tier4, prioritized };
 }
 
 // ─── 记录 store ────────────────────────────────────────────────────────────
@@ -316,19 +406,19 @@ function mockScores(plan, sex) {
     if (it.gender === 'male'   && sex !== 'male')   return;
     if (it.gender === 'female' && sex !== 'female') return;
     switch (it.code) {
-      case 'height':          scores[it.code] = (140 + Math.floor(Math.random() * 40)).toFixed(1); break;
-      case 'weight':          scores[it.code] = (35  + Math.floor(Math.random() * 30)).toFixed(1); break;
-      case 'vitalCapacity':   scores[it.code] = 1800 + Math.floor(Math.random() * 1800); break;
-      case 'sprint50':        scores[it.code] = (8   + Math.random() * 3).toFixed(1); break;
-      case 'sitAndReach':     scores[it.code] = (5   + Math.random() * 12).toFixed(1); break;
-      case 'ropeSkipping1Min':scores[it.code] = 80  + Math.floor(Math.random() * 80); break;
-      case 'sitUp1Min':       scores[it.code] = 20  + Math.floor(Math.random() * 30); break;
-      case 'shuttleRun50x8':  scores[it.code] = (90 + Math.random() * 30).toFixed(1); break;
-      case 'longJump':        scores[it.code] = 140 + Math.floor(Math.random() * 60); break;
-      case 'pullUp':          scores[it.code] = Math.floor(Math.random() * 15); break;
-      case 'run800':          scores[it.code] = (210 + Math.random() * 60).toFixed(0); break;
-      case 'run1000':         scores[it.code] = (240 + Math.random() * 60).toFixed(0); break;
-      default:                scores[it.code] = '';
+      case 'height':           scores[it.code] = (140 + Math.floor(Math.random() * 40)).toFixed(1); break;
+      case 'weight':           scores[it.code] = (35  + Math.floor(Math.random() * 30)).toFixed(1); break;
+      case 'vitalCapacity':    scores[it.code] = 1800 + Math.floor(Math.random() * 1800); break;
+      case 'sprint50':         scores[it.code] = (8   + Math.random() * 3).toFixed(1); break;
+      case 'sitAndReach':      scores[it.code] = (5   + Math.random() * 12).toFixed(1); break;
+      case 'ropeSkipping1Min': scores[it.code] = 80  + Math.floor(Math.random() * 80); break;
+      case 'sitUp1Min':        scores[it.code] = 20  + Math.floor(Math.random() * 30); break;
+      case 'shuttleRun50x8':   scores[it.code] = (90 + Math.random() * 30).toFixed(1); break;
+      case 'longJump':         scores[it.code] = 140 + Math.floor(Math.random() * 60); break;
+      case 'pullUp':           scores[it.code] = Math.floor(Math.random() * 15); break;
+      case 'run800':           scores[it.code] = (210 + Math.random() * 60).toFixed(0); break;
+      case 'run1000':          scores[it.code] = (240 + Math.random() * 60).toFixed(0); break;
+      default:                 scores[it.code] = '';
     }
   });
   return scores;
@@ -350,7 +440,9 @@ function buildRecord(id, opts) {
     age: opts.age, school: opts.school,
     stage: plan?.stage, grade: opts.grade, className: opts.className,
     planId: plan?.planId, planName: plan?.planName,
-    testDate: opts.testDate, schoolYear: plan?.schoolYear, term: plan?.term,
+    testDate: opts.testDate,
+    schoolYear: plan?.timeType === 'specific' ? plan.schoolYear : '2025-2026',
+    term: plan?.timeType === 'specific' ? plan.term : 'fall',
     recordType: opts.recordType ?? 'normal',
     status: opts.status ?? 'valid',
     remark: opts.remark ?? '',
@@ -388,9 +480,3 @@ export const recordStore = reactive({
   nextId: 21
 });
 
-// ─── 记录工具 ──────────────────────────────────────────────────────────────
-
-export function countEnteredItems(record) {
-  if (!record?.scores) return 0;
-  return Object.values(record.scores).filter((v) => v !== '' && v != null).length;
-}
