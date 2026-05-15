@@ -138,7 +138,8 @@
   import {
     recordStore,
     planStore,
-    countEnteredItems
+    countEnteredItems,
+    SCHOOL_OPTIONS
   } from '@/views/fitness/data.js';
 
   defineOptions({ name: 'FitnessRecord' });
@@ -233,6 +234,15 @@
 
   const datasource = ({ pages }) => {
     let result = [...recordStore.list];
+    if (lastWhere.unit) {
+      // unit 筛选：过滤学校所属单位（mock 中通过 SCHOOL_OPTIONS 关联）
+      const unitSchools = SCHOOL_OPTIONS
+        .filter((s) => s.unit === lastWhere.unit)
+        .map((s) => s.value);
+      if (unitSchools.length) {
+        result = result.filter((d) => unitSchools.includes(d.school));
+      }
+    }
     if (lastWhere.schoolYear) {
       result = result.filter((d) => d.schoolYear === lastWhere.schoolYear);
     }

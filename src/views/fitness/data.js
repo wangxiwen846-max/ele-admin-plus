@@ -66,13 +66,13 @@ export const SCOPE_OPTIONS = [
  * region 为市级 code（6位），与 china-area-data 对应
  */
 export const SCHOOL_OPTIONS = [
-  { value: '海淀实验学校',       label: '海淀实验学校',       region: '110100' },
-  { value: '南昌市育新学校',     label: '南昌市育新学校',     region: '360100' },
-  { value: '深圳南山实验学校',   label: '深圳南山实验学校',   region: '440300' },
-  { value: '育才中学',           label: '育才中学',           region: '360100' },
-  { value: '阳光实验小学',       label: '阳光实验小学',       region: '440100' },
-  { value: '第一高级中学',       label: '第一高级中学',       region: '440300' },
-  { value: '建华大学',           label: '建华大学',           region: '110100' }
+  { value: '海淀实验学校',       label: '海淀实验学校',       region: '110100', unit: '北京海淀区教育局' },
+  { value: '南昌市育新学校',     label: '南昌市育新学校',     region: '360100', unit: '江西省南昌市教育局' },
+  { value: '深圳南山实验学校',   label: '深圳南山实验学校',   region: '440300', unit: '广东省深圳市教育局' },
+  { value: '育才中学',           label: '育才中学',           region: '360100', unit: '江西省南昌市教育局' },
+  { value: '阳光实验小学',       label: '阳光实验小学',       region: '440100', unit: '广东省广州市教育局' },
+  { value: '第一高级中学',       label: '第一高级中学',       region: '440300', unit: '广东省深圳市教育局' },
+  { value: '建华大学',           label: '建华大学',           region: '110100', unit: '北京海淀区教育局' }
 ];
 
 /** 所在单位（上级机构/区域/集团） */
@@ -97,6 +97,21 @@ export const RECORD_STATUS_OPTIONS = [
   { value: 'valid',   label: '有效' },
   { value: 'invalid', label: '已作废' }
 ];
+
+/**
+ * 模拟登录角色（用于演示按权限展示字段）
+ *   teacher  — 普通教师
+ *   school   — 学校管理员
+ *   admin    — 平台/区域管理员
+ */
+export const ROLE_OPTIONS = [
+  { value: 'teacher', label: '普通教师' },
+  { value: 'school',  label: '学校管理员' },
+  { value: 'admin',   label: '平台/区域管理员' }
+];
+
+/** 当前模拟登录角色（可在调试时切换） */
+export const currentRole = { value: 'admin' };
 
 // ─── 工具函数 ──────────────────────────────────────────────────────────────
 
@@ -160,6 +175,14 @@ export function formatRegions(regions = [], maxShow = 2) {
 /** 根据项目 code 得到项目对象 */
 export function getItem(code) {
   return FITNESS_ITEMS.find((d) => d.code === code);
+}
+
+/** 计算一条记录中已填项目数 */
+export function countEnteredItems(record) {
+  if (!record?.scores) return 0;
+  return Object.values(record.scores).filter(
+    (v) => v !== '' && v != null && !Number.isNaN(Number(v)) && Number(v) > 0
+  ).length;
 }
 
 /** 构造方案项目配置 */
