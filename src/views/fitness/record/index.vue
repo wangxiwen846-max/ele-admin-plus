@@ -29,14 +29,6 @@
           >
             批量导入
           </el-button>
-          <el-button
-            :icon="DownloadOutlined"
-            class="ele-btn-icon"
-            style="margin-left: 12px"
-            @click="handleExport"
-          >
-            导出
-          </el-button>
         </template>
 
         <template #studentName="{ row }">
@@ -131,8 +123,7 @@
   import { EleMessage, useModal } from 'ele-admin-plus';
   import {
     PlusOutlined,
-    UploadOutlined,
-    DownloadOutlined
+    UploadOutlined
   } from '@/components/icons';
   import RecordSearch from './components/record-search.vue';
   import {
@@ -324,13 +315,6 @@
       custom: true,
       asyncComponent: () => import('./components/record-import.vue'),
       componentProps: { onDone: reload }
-    });
-  };
-
-  const handleExport = () => {
-    EleMessage.success({
-      message: '导出任务已提交，可在系统下载中心查看',
-      plain: true
     });
   };
 </script>
