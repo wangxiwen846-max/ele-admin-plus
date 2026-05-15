@@ -83,17 +83,6 @@
             </el-form-item>
           </el-col>
 
-          <!-- 只读：适用地区 -->
-          <el-col :sm="12" :xs="24">
-            <el-form-item label="适用地区">
-              <el-input
-                :model-value="params.schoolRegionLabel || (effectiveSchool ? '—' : '')"
-                placeholder="选择学校后自动带出"
-                readonly
-              />
-            </el-form-item>
-          </el-col>
-
           <!-- 只读：学段（自动带出） -->
           <el-col :sm="12" :xs="24">
             <el-form-item label="学段">

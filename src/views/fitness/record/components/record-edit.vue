@@ -73,17 +73,6 @@
           </el-form-item>
         </el-col>
 
-        <!-- 适用地区（只读，自动带出） -->
-        <el-col v-if="role !== 'teacher'" :sm="12" :xs="24">
-          <el-form-item label="适用地区">
-            <el-input
-              :model-value="form.schoolRegionLabel || (form.school ? '—' : '')"
-              placeholder="选择学校后自动带出"
-              readonly
-            />
-          </el-form-item>
-        </el-col>
-
         <!-- 学段（只读，自动带出） -->
         <el-col :sm="12" :xs="24">
           <el-form-item label="学段">
