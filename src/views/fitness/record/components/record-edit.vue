@@ -73,17 +73,6 @@
           </el-form-item>
         </el-col>
 
-        <!-- 学段（只读，自动带出） -->
-        <el-col :sm="12" :xs="24">
-          <el-form-item label="学段">
-            <el-input
-              :model-value="stageLabel || ''"
-              placeholder="根据年级自动带出"
-              readonly
-            />
-          </el-form-item>
-        </el-col>
-
         <!-- 学校管理员/平台管理员：年级 -->
         <el-col v-if="role !== 'teacher'" :sm="12" :xs="24">
           <el-form-item label="年级" prop="grade">

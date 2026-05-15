@@ -190,7 +190,7 @@
     },
     {
       columnKey: 'planTime',
-      label: '适用时间',
+      label: '适用期限',
       width: 180,
       align: 'center',
       slot: 'planTime'
