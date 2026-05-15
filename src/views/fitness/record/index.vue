@@ -147,11 +147,8 @@
 
   const tableRef = ref(null);
 
-  /** 默认筛选：当前学年 + 当前学期 */
-  const lastWhere = reactive({
-    schoolYear: '2025-2026',
-    term: 'fall'
-  });
+  /** 默认不预设筛选条件 */
+  const lastWhere = reactive({});
 
   const columns = ref([
     { type: 'index', columnKey: 'index', width: 60, align: 'center' },
@@ -164,7 +161,7 @@
     {
       prop: 'studentNo',
       label: '学号',
-      width: 90,
+      width: 80,
       align: 'center'
     },
     {
@@ -172,11 +169,6 @@
       label: '性别',
       width: 70,
       align: 'center'
-    },
-    {
-      prop: 'school',
-      label: '学校',
-      minWidth: 140
     },
     {
       columnKey: 'gradeClass',
@@ -250,9 +242,6 @@
     if (lastWhere.school) {
       result = result.filter((d) => d.school === lastWhere.school);
     }
-    if (lastWhere.stage) {
-      result = result.filter((d) => d.stage === lastWhere.stage);
-    }
     if (lastWhere.grade) {
       result = result.filter((d) => d.grade === lastWhere.grade);
     }
@@ -276,22 +265,15 @@
         (d) => d.studentName.includes(kw) || String(d.studentNo).includes(kw)
       );
     }
-    if (lastWhere.status) {
-      result = result.filter((d) => d.status === lastWhere.status);
-    }
-    // 测试日期倒序、更新时间倒序
+    // 排序：测试日期倒序
     result.sort((a, b) => {
-      if (a.testDate !== b.testDate) {
-        return b.testDate.localeCompare(a.testDate);
-      }
+      if (a.testDate !== b.testDate) return b.testDate.localeCompare(a.testDate);
       return b.updateTime.localeCompare(a.updateTime);
     });
-
     const total = result.length;
     const { page = 1, limit = 10 } = pages || {};
     const start = (page - 1) * limit;
-    const list = result.slice(start, start + limit);
-    return Promise.resolve({ list, count: total });
+    return Promise.resolve({ list: result.slice(start, start + limit), count: total });
   };
 
   const handleSearch = (where) => {

@@ -86,8 +86,8 @@
           <span>{{ (row.grades || []).join('、') }}</span>
         </template>
 
-        <template #schoolYearTerm="{ row }">
-          {{ row.schoolYear }} {{ getTermLabel(row.term) }}
+        <template #planTime="{ row }">
+          {{ formatPlanTime(row) }}
         </template>
 
         <template #status="{ row }">
@@ -142,9 +142,9 @@
   import {
     planStore,
     getStageLabel,
-    getTermLabel,
     getScopeLabel,
-    getRegionLabel
+    getRegionLabel,
+    formatPlanTime
   } from '@/views/fitness/data.js';
 
   defineOptions({ name: 'FitnessPlan' });
@@ -189,11 +189,11 @@
       slot: 'grades'
     },
     {
-      columnKey: 'schoolYearTerm',
-      label: '学年学期',
-      width: 160,
+      columnKey: 'planTime',
+      label: '适用时间',
+      width: 180,
       align: 'center',
-      slot: 'schoolYearTerm'
+      slot: 'planTime'
     },
     {
       prop: 'status',
@@ -226,6 +226,7 @@
     if (lastWhere.scopeType) result = result.filter((d) => d.scopeType === lastWhere.scopeType);
     if (lastWhere.region) result = result.filter((d) => (d.regions || []).includes(lastWhere.region));
     if (lastWhere.stage) result = result.filter((d) => d.stage === lastWhere.stage);
+    if (lastWhere.timeType) result = result.filter((d) => (d.timeType ?? 'unlimited') === lastWhere.timeType);
     if (lastWhere.schoolYear) result = result.filter((d) => d.schoolYear === lastWhere.schoolYear);
     if (lastWhere.term) result = result.filter((d) => d.term === lastWhere.term);
     if (lastWhere.status !== '' && lastWhere.status != null) {

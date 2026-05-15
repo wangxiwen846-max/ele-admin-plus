@@ -1,7 +1,7 @@
 <!-- 体测记录 - 搜索表单 -->
 <template>
   <ele-card :body-style="{ paddingBottom: '2px' }">
-    <el-form label-width="72px" @keyup.enter="search" @submit.prevent="">
+    <el-form label-width="80px" @keyup.enter="search" @submit.prevent="">
       <el-row :gutter="8">
         <el-col :lg="6" :md="12" :sm="12" :xs="24">
           <el-form-item label="学年">
@@ -38,6 +38,23 @@
           </el-form-item>
         </el-col>
         <el-col :lg="6" :md="12" :sm="12" :xs="24">
+          <el-form-item label="所在单位">
+            <el-select
+              v-model="form.unit"
+              placeholder="全部单位"
+              clearable
+              class="ele-fluid"
+            >
+              <el-option
+                v-for="opt in UNIT_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :lg="6" :md="12" :sm="12" :xs="24">
           <el-form-item label="学校">
             <el-select
               v-model="form.school"
@@ -47,53 +64,25 @@
             >
               <el-option
                 v-for="opt in SCHOOL_OPTIONS"
-                :key="opt"
-                :label="opt"
-                :value="opt"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
               />
             </el-select>
           </el-form-item>
         </el-col>
-        <el-col :lg="6" :md="12" :sm="12" :xs="24">
-          <el-form-item label="学生">
-            <el-input
-              clearable
-              v-model.trim="form.studentKeyword"
-              placeholder="姓名 / 学号"
-            />
-          </el-form-item>
-        </el-col>
 
         <template v-if="expand">
-          <el-col :lg="6" :md="12" :sm="12" :xs="24">
-            <el-form-item label="学段">
-              <el-select
-                v-model="form.stage"
-                placeholder="全部学段"
-                clearable
-                class="ele-fluid"
-                @change="form.grade = ''"
-              >
-                <el-option
-                  v-for="opt in STAGE_OPTIONS"
-                  :key="opt.value"
-                  :label="opt.label"
-                  :value="opt.value"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
           <el-col :lg="6" :md="12" :sm="12" :xs="24">
             <el-form-item label="年级">
               <el-select
                 v-model="form.grade"
                 placeholder="全部年级"
                 clearable
-                :disabled="!form.stage"
                 class="ele-fluid"
               >
                 <el-option
-                  v-for="g in gradeOptions"
+                  v-for="g in ALL_GRADES"
                   :key="g"
                   :label="g"
                   :value="g"
@@ -167,20 +156,12 @@
             </el-form-item>
           </el-col>
           <el-col :lg="6" :md="12" :sm="12" :xs="24">
-            <el-form-item label="状态">
-              <el-select
-                v-model="form.status"
-                placeholder="全部状态"
+            <el-form-item label="学生">
+              <el-input
                 clearable
-                class="ele-fluid"
-              >
-                <el-option
-                  v-for="opt in RECORD_STATUS_OPTIONS"
-                  :key="opt.value"
-                  :label="opt.label"
-                  :value="opt.value"
-                />
-              </el-select>
+                v-model.trim="form.studentKeyword"
+                placeholder="姓名 / 学号"
+              />
             </el-form-item>
           </el-col>
         </template>
@@ -216,17 +197,16 @@
 </template>
 
 <script setup>
-  import { ref, reactive, computed } from 'vue';
+  import { ref, reactive } from 'vue';
   import { ArrowDownOutlined, ArrowUpOutlined } from '@/components/icons';
   import {
     SCHOOL_YEAR_OPTIONS,
     TERM_OPTIONS,
     SCHOOL_OPTIONS,
-    STAGE_OPTIONS,
-    CLASS_OPTIONS,
+    UNIT_OPTIONS,
     GRADE_OPTIONS,
+    CLASS_OPTIONS,
     RECORD_TYPE_OPTIONS,
-    RECORD_STATUS_OPTIONS,
     planStore
   } from '@/views/fitness/data.js';
 
@@ -234,23 +214,23 @@
 
   const expand = ref(false);
 
+  /** 所有年级（不依赖学段，直接平铺） */
+  const ALL_GRADES = Object.values(GRADE_OPTIONS).flat();
+
   const defaultForm = () => ({
-    schoolYear: '2025-2026',
-    term: 'fall',
+    schoolYear: '',
+    term: '',
+    unit: '',
     school: '',
-    studentKeyword: '',
-    stage: '',
     grade: '',
     className: '',
     planId: '',
     testDate: [],
     recordType: '',
-    status: ''
+    studentKeyword: ''
   });
 
   const form = reactive(defaultForm());
-
-  const gradeOptions = computed(() => GRADE_OPTIONS[form.stage] ?? []);
 
   const search = () => emit('search', { ...form });
   const reset = () => {
