@@ -65,7 +65,7 @@
       <el-descriptions-item label="适用年级">
         {{ (data.grades || []).join('、') }}
       </el-descriptions-item>
-      <el-descriptions-item label="适用时间" :span="2">
+      <el-descriptions-item label="适用期限" :span="2">
         {{ formatPlanTime(data) }}
       </el-descriptions-item>
       <el-descriptions-item label="状态">

@@ -83,13 +83,6 @@
             </el-form-item>
           </el-col>
 
-          <!-- 只读：学段（自动带出） -->
-          <el-col :sm="12" :xs="24">
-            <el-form-item label="学段">
-              <el-input :model-value="stageLabel" placeholder="根据年级自动带出" readonly />
-            </el-form-item>
-          </el-col>
-
           <!-- 只读：年级（普通教师自动带出） -->
           <el-col v-if="role === 'teacher'" :sm="12" :xs="24">
             <el-form-item label="年级">
@@ -147,9 +140,9 @@
             </el-form-item>
           </el-col>
 
-          <!-- 只读：方案适用时间（自动带出） -->
+          <!-- 只读：方案适用期限（自动带出） -->
           <el-col :sm="12" :xs="24">
-            <el-form-item label="方案适用时间">
+            <el-form-item label="方案适用期限">
               <el-input :model-value="planTimeLabel" placeholder="选择方案后自动带出" readonly />
             </el-form-item>
           </el-col>
@@ -192,7 +185,7 @@
             模板字段根据所选体测方案动态生成，
             <b>{{ params.className ? '按班级导入：学号、学生姓名、体测项目成绩、备注。' : '按年级导入：班级、学号、学生姓名、体测项目成绩、备注。' }}</b>
           </li>
-          <li>学号为 1-99 的整数；Excel 不需要填写学校、学段、年级等基本信息字段。</li>
+          <li>学号为 1-99 的整数；Excel 不需要填写学校、年级等基本信息字段。</li>
           <li>必填项目若缺失将在校验结果中标记为"失败"。</li>
         </ul>
         <el-tooltip
@@ -269,10 +262,6 @@
           <div class="global-param-item" v-if="params.className">
             <span class="label">班级：</span>
             <span class="value">{{ params.className }}</span>
-          </div>
-          <div class="global-param-item">
-            <span class="label">学段：</span>
-            <span class="value">{{ stageLabel }}</span>
           </div>
           <div class="global-param-item">
             <span class="label">体测方案：</span>

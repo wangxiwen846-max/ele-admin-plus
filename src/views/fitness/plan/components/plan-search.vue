@@ -90,7 +90,7 @@
           </el-form-item>
         </el-col>
         <el-col v-if="expand" :lg="6" :md="12" :sm="12" :xs="24">
-          <el-form-item label="适用时间">
+          <el-form-item label="适用期限">
             <el-select
               clearable
               v-model="form.timeType"

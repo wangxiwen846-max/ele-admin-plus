@@ -99,9 +99,9 @@
           </el-form-item>
         </el-col>
 
-        <!-- 适用时间 -->
+        <!-- 适用期限 -->
         <el-col :sm="12" :xs="24">
-          <el-form-item label="适用时间" prop="timeType">
+          <el-form-item label="适用期限" prop="timeType">
             <el-radio-group v-model="form.timeType" @change="handleTimeTypeChange">
               <el-radio value="unlimited">不限</el-radio>
               <el-radio value="specific">指定学年学期</el-radio>
@@ -319,7 +319,7 @@
     ],
     stage: [{ required: true, message: '请选择学段', trigger: 'change' }],
     grades: [{ required: true, type: 'array', message: '请选择适用年级', trigger: 'change' }],
-    timeType: [{ required: true, message: '请选择适用时间', trigger: 'change' }],
+    timeType: [{ required: true, message: '请选择适用期限', trigger: 'change' }],
     schoolYear: [
       {
         validator: (_, value, cb) => {
