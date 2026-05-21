@@ -45,12 +45,6 @@ export const PASS_STATUS_OPTIONS = [
   { value: 'none', label: '无需判断' }
 ];
 
-/** 数据状态 */
-export const DATA_STATUS_OPTIONS = [
-  { value: 'normal', label: '正常' },
-  { value: 'abnormal', label: '异常' }
-];
-
 /** 设备类型 */
 export const DEVICE_TYPE_OPTIONS = [
   { value: 'rope', label: '智能跳绳' }
@@ -85,7 +79,6 @@ export const recordStore = reactive({
       homeworkName: '跳绳训练作业',
       homeworkTarget: '300次',
       finishTime: '今天 18:30',
-      dataStatus: 'normal',
       deviceName: '智能跳绳 A001',
       deviceNo: 'BT-ROPE-001',
       avgPace: '',
@@ -108,18 +101,17 @@ export const recordStore = reactive({
       homeworkName: '跑步训练作业',
       homeworkTarget: '1公里',
       finishTime: '今天 08:30',
-      dataStatus: 'normal',
       avgPace: "6'55\"/km",
       steps: '1680步',
       hasTrack: true
     },
     {
       recordId: 3,
-      studentName: '王五',
-      studentNo: 'S0003',
+      studentName: '李四',
+      studentNo: 'S0002',
       school: 'XX小学',
       grade: '三年级',
-      className: '2班',
+      className: '1班',
       sport: 'rope',
       recordType: 'self',
       collectType: 'bluetooth',
@@ -128,8 +120,7 @@ export const recordStore = reactive({
       passStatus: 'none',
       homeworkName: '',
       homeworkTarget: '',
-      finishTime: '今天 19:10',
-      dataStatus: 'normal',
+      finishTime: '昨天 19:10',
       deviceName: '智能跳绳 A001',
       deviceNo: 'BT-ROPE-001'
     },
@@ -148,8 +139,7 @@ export const recordStore = reactive({
       passStatus: 'none',
       homeworkName: '',
       homeworkTarget: '',
-      finishTime: '昨天 17:45',
-      dataStatus: 'normal'
+      finishTime: '昨天 17:45'
     },
     {
       recordId: 5,
@@ -167,7 +157,6 @@ export const recordStore = reactive({
       homeworkName: '跑步训练作业',
       homeworkTarget: '1公里',
       finishTime: '昨天 16:20',
-      dataStatus: 'abnormal',
       avgPace: "9'35\"/km",
       steps: '1120步',
       hasTrack: false
@@ -187,8 +176,7 @@ export const recordStore = reactive({
       passStatus: 'fail',
       homeworkName: '跳绳训练作业',
       homeworkTarget: '200次',
-      finishTime: '前天 19:00',
-      dataStatus: 'normal'
+      finishTime: '前天 19:00'
     },
     {
       recordId: 7,
@@ -206,7 +194,6 @@ export const recordStore = reactive({
       homeworkName: '',
       homeworkTarget: '',
       finishTime: '前天 17:30',
-      dataStatus: 'normal',
       avgPace: "5'48\"/km",
       steps: '3260步',
       hasTrack: true
@@ -227,14 +214,14 @@ export const recordStore = reactive({
       homeworkName: '跳绳训练作业',
       homeworkTarget: '300次',
       finishTime: '今天 18:50',
-      dataStatus: 'normal',
       deviceName: '智能跳绳 B012',
       deviceNo: 'BT-ROPE-012'
     }
   ]
 });
 
-// ─── 设备绑定数据 ────────────────────────────────────────
+// ─── 设备绑定数据（一对多） ────────────────────────────
+// 一台设备可以绑定多个学生；运动记录归属"使用学生"
 export const deviceStore = reactive({
   list: [
     {
@@ -242,80 +229,160 @@ export const deviceStore = reactive({
       deviceName: '智能跳绳 A001',
       deviceType: 'rope',
       deviceNo: 'BT-ROPE-001',
-      studentName: '张三',
-      studentNo: 'S0001',
-      school: 'XX小学',
-      grade: '三年级',
-      className: '1班',
-      bindStatus: 'bound',
-      bindTime: '2025-09-12 09:20:00',
+      students: [
+        {
+          studentNo: 'S0001',
+          studentName: '张三',
+          school: 'XX小学',
+          grade: '三年级',
+          className: '1班',
+          bindTime: '2026-05-20 18:20'
+        },
+        {
+          studentNo: 'S0002',
+          studentName: '李四',
+          school: 'XX小学',
+          grade: '三年级',
+          className: '1班',
+          bindTime: '2026-05-21 19:10'
+        }
+      ],
+      lastStudentName: '张三',
       lastConnectTime: '今天 18:30',
       lastSport: 'rope',
-      lastRecord: '跳绳 286次 · 04:20'
+      usageRecords: [
+        {
+          studentName: '张三',
+          sport: 'rope',
+          recordType: 'homework',
+          collectType: 'bluetooth',
+          result: '286次',
+          duration: '04:20',
+          finishTime: '今天 18:30'
+        },
+        {
+          studentName: '李四',
+          sport: 'rope',
+          recordType: 'self',
+          collectType: 'bluetooth',
+          result: '320次',
+          duration: '05:10',
+          finishTime: '昨天 19:10'
+        }
+      ]
     },
     {
       deviceId: 2,
       deviceName: '智能跳绳 B012',
       deviceType: 'rope',
       deviceNo: 'BT-ROPE-012',
-      studentName: '李四',
-      studentNo: 'S0002',
-      school: 'XX小学',
-      grade: '三年级',
-      className: '2班',
-      bindStatus: 'unbound',
-      bindTime: '2025-08-20 10:00:00',
+      students: [
+        {
+          studentNo: 'S0008',
+          studentName: '郑十',
+          school: 'XX小学',
+          grade: '三年级',
+          className: '2班',
+          bindTime: '2026-05-15 09:20'
+        }
+      ],
+      lastStudentName: '郑十',
       lastConnectTime: '昨天 19:00',
       lastSport: 'rope',
-      lastRecord: '跳绳 305次 · 04:50'
+      usageRecords: [
+        {
+          studentName: '郑十',
+          sport: 'rope',
+          recordType: 'homework',
+          collectType: 'bluetooth',
+          result: '305次',
+          duration: '04:50',
+          finishTime: '昨天 19:00'
+        }
+      ]
     },
     {
       deviceId: 3,
-      deviceName: '智能跳绳 A002',
+      deviceName: '智能跳绳 C008',
       deviceType: 'rope',
-      deviceNo: 'BT-ROPE-002',
-      studentName: '王五',
-      studentNo: 'S0003',
-      school: 'XX小学',
-      grade: '三年级',
-      className: '2班',
-      bindStatus: 'bound',
-      bindTime: '2025-09-15 14:30:00',
-      lastConnectTime: '今天 19:10',
-      lastSport: 'rope',
-      lastRecord: '跳绳 320次 · 05:10'
+      deviceNo: 'BT-ROPE-008',
+      students: [],
+      lastStudentName: '',
+      lastConnectTime: '',
+      lastSport: '',
+      usageRecords: []
     },
     {
       deviceId: 4,
-      deviceName: '智能跳绳 C003',
+      deviceName: '智能跳绳 A002',
       deviceType: 'rope',
-      deviceNo: 'BT-ROPE-003',
-      studentName: '孙七',
-      studentNo: 'S0005',
-      school: '阳光实验小学',
-      grade: '五年级',
-      className: '3班',
-      bindStatus: 'bound',
-      bindTime: '2025-09-18 11:00:00',
-      lastConnectTime: '昨天 16:20',
+      deviceNo: 'BT-ROPE-002',
+      students: [
+        {
+          studentNo: 'S0003',
+          studentName: '王五',
+          school: 'XX小学',
+          grade: '三年级',
+          className: '2班',
+          bindTime: '2026-04-18 14:30'
+        }
+      ],
+      lastStudentName: '王五',
+      lastConnectTime: '今天 19:10',
       lastSport: 'rope',
-      lastRecord: '跳绳 240次 · 04:00'
+      usageRecords: [
+        {
+          studentName: '王五',
+          sport: 'rope',
+          recordType: 'self',
+          collectType: 'bluetooth',
+          result: '320次',
+          duration: '05:10',
+          finishTime: '今天 19:10'
+        }
+      ]
     },
     {
       deviceId: 5,
-      deviceName: '智能跳绳 D008',
+      deviceName: '智能跳绳 D003',
       deviceType: 'rope',
-      deviceNo: 'BT-ROPE-008',
-      studentName: '周八',
-      studentNo: 'S0006',
-      school: '阳光实验小学',
-      grade: '六年级',
-      className: '2班',
-      bindStatus: 'unbound',
-      bindTime: '2025-08-05 09:00:00',
-      lastConnectTime: '上周 19:00',
+      deviceNo: 'BT-ROPE-003',
+      students: [
+        {
+          studentNo: 'S0005',
+          studentName: '孙七',
+          school: '阳光实验小学',
+          grade: '五年级',
+          className: '3班',
+          bindTime: '2026-04-20 11:00'
+        },
+        {
+          studentNo: 'S0006',
+          studentName: '周八',
+          school: '阳光实验小学',
+          grade: '六年级',
+          className: '2班',
+          bindTime: '2026-05-02 09:00'
+        }
+      ],
+      lastStudentName: '孙七',
+      lastConnectTime: '昨天 16:20',
       lastSport: 'rope',
-      lastRecord: '跳绳 180次 · 03:00'
+      usageRecords: [
+        {
+          studentName: '孙七',
+          sport: 'rope',
+          recordType: 'homework',
+          collectType: 'bluetooth',
+          result: '240次',
+          duration: '04:00',
+          finishTime: '昨天 16:20'
+        }
+      ]
     }
   ]
 });
+
+/** 设备整体绑定状态：只要 students 非空就算"已绑定" */
+export const computeBindStatus = (device) =>
+  device.students && device.students.length > 0 ? 'bound' : 'unbound';

@@ -22,8 +22,25 @@
           {{ getLabel(DEVICE_TYPE_OPTIONS, row.deviceType) }}
         </template>
 
-        <template #gradeClass="{ row }">
-          {{ row.grade }} · {{ row.className }}
+        <template #bindStudentCount="{ row }">
+          <span :class="{ 'count-zero': row.bindStudentCount === 0 }">
+            {{ row.bindStudentCount }}人
+          </span>
+        </template>
+
+        <template #lastStudentName="{ row }">
+          <span v-if="row.lastStudentName">{{ row.lastStudentName }}</span>
+          <span v-else class="text-placeholder">-</span>
+        </template>
+
+        <template #lastConnectTime="{ row }">
+          <span v-if="row.lastConnectTime">{{ row.lastConnectTime }}</span>
+          <span v-else class="text-placeholder">-</span>
+        </template>
+
+        <template #lastSport="{ row }">
+          <span v-if="row.lastSport">{{ getLabel(SPORT_OPTIONS, row.lastSport) }}</span>
+          <span v-else class="text-placeholder">-</span>
         </template>
 
         <template #bindStatus="{ row }">
@@ -36,27 +53,16 @@
           </el-tag>
         </template>
 
-        <template #lastSport="{ row }">
-          {{ getLabel(SPORT_OPTIONS, row.lastSport) }}
-        </template>
-
         <template #action="{ row }">
           <el-link type="primary" underline="never" @click="openDetail(row)">
             查看详情
           </el-link>
-          <el-divider direction="vertical" />
-          <el-link
-            type="danger"
-            underline="never"
-            :disabled="row.bindStatus !== 'bound'"
-            @click="confirmUnbind(row)"
-          >
-            解绑设备
-          </el-link>
-          <el-divider direction="vertical" />
-          <el-link type="primary" underline="never" @click="goRecord(row)">
-            查看运动记录
-          </el-link>
+          <template v-if="row.bindStatus === 'bound'">
+            <el-divider direction="vertical" />
+            <el-link type="primary" underline="never" @click="goRecord(row)">
+              查看运动记录
+            </el-link>
+          </template>
         </template>
       </ele-pro-table>
     </ele-card>
@@ -64,24 +70,25 @@
     <!-- 详情抽屉 -->
     <device-detail
       v-if="detailVisible"
-      :data="currentRow"
+      :device-id="currentDeviceId"
       @closed="detailVisible = false"
+      @go-record="goRecord"
+      @refresh="refresh"
     />
   </ele-page>
 </template>
 
 <script setup>
-  import { ref, reactive } from 'vue';
+  import { ref, reactive, computed } from 'vue';
   import { useRouter } from 'vue-router';
-  import { ElMessageBox } from 'element-plus';
-  import { EleMessage } from 'ele-admin-plus';
   import DeviceSearch from './components/device-search.vue';
   import DeviceDetail from './components/device-detail.vue';
   import {
     deviceStore,
     DEVICE_TYPE_OPTIONS,
     SPORT_OPTIONS,
-    getLabel
+    getLabel,
+    computeBindStatus
   } from '@/views/sport/data.js';
 
   defineOptions({ name: 'SportDevice' });
@@ -91,37 +98,51 @@
   const lastWhere = reactive({});
 
   const detailVisible = ref(false);
-  const currentRow = ref(null);
+  const currentDeviceId = ref(null);
 
   const columns = ref([
     { type: 'index', columnKey: 'index', width: 60, align: 'center' },
     { prop: 'deviceName', label: '设备名称', width: 150, slot: 'deviceName' },
-    { prop: 'deviceType', label: '设备类型', width: 110, align: 'center', slot: 'deviceType' },
+    { prop: 'deviceType', label: '设备类型', width: 100, align: 'center', slot: 'deviceType' },
     { prop: 'deviceNo', label: '设备编号', width: 150 },
-    { prop: 'studentName', label: '绑定学生', width: 100 },
-    { prop: 'school', label: '学校', width: 130 },
-    { columnKey: 'gradeClass', label: '年级班级', width: 130, slot: 'gradeClass' },
-    { prop: 'bindStatus', label: '绑定状态', width: 100, align: 'center', slot: 'bindStatus' },
-    { prop: 'lastConnectTime', label: '最近连接时间', width: 150, align: 'center' },
+    { prop: 'bindStudentCount', label: '绑定学生数', width: 110, align: 'center', slot: 'bindStudentCount' },
+    { prop: 'lastStudentName', label: '最近使用学生', width: 120, align: 'center', slot: 'lastStudentName' },
+    { prop: 'lastConnectTime', label: '最近连接时间', width: 150, align: 'center', slot: 'lastConnectTime' },
     { prop: 'lastSport', label: '最近使用项目', width: 110, align: 'center', slot: 'lastSport' },
+    { prop: 'bindStatus', label: '绑定状态', width: 100, align: 'center', slot: 'bindStatus' },
     {
       columnKey: 'action',
       label: '操作',
-      width: 240,
+      width: 200,
       align: 'center',
       slot: 'action',
       fixed: 'right'
     }
   ]);
 
+  /** 计算列表行数据：派生绑定学生数和绑定状态 */
+  const flatList = computed(() =>
+    deviceStore.list.map((d) => ({
+      ...d,
+      bindStudentCount: d.students?.length || 0,
+      bindStatus: computeBindStatus(d)
+    }))
+  );
+
   const datasource = ({ pages }) => {
-    let result = [...deviceStore.list];
+    let result = [...flatList.value];
     const w = lastWhere;
     if (w.deviceType) result = result.filter((d) => d.deviceType === w.deviceType);
-    if (w.school) result = result.filter((d) => d.school === w.school);
-    if (w.grade) result = result.filter((d) => d.grade === w.grade);
-    if (w.className) result = result.filter((d) => d.className === w.className);
     if (w.bindStatus) result = result.filter((d) => d.bindStatus === w.bindStatus);
+    if (w.school) {
+      result = result.filter((d) => d.students?.some((s) => s.school === w.school));
+    }
+    if (w.grade) {
+      result = result.filter((d) => d.students?.some((s) => s.grade === w.grade));
+    }
+    if (w.className) {
+      result = result.filter((d) => d.students?.some((s) => s.className === w.className));
+    }
     if (w.deviceKeyword) {
       const kw = w.deviceKeyword.trim();
       result = result.filter(
@@ -130,7 +151,9 @@
     }
     if (w.studentKeyword) {
       const kw = w.studentKeyword.trim();
-      result = result.filter((d) => d.studentName.includes(kw));
+      result = result.filter((d) =>
+        d.students?.some((s) => s.studentName.includes(kw))
+      );
     }
     const total = result.length;
     const { page = 1, limit = 10 } = pages || {};
@@ -145,33 +168,24 @@
   };
 
   const openDetail = (row) => {
-    currentRow.value = row;
+    currentDeviceId.value = row.deviceId;
     detailVisible.value = true;
   };
 
-  const confirmUnbind = (row) => {
-    ElMessageBox.confirm(
-      '解绑后，学生需要重新绑定设备后才能使用蓝牙跳绳计数。',
-      '确认解绑该设备？',
-      {
-        type: 'warning',
-        draggable: true,
-        confirmButtonText: '确认解绑',
-        cancelButtonText: '取消',
-        confirmButtonClass: 'el-button--danger'
-      }
-    )
-      .then(() => {
-        // 原型仅前端模拟解绑
-        const target = deviceStore.list.find((d) => d.deviceId === row.deviceId);
-        if (target) target.bindStatus = 'unbound';
-        EleMessage.success({ message: '解绑成功', plain: true });
-        tableRef.value?.reload?.();
-      })
-      .catch(() => {});
+  const refresh = () => {
+    tableRef.value?.reload?.();
   };
 
   const goRecord = (row) => {
     push({ path: '/sport/record', query: { deviceNo: row.deviceNo } });
   };
 </script>
+
+<style lang="scss" scoped>
+  .text-placeholder {
+    color: var(--el-text-color-placeholder);
+  }
+  .count-zero {
+    color: var(--el-text-color-placeholder);
+  }
+</style>

@@ -90,16 +90,6 @@
           <span v-else style="color: var(--el-text-color-placeholder)">-</span>
         </template>
 
-        <template #dataStatus="{ row }">
-          <el-tag
-            :type="row.dataStatus === 'normal' ? 'success' : 'danger'"
-            size="small"
-            :disable-transitions="true"
-          >
-            {{ row.dataStatus === 'normal' ? '正常' : '异常' }}
-          </el-tag>
-        </template>
-
         <template #action="{ row }">
           <el-link type="primary" underline="never" @click="openDetail(row)">
             查看详情
@@ -162,7 +152,6 @@
     { prop: 'passStatus', label: '达标状态', width: 100, align: 'center', slot: 'passStatus' },
     { prop: 'homeworkName', label: '关联作业', width: 140, slot: 'homeworkName' },
     { prop: 'finishTime', label: '完成时间', width: 140, align: 'center' },
-    { prop: 'dataStatus', label: '数据状态', width: 90, align: 'center', slot: 'dataStatus' },
     { columnKey: 'action', label: '操作', width: 100, align: 'center', slot: 'action', fixed: 'right' }
   ]);
 
@@ -176,7 +165,6 @@
     if (w.recordType) result = result.filter((d) => d.recordType === w.recordType);
     if (w.collectType) result = result.filter((d) => d.collectType === w.collectType);
     if (w.passStatus) result = result.filter((d) => d.passStatus === w.passStatus);
-    if (w.dataStatus) result = result.filter((d) => d.dataStatus === w.dataStatus);
     if (w.deviceNo) result = result.filter((d) => d.deviceNo === w.deviceNo);
     if (w.studentKeyword) {
       const kw = w.studentKeyword.trim();

@@ -59,13 +59,6 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :lg="6" :md="12" :sm="12" :xs="24">
-            <el-form-item label="数据状态">
-              <el-select v-model="form.dataStatus" placeholder="全部状态" clearable class="ele-fluid">
-                <el-option v-for="opt in DATA_STATUS_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
-              </el-select>
-            </el-form-item>
-          </el-col>
           <el-col :lg="12" :md="18" :sm="18" :xs="24">
             <el-form-item label="时间范围">
               <el-date-picker
@@ -118,8 +111,7 @@
     SPORT_OPTIONS,
     RECORD_TYPE_OPTIONS,
     COLLECT_TYPE_OPTIONS,
-    PASS_STATUS_OPTIONS,
-    DATA_STATUS_OPTIONS
+    PASS_STATUS_OPTIONS
   } from '@/views/sport/data.js';
 
   const props = defineProps({
@@ -138,7 +130,6 @@
     recordType: '',
     collectType: '',
     passStatus: '',
-    dataStatus: '',
     dateRange: [],
     deviceNo: ''
   });

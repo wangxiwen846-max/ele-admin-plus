@@ -106,20 +106,6 @@
           </div>
         </div>
       </template>
-
-      <!-- 数据状态 -->
-      <div class="section-title">数据状态</div>
-      <el-descriptions :column="1" border size="default">
-        <el-descriptions-item label="数据状态">
-          <el-tag
-            :type="data.dataStatus === 'normal' ? 'success' : 'danger'"
-            size="small"
-            :disable-transitions="true"
-          >
-            {{ data.dataStatus === 'normal' ? '正常' : '异常' }}
-          </el-tag>
-        </el-descriptions-item>
-      </el-descriptions>
     </template>
 
     <template #footer>
