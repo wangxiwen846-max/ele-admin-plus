@@ -37,6 +37,36 @@ const FITNESS_AUTHORITIES = [
     path: '/fitness/record',
     component: '/fitness/record',
     authority: 'fitness:record'
+  },
+  // ── 运动数据 ─────────────────────────────────────────
+  {
+    menuId: 200,
+    parentId: 0,
+    menuType: 0,
+    title: '运动数据',
+    icon: 'TrophyOutlined',
+    path: '/sport',
+    authority: 'sport'
+  },
+  {
+    menuId: 201,
+    parentId: 200,
+    menuType: 0,
+    title: '运动记录管理',
+    icon: 'BarChartOutlined',
+    path: '/sport/record',
+    component: '/sport/record',
+    authority: 'sport:record'
+  },
+  {
+    menuId: 202,
+    parentId: 200,
+    menuType: 0,
+    title: '设备绑定管理',
+    icon: 'MobileOutlined',
+    path: '/sport/device',
+    component: '/sport/device',
+    authority: 'sport:device'
   }
 ];
 
