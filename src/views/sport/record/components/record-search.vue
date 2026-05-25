@@ -130,8 +130,7 @@
     recordType: '',
     collectType: '',
     passStatus: '',
-    dateRange: [],
-    deviceNo: ''
+    dateRange: []
   });
 
   const form = reactive({ ...defaultForm(), ...props.initial });

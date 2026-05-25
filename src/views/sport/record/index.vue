@@ -1,7 +1,7 @@
 <!-- 运动记录管理 列表页 -->
 <template>
   <ele-page>
-    <record-search :initial="initialWhere" @search="handleSearch" />
+    <record-search @search="handleSearch" />
     <ele-card :body-style="{ paddingBottom: '4px' }">
       <ele-pro-table
         ref="tableRef"
@@ -109,7 +109,6 @@
 
 <script setup>
   import { ref, reactive } from 'vue';
-  import { useRoute } from 'vue-router';
   import { EleMessage } from 'ele-admin-plus';
   import { DownloadOutlined } from '@/components/icons';
   import RecordSearch from './components/record-search.vue';
@@ -123,21 +122,12 @@
 
   defineOptions({ name: 'SportRecord' });
 
-  const route = useRoute();
   const tableRef = ref(null);
   const lastWhere = reactive({});
 
   /** 详情抽屉 */
   const detailVisible = ref(false);
   const currentRow = ref(null);
-
-  /** 路由带入的初始筛选条件（如从设备绑定页跳转） */
-  const initialWhere = reactive({
-    deviceNo: route.query?.deviceNo || ''
-  });
-  if (route.query?.deviceNo) {
-    lastWhere.deviceNo = route.query.deviceNo;
-  }
 
   const columns = ref([
     { type: 'index', columnKey: 'index', width: 60, align: 'center' },
@@ -165,7 +155,6 @@
     if (w.recordType) result = result.filter((d) => d.recordType === w.recordType);
     if (w.collectType) result = result.filter((d) => d.collectType === w.collectType);
     if (w.passStatus) result = result.filter((d) => d.passStatus === w.passStatus);
-    if (w.deviceNo) result = result.filter((d) => d.deviceNo === w.deviceNo);
     if (w.studentKeyword) {
       const kw = w.studentKeyword.trim();
       result = result.filter(

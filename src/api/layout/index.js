@@ -57,16 +57,6 @@ const FITNESS_AUTHORITIES = [
     path: '/sport/record',
     component: '/sport/record',
     authority: 'sport:record'
-  },
-  {
-    menuId: 202,
-    parentId: 200,
-    menuType: 0,
-    title: '设备绑定管理',
-    icon: 'MobileOutlined',
-    path: '/sport/device',
-    component: '/sport/device',
-    authority: 'sport:device'
   }
 ];
 
