@@ -57,6 +57,17 @@ const FITNESS_AUTHORITIES = [
     path: '/sport/record',
     component: '/sport/record',
     authority: 'sport:record'
+  },
+  // ── 设项管理 ─────────────────────────────────────────
+  {
+    menuId: 300,
+    parentId: 0,
+    menuType: 0,
+    title: '设项管理',
+    icon: 'TrophyOutlined',
+    path: '/event-item',
+    component: '/event-item',
+    authority: 'event-item'
   }
 ];
 
