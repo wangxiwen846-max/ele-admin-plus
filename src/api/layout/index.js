@@ -68,6 +68,56 @@ const FITNESS_AUTHORITIES = [
     path: '/event-item',
     component: '/event-item',
     authority: 'event-item'
+  },
+  // ── 比赛管理 ─────────────────────────────────────────
+  {
+    menuId: 400,
+    parentId: 0,
+    menuType: 0,
+    title: '比赛管理',
+    icon: 'FlagOutlined',
+    path: '/competition',
+    authority: 'competition'
+  },
+  {
+    menuId: 401,
+    parentId: 400,
+    menuType: 0,
+    title: '活动管理',
+    icon: 'CalendarOutlined',
+    path: '/competition/activity',
+    component: '/competition/activity',
+    authority: 'competition:activity'
+  },
+  {
+    menuId: 402,
+    parentId: 400,
+    menuType: 0,
+    title: '新建活动',
+    hide: true,
+    path: '/competition/activity/add',
+    component: '/competition/activity/add',
+    authority: 'competition:activity:add'
+  },
+  {
+    menuId: 403,
+    parentId: 400,
+    menuType: 0,
+    title: '编辑活动',
+    hide: true,
+    path: '/competition/activity/edit/:id',
+    component: '/competition/activity/edit',
+    authority: 'competition:activity:edit'
+  },
+  {
+    menuId: 404,
+    parentId: 400,
+    menuType: 0,
+    title: '活动详情',
+    hide: true,
+    path: '/competition/activity/detail/:id',
+    component: '/competition/activity/detail',
+    authority: 'competition:activity:detail'
   }
 ];
 

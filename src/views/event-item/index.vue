@@ -54,8 +54,16 @@
           {{ formatRequirement(row) || '-' }}
         </template>
 
-        <template #scoringEnabled="{ row }">
-          {{ row.scoringEnabled ? '是' : '否' }}
+        <template #dataSource="{ row }">
+          {{ row.dataSource || '表单提交' }}
+        </template>
+
+        <template #scoreType="{ row }">
+          {{ row.scoreType || '-' }}
+        </template>
+
+        <template #scoringRule="{ row }">
+          {{ formatScoringRuleDisplay(row) }}
         </template>
 
         <template #status="{ row }">
@@ -67,6 +75,10 @@
             :ripple="false"
           />
           <ele-dot v-else text="停用" type="danger" size="8px" :ripple="false" />
+        </template>
+
+        <template #createTime="{ row }">
+          {{ formatListDateTime(row.createTime) }}
         </template>
 
         <template #action="{ row }">
@@ -112,6 +124,8 @@
     eventItemStore,
     formatRequirement,
     formatSportsDisplay,
+    formatScoringRuleDisplay,
+    formatListDateTime,
     formatNow
   } from '@/views/event-item/data.js';
 
@@ -135,16 +149,37 @@
       slot: 'sports'
     },
     { prop: 'matchForm', label: '比赛形式', width: 100, align: 'center', slot: 'matchForm' },
-    { columnKey: 'requirement', label: '参赛要求', minWidth: 200, slot: 'requirement' },
-    { prop: 'dataSource', label: '数据来源', width: 110, align: 'center' },
+    { columnKey: 'requirement', label: '适用范围', minWidth: 200, slot: 'requirement' },
     {
-      prop: 'scoringEnabled',
-      label: '是否计分',
-      width: 100,
+      prop: 'dataSource',
+      label: '数据来源',
+      width: 110,
       align: 'center',
-      slot: 'scoringEnabled'
+      slot: 'dataSource'
+    },
+    {
+      prop: 'scoreType',
+      label: '成绩类型',
+      width: 120,
+      align: 'center',
+      slot: 'scoreType'
+    },
+    {
+      columnKey: 'scoringRule',
+      label: '比赛计分规则',
+      width: 120,
+      align: 'center',
+      slot: 'scoringRule'
     },
     { prop: 'status', label: '启用状态', width: 100, align: 'center', slot: 'status' },
+    { prop: 'createBy', label: '创建人', width: 100, align: 'center' },
+    {
+      prop: 'createTime',
+      label: '创建时间',
+      width: 150,
+      align: 'center',
+      slot: 'createTime'
+    },
     { prop: 'updateTime', label: '更新时间', width: 170, align: 'center' },
     {
       columnKey: 'action',

@@ -8,7 +8,7 @@
             <el-input
               v-model.trim="form.itemName"
               clearable
-              placeholder="请输入设项名称"
+              placeholder="如：一分钟跳绳、3v3篮球"
             />
           </el-form-item>
         </el-col>

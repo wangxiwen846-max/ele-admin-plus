@@ -62,25 +62,39 @@
             </el-tag>
           </el-descriptions-item>
           <template v-if="data.matchForm === '团体'">
-            <el-descriptions-item label="每队最少人数">{{ data.teamMin }}</el-descriptions-item>
-            <el-descriptions-item label="每队最多人数">{{ data.teamMax }}</el-descriptions-item>
-            <el-descriptions-item label="需要队伍名称">{{ data.needTeamName ? '是' : '否' }}</el-descriptions-item>
+            <el-descriptions-item label="是否配置队伍人数" :span="2">
+              {{ data.enableTeamMemberLimit ? '是' : '否' }}
+            </el-descriptions-item>
+            <template v-if="data.enableTeamMemberLimit">
+              <el-descriptions-item label="每队最少人数">{{ data.teamMin ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item label="每队最多人数">{{ data.teamMax ?? '-' }}</el-descriptions-item>
+            </template>
+            <el-descriptions-item label="是否需要队伍名称" :span="2">
+              {{ data.needTeamName ? '是' : '否' }}
+            </el-descriptions-item>
             <el-descriptions-item label="组队规则说明" :span="2">{{ data.teamRule || '-' }}</el-descriptions-item>
           </template>
         </el-descriptions>
       </div>
 
-      <!-- 参赛要求 -->
+      <!-- 适用范围 -->
       <div class="detail-block">
-        <div class="block-title">参赛要求</div>
+        <div class="block-title">适用范围</div>
         <el-descriptions :column="2" size="small" class="desc-plain">
           <el-descriptions-item label="性别要求">{{ data.gender }}</el-descriptions-item>
           <el-descriptions-item label="适用学段">{{ joinText(data.stages) }}</el-descriptions-item>
           <el-descriptions-item label="适用年级">{{ joinText(data.grades) }}</el-descriptions-item>
           <el-descriptions-item label="年龄范围">{{ formatAge(data) }}</el-descriptions-item>
-          <el-descriptions-item label="参赛资格说明" :span="2">{{ data.qualification || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="需要报名材料">{{ data.needMaterial ? '是' : '否' }}</el-descriptions-item>
-          <el-descriptions-item label="报名材料说明">{{ data.materialDescription || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="适用范围说明" :span="2">{{ data.qualification || '-' }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+
+      <!-- 报名设置 -->
+      <div class="detail-block">
+        <div class="block-title">报名设置</div>
+        <el-descriptions :column="2" size="small" class="desc-plain">
+          <el-descriptions-item label="报名方式">{{ joinText(data.registrationMethods) }}</el-descriptions-item>
+          <el-descriptions-item label="默认保险要求">{{ data.defaultInsuranceRequirement || '-' }}</el-descriptions-item>
         </el-descriptions>
       </div>
 
@@ -89,27 +103,31 @@
         <div class="block-title">成绩配置</div>
         <el-descriptions :column="2" size="small" class="desc-plain">
           <el-descriptions-item label="数据来源">表单提交</el-descriptions-item>
-          <el-descriptions-item label="成绩提交表单">
-            {{ data.scoreFormType === 'existing' ? (data.scoreForm || '-') : '自定义配置成绩字段' }}
-          </el-descriptions-item>
+          <el-descriptions-item label="成绩提交人">{{ joinText(data.scoreSubmitters) }}</el-descriptions-item>
+          <el-descriptions-item label="成绩类型" :span="2">{{ data.scoreType || '-' }}</el-descriptions-item>
         </el-descriptions>
+        <div class="score-config-hint">
+          比赛结束后，由体育教师或赛事专员提交比赛成绩和名次；设项管理不配置自动排名规则。
+        </div>
 
         <div class="inner-card">
           <div class="inner-card-head">
-            <div class="inner-label">成绩字段</div>
-            <div class="inner-desc">该设项提交成绩时需要填写的字段</div>
+            <div class="inner-label">成绩提交字段配置表</div>
+            <div class="inner-desc">保存后的成绩提交字段配置</div>
           </div>
           <el-table :data="scoreFieldsDisplay" border size="small" class="inner-table">
-            <el-table-column label="所属项目" width="96" align="center">
-              <template #default="{ row }">{{ row.sportProjectDisplay }}</template>
-            </el-table-column>
-            <el-table-column prop="name" label="字段名称" min-width="110" />
-            <el-table-column prop="type" label="字段类型" width="96" align="center" />
+            <el-table-column prop="name" label="字段名称" min-width="100" />
+            <el-table-column prop="type" label="字段类型" width="88" align="center" />
             <el-table-column label="是否必填" width="88" align="center">
-              <template #default="{ row }">{{ formatRequired(row.required) }}</template>
+              <template #default="{ row }">{{ formatRequiredDisplay(row.required) }}</template>
             </el-table-column>
-            <el-table-column prop="unit" label="单位" width="72" align="center" />
-            <el-table-column prop="description" label="说明" min-width="140" show-overflow-tooltip />
+            <el-table-column label="成绩统计方式" min-width="110" align="center">
+              <template #default="{ row }">{{ row.statMethod || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="单位/选项" min-width="100" align="center">
+              <template #default="{ row }">{{ formatUnitOrOptions(row) }}</template>
+            </el-table-column>
+            <el-table-column prop="description" label="说明" min-width="120" show-overflow-tooltip />
             <template #empty>
               <span class="table-empty-hint">暂无成绩字段</span>
             </template>
@@ -117,36 +135,14 @@
         </div>
       </div>
 
-      <!-- 排名规则 -->
-      <div class="detail-block">
-        <div class="block-title">排名规则</div>
-        <template v-if="data.rankingEnabled">
-          <el-descriptions :column="2" size="small" class="desc-plain">
-            <el-descriptions-item label="排名依据">{{ data.rankBasis || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="排序方式">{{ data.sortType || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="同分处理" :span="2">{{ data.tieRule || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="规则说明" :span="2">
-              {{ data.rankDescription || '-' }}
-            </el-descriptions-item>
-          </el-descriptions>
-          <attachment-table
-            title="排名规则附件"
-            :list="data.rankAttachments"
-            readonly
-            compact
-          />
-        </template>
-        <div v-else class="rule-disabled-hint">未启用排名规则</div>
-      </div>
-
-      <!-- 计分规则 -->
-      <div class="detail-block">
-        <div class="block-title">计分规则</div>
+      <!-- 比赛计分规则 -->
+      <div v-if="data.matchForm === '团体'" class="detail-block">
+        <div class="block-title">比赛计分规则</div>
         <template v-if="data.scoringEnabled">
           <el-descriptions :column="2" size="small" class="desc-plain">
-            <el-descriptions-item label="是否启用计分">是</el-descriptions-item>
+            <el-descriptions-item label="比赛计分规则">已配置</el-descriptions-item>
             <el-descriptions-item label="计分处理方式">{{ data.scoringMethod || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="规则说明" :span="2">
+            <el-descriptions-item label="计分规则说明" :span="2">
               {{ data.scoringDescription || '-' }}
             </el-descriptions-item>
           </el-descriptions>
@@ -157,7 +153,7 @@
             compact
           />
         </template>
-        <div v-else class="rule-disabled-hint">未启用计分规则</div>
+        <div v-else class="rule-disabled-hint">未配置</div>
       </div>
 
       <!-- 设项适用地区 -->
@@ -247,9 +243,9 @@
   import {
     createReferenceRecords,
     findEventItem,
-    formatSportProject,
     getRegionLabelList,
-    getScoreFormFields
+    getScoreFieldConfigForDisplay,
+    formatRequiredDisplay
   } from '@/views/event-item/data.js';
   import AttachmentTable from './attachment-table.vue';
 
@@ -263,25 +259,26 @@
   const referenceRecords = computed(() => createReferenceRecords(data.value));
   const regionLabels = computed(() => getRegionLabelList(data.value?.regions ?? []));
 
-  const scoreFields = computed(() => {
+  const scoreFieldsDisplay = computed(() => {
     if (!data.value) {
       return [];
     }
-    if (data.value.scoreFormType === 'existing') {
-      return getScoreFormFields(data.value.scoreForm).map((d) => ({
-        ...d,
-        required: typeof d.required === 'boolean' ? d.required : d.required === '是'
-      }));
-    }
-    return data.value.scoreFields ?? [];
+    const includeMatchScore =
+      data.value.matchForm === '团体' &&
+      data.value.scoringEnabled &&
+      data.value.scoringMethod === '手动录入比赛分';
+    return getScoreFieldConfigForDisplay(data.value, { includeMatchScore });
   });
 
-  const scoreFieldsDisplay = computed(() =>
-    scoreFields.value.map((d) => ({
-      ...d,
-      sportProjectDisplay: formatSportProject(d.sportProject)
-    }))
-  );
+  const formatUnitOrOptions = (row) => {
+    if (row.name === '比赛结果') {
+      return row.options || '胜、负、平';
+    }
+    if (row.unit && row.unit !== '-') {
+      return row.unit;
+    }
+    return '-';
+  };
 
   const emitAction = (action) => {
     visible.value = false;
@@ -299,13 +296,6 @@
       return `${row.ageStart} - ${row.ageEnd} 岁`;
     }
     return '-';
-  }
-
-  function formatRequired(required) {
-    if (typeof required === 'boolean') {
-      return required ? '是' : '否';
-    }
-    return required || '-';
   }
 </script>
 
@@ -374,6 +364,13 @@
 
   .inline-tag {
     margin-right: 6px;
+  }
+
+  .score-config-hint {
+    margin: 4px 0 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--el-text-color-secondary);
   }
 
   .inner-card {

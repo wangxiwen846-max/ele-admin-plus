@@ -30,7 +30,7 @@
               v-model.trim="form.itemName"
               :disabled="coreDisabled"
               :maxlength="50"
-              placeholder="请输入设项名称"
+              placeholder="例如：一分钟跳绳、3v3篮球、男子1000米"
             />
           </el-form-item>
         </el-col>
@@ -113,36 +113,47 @@
     <div class="form-section">
       <div class="section-head">
         <div class="section-title">比赛形式</div>
-        <div class="section-desc">配置个人赛或团体赛及组队规则</div>
+        <div class="section-desc">配置个人或团体比赛形式；团体比赛可按需设置每支队伍的组队规则</div>
       </div>
       <div class="section-body">
       <el-row :gutter="16">
         <el-col :xs="24">
           <el-form-item label="比赛形式" prop="matchForm">
-            <el-radio-group v-model="form.matchForm" :disabled="coreDisabled">
+            <el-radio-group v-model="form.matchForm" :disabled="coreDisabled" @change="handleMatchFormChange">
               <el-radio value="个人">个人</el-radio>
               <el-radio value="团体">团体</el-radio>
             </el-radio-group>
           </el-form-item>
         </el-col>
         <template v-if="form.matchForm === '团体'">
-          <el-col :sm="12" :xs="24">
-            <el-form-item label="每队最少人数" prop="teamMin">
-              <el-input-number v-model="form.teamMin" :disabled="coreDisabled" :min="1" class="ele-fluid" />
+          <el-col :xs="24">
+            <el-form-item label="是否配置队伍人数" class="team-form-item">
+              <el-switch
+                v-model="form.enableTeamMemberLimit"
+                :disabled="coreDisabled"
+                @change="handleTeamMemberLimitChange"
+              />
             </el-form-item>
           </el-col>
-          <el-col :sm="12" :xs="24">
-            <el-form-item label="每队最多人数" prop="teamMax">
-              <el-input-number v-model="form.teamMax" :disabled="coreDisabled" :min="1" class="ele-fluid" />
-            </el-form-item>
-          </el-col>
-          <el-col :sm="12" :xs="24">
-            <el-form-item label="需要队伍名称">
-              <el-switch v-model="form.needTeamName" :disabled="coreDisabled" active-text="是" inactive-text="否" />
+          <template v-if="form.enableTeamMemberLimit">
+            <el-col :sm="12" :xs="24">
+              <el-form-item label="每队最少人数" prop="teamMin" class="team-form-item team-form-item--top">
+                <el-input-number v-model="form.teamMin" :disabled="coreDisabled" :min="1" class="ele-fluid" />
+              </el-form-item>
+            </el-col>
+            <el-col :sm="12" :xs="24">
+              <el-form-item label="每队最多人数" prop="teamMax" class="team-form-item team-form-item--top">
+                <el-input-number v-model="form.teamMax" :disabled="coreDisabled" :min="1" class="ele-fluid" />
+              </el-form-item>
+            </el-col>
+          </template>
+          <el-col :xs="24">
+            <el-form-item label="是否需要队伍名称" class="team-form-item">
+              <el-switch v-model="form.needTeamName" :disabled="coreDisabled" />
             </el-form-item>
           </el-col>
           <el-col :xs="24">
-            <el-form-item label="组队规则说明">
+            <el-form-item label="组队规则说明" class="team-form-item team-form-item--top">
               <el-input
                 v-model="form.teamRule"
                 :disabled="coreDisabled"
@@ -159,8 +170,8 @@
 
     <div class="form-section">
       <div class="section-head">
-        <div class="section-title">参赛要求</div>
-        <div class="section-desc">设置性别、学段、年级等参赛限制条件</div>
+        <div class="section-title">适用范围</div>
+        <div class="section-desc">设置性别、学段、年级等适用范围条件</div>
       </div>
       <div class="section-body">
       <el-row :gutter="16">
@@ -212,18 +223,8 @@
           </el-form-item>
         </el-col>
         <el-col :xs="24">
-          <el-form-item label="参赛资格说明">
+          <el-form-item label="适用范围说明">
             <el-input v-model="form.qualification" :disabled="coreDisabled" type="textarea" :rows="3" :maxlength="300" />
-          </el-form-item>
-        </el-col>
-        <el-col :sm="12" :xs="24">
-          <el-form-item label="需要报名材料">
-            <el-switch v-model="form.needMaterial" :disabled="coreDisabled" active-text="是" inactive-text="否" />
-          </el-form-item>
-        </el-col>
-        <el-col v-if="form.needMaterial" :xs="24">
-          <el-form-item label="报名材料说明">
-            <el-input v-model="form.materialDescription" :disabled="coreDisabled" type="textarea" :rows="3" :maxlength="300" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -232,8 +233,51 @@
 
     <div class="form-section">
       <div class="section-head">
+        <div class="section-title">报名设置</div>
+        <div class="section-desc">配置设项默认报名规则，具体报名时间与名额在发布比赛时配置</div>
+      </div>
+      <div class="section-body">
+        <el-row :gutter="16">
+          <el-col :sm="12" :xs="24">
+            <el-form-item label="报名方式" prop="registrationMethods">
+              <el-select
+                v-model="form.registrationMethods"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                :disabled="coreDisabled"
+                placeholder="请选择报名方式"
+                class="ele-fluid"
+              >
+                <el-option
+                  v-for="opt in REGISTRATION_METHOD_OPTIONS"
+                  :key="opt"
+                  :label="opt"
+                  :value="opt"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :sm="12" :xs="24">
+            <el-form-item label="默认保险要求" prop="defaultInsuranceRequirement">
+              <el-radio-group v-model="form.defaultInsuranceRequirement" :disabled="coreDisabled">
+                <el-radio v-for="opt in DEFAULT_INSURANCE_OPTIONS" :key="opt" :value="opt">
+                  {{ opt }}
+                </el-radio>
+              </el-radio-group>
+              <div class="form-tip">
+                仅配置该设项的默认保险要求，具体保险方案可在赛事活动或发布比赛时配置。
+              </div>
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-head">
         <div class="section-title">成绩配置</div>
-        <div class="section-desc">配置成绩采集方式、排名与计分规则</div>
+        <div class="section-desc">配置成绩采集方式与固定成绩类型；提交成绩时直接填写成绩和名次，不配置自动排名规则</div>
       </div>
       <div class="section-body">
       <el-row :gutter="16">
@@ -243,183 +287,125 @@
           </el-form-item>
         </el-col>
         <el-col :sm="12" :xs="24">
-          <el-form-item label="成绩提交表单">
-            <el-radio-group v-model="form.scoreFormType" :disabled="coreDisabled">
-              <el-radio value="existing">选择已有成绩表单</el-radio>
-              <el-radio value="custom">配置成绩字段</el-radio>
+          <el-form-item label="成绩提交人" prop="scoreSubmitters">
+            <el-select
+              v-model="form.scoreSubmitters"
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
+              :disabled="coreDisabled"
+              placeholder="请选择成绩提交人"
+              class="ele-fluid"
+            >
+              <el-option v-for="opt in SCORE_SUBMITTER_OPTIONS" :key="opt" :label="opt" :value="opt" />
+            </el-select>
+            <div class="form-tip form-tip--emphasis">
+              比赛结束后，由体育教师或赛事专员提交比赛成绩和名次。
+            </div>
+          </el-form-item>
+        </el-col>
+        <el-col :xs="24">
+          <el-form-item label="成绩类型" prop="scoreType">
+            <el-radio-group v-model="form.scoreType" :disabled="coreDisabled" @change="handleScoreTypeChange">
+              <el-radio v-for="opt in SCORE_TYPE_OPTIONS" :key="opt" :value="opt">{{ opt }}</el-radio>
             </el-radio-group>
           </el-form-item>
         </el-col>
-
-        <template v-if="form.scoreFormType === 'existing'">
-          <el-col :sm="12" :xs="24">
-            <el-form-item label="选择成绩表单" prop="scoreForm">
-              <el-select
-                v-model="form.scoreForm"
-                :disabled="coreDisabled"
-                placeholder="请选择成绩提交表单"
-                class="ele-fluid"
-              >
-                <el-option v-for="opt in scoreFormOptions" :key="opt" :label="opt" :value="opt" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24">
-            <div class="config-block">
-              <div class="config-toolbar">
-                <div>
-                  <div class="config-title">表单字段预览</div>
-                  <div class="config-desc">选择成绩表单后可预览字段结构</div>
-                </div>
+        <el-col :xs="24">
+          <div class="config-block">
+            <div class="config-toolbar">
+              <div>
+                <div class="config-title">成绩提交字段配置表</div>
+                <div class="config-desc">根据成绩类型生成默认字段，可在表格中调整统计方式与单位</div>
               </div>
-              <el-table :data="formPreview" border size="small" class="config-table" empty-text="请选择成绩表单后查看字段预览">
-                <el-table-column label="所属项目" width="100" align="center">
-                  <template #default="{ row }">{{ formatSportProject(row.sportProject) }}</template>
-                </el-table-column>
-                <el-table-column prop="name" label="字段名称" min-width="120" />
-                <el-table-column prop="type" label="字段类型" width="100" align="center" />
-                <el-table-column prop="required" label="是否必填" width="90" align="center" />
-                <el-table-column prop="unit" label="单位" width="80" align="center" />
-                <el-table-column prop="description" label="说明" min-width="140" show-overflow-tooltip />
-              </el-table>
             </div>
-          </el-col>
-        </template>
-
-        <template v-else>
-          <el-col :xs="24">
-            <div class="config-block">
-              <div class="config-toolbar">
-                <div>
-                  <div class="config-title">成绩字段配置</div>
-                  <div class="config-desc">配置该设项提交成绩时需要填写的字段</div>
-                </div>
-                <el-button type="primary" size="small" :disabled="coreDisabled" @click="openFieldDialog()">
-                  新增字段
-                </el-button>
-              </div>
-              <el-table :data="form.scoreFields" border size="small" class="config-table" empty-text="暂无字段，请点击「新增字段」进行配置">
-                <el-table-column label="所属项目" width="100" align="center">
-                  <template #default="{ row }">{{ formatSportProject(row.sportProject) }}</template>
-                </el-table-column>
-                <el-table-column prop="name" label="字段名称" min-width="120" />
-                <el-table-column prop="type" label="字段类型" width="100" align="center" />
-                <el-table-column label="是否必填" width="90" align="center">
-                  <template #default="{ row }">{{ row.required ? '是' : '否' }}</template>
-                </el-table-column>
-                <el-table-column prop="unit" label="单位" width="80" align="center" />
-                <el-table-column prop="description" label="说明" min-width="120" show-overflow-tooltip />
-                <el-table-column label="操作" width="120" align="center" fixed="right">
-                  <template #default="{ row, $index }">
-                    <el-link type="primary" underline="never" :disabled="coreDisabled" @click="openFieldDialog(row, $index)">
-                      编辑
-                    </el-link>
-                    <el-divider direction="vertical" />
-                    <el-link type="danger" underline="never" :disabled="coreDisabled" @click="removeField($index)">
-                      删除
-                    </el-link>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </div>
-          </el-col>
-          <el-col :sm="12" :xs="24">
-            <el-form-item label="保存为模板">
-              <el-switch
-                v-model="form.saveAsTemplate"
-                :disabled="coreDisabled"
-                active-text="是"
-                inactive-text="否"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col v-if="form.saveAsTemplate" :sm="12" :xs="24">
-            <el-form-item label="模板名称" prop="scoreFormTemplateName">
-              <el-input
-                v-model.trim="form.scoreFormTemplateName"
-                :disabled="coreDisabled"
-                placeholder="如：综合体能成绩提交表"
-              />
-            </el-form-item>
-          </el-col>
-        </template>
+            <el-table :data="form.scoreFieldConfig" border size="small" class="config-table">
+              <el-table-column prop="name" label="字段名称" min-width="100" />
+              <el-table-column prop="type" label="字段类型" width="88" align="center" />
+              <el-table-column label="是否必填" width="96" align="center">
+                <template #default="{ row }">
+                  <el-select
+                    v-if="!coreDisabled"
+                    v-model="row.required"
+                    size="small"
+                    class="cell-select"
+                  >
+                    <el-option :value="true" label="是" />
+                    <el-option :value="false" label="否" />
+                  </el-select>
+                  <span v-else>{{ row.required ? '是' : '否' }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="成绩统计方式" min-width="120" align="center">
+                <template #default="{ row }">
+                  <el-select
+                    v-if="isStatMethodEditable(row)"
+                    v-model="row.statMethod"
+                    :disabled="coreDisabled"
+                    size="small"
+                    class="cell-select"
+                    @change="handleStatMethodChange(row)"
+                  >
+                    <el-option
+                      v-for="opt in statMethodOptions"
+                      :key="opt"
+                      :label="opt"
+                      :value="opt"
+                    />
+                  </el-select>
+                  <span v-else class="cell-text">{{ row.statMethod || '-' }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="单位/选项" min-width="100" align="center">
+                <template #default="{ row }">
+                  <el-select
+                    v-if="isUnitEditable(row)"
+                    v-model="row.unit"
+                    :disabled="coreDisabled"
+                    size="small"
+                    class="cell-select"
+                  >
+                    <el-option v-for="opt in unitOptionsForRow(row)" :key="opt" :label="opt" :value="opt" />
+                  </el-select>
+                  <span v-else class="cell-text">{{ formatUnitOrOptions(row) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="description" label="说明" min-width="120" show-overflow-tooltip />
+            </el-table>
+          </div>
+        </el-col>
       </el-row>
-
-      <el-divider class="section-divider" />
-
-      <div class="form-subsection">
-        <div class="subsection-head">
-          <span class="subsection-title">排名规则</span>
-        </div>
-        <el-row :gutter="16">
-          <el-col :sm="12" :xs="24">
-            <el-form-item label="是否生成排名">
-              <el-switch v-model="form.rankingEnabled" :disabled="coreDisabled" active-text="开启" inactive-text="关闭" />
-            </el-form-item>
-          </el-col>
-          <el-col v-if="form.rankingEnabled" :sm="12" :xs="24">
-            <el-form-item label="排名依据" prop="rankBasis">
-              <el-select v-model="form.rankBasis" :disabled="coreDisabled" placeholder="请选择排名依据" class="ele-fluid">
-                <el-option v-for="opt in RANK_BASIS_OPTIONS" :key="opt" :label="opt" :value="opt" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <template v-if="form.rankingEnabled">
-            <el-col v-if="needSortType" :sm="12" :xs="24">
-              <el-form-item label="排序方式" prop="sortType">
-                <el-radio-group v-model="form.sortType" :disabled="coreDisabled">
-                  <el-radio v-for="opt in SORT_OPTIONS" :key="opt" :value="opt">{{ opt }}</el-radio>
-                </el-radio-group>
-              </el-form-item>
-            </el-col>
-            <el-col :sm="12" :xs="24">
-              <el-form-item label="同分处理">
-                <el-radio-group v-model="form.tieRule" :disabled="coreDisabled">
-                  <el-radio v-for="opt in TIE_OPTIONS" :key="opt" :value="opt">{{ opt }}</el-radio>
-                </el-radio-group>
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24">
-              <el-form-item label="排名规则说明">
-                <el-input v-model="form.rankDescription" :disabled="coreDisabled" type="textarea" :rows="3" />
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24">
-              <attachment-table
-                title="排名规则附件"
-                :list="form.rankAttachments"
-                :disabled="coreDisabled"
-                compact
-                @add="(file) => handleAttachmentAdd('rankAttachments', file)"
-                @remove="(row) => handleAttachmentRemove('rankAttachments', row)"
-              />
-            </el-col>
-          </template>
-        </el-row>
       </div>
+    </div>
 
-      <div class="form-subsection">
-        <div class="subsection-head">
-          <span class="subsection-title">计分规则</span>
-        </div>
+    <div v-if="form.matchForm === '团体'" class="form-section">
+      <div class="section-head">
+        <div class="section-title">比赛计分规则</div>
+        <div class="section-desc">团体比赛可配置比赛计分规则</div>
+      </div>
+      <div class="section-body">
         <el-row :gutter="16">
           <el-col :sm="12" :xs="24">
-            <el-form-item label="是否启用计分">
-              <el-switch v-model="form.scoringEnabled" :disabled="coreDisabled" active-text="是" inactive-text="否" />
-            </el-form-item>
-          </el-col>
-          <el-col v-if="form.scoringEnabled" :sm="12" :xs="24">
-            <el-form-item label="计分处理方式">
-              <el-radio-group v-model="form.scoringMethod" :disabled="coreDisabled">
-                <el-radio value="手动录入比赛分">手动录入比赛分</el-radio>
-                <el-radio value="系统自动计算" disabled>系统自动计算（后续支持）</el-radio>
-              </el-radio-group>
-              <div v-if="form.scoringMethod === '手动录入比赛分'" class="form-tip">
-                请确保成绩提交表单中包含“比赛分”字段（所属项目可为空）。
-              </div>
+            <el-form-item label="是否启用">
+              <el-switch v-model="form.scoringEnabled" :disabled="coreDisabled" @change="handleScoringEnabledChange" />
             </el-form-item>
           </el-col>
           <template v-if="form.scoringEnabled">
+            <el-col :sm="12" :xs="24">
+              <el-form-item label="计分处理方式">
+                <el-radio-group
+                  v-model="form.scoringMethod"
+                  :disabled="coreDisabled"
+                  @change="syncMatchScoreField"
+                >
+                  <el-radio value="手动录入比赛分">手动录入比赛分</el-radio>
+                  <el-radio value="系统自动计算" disabled>系统自动计算（后续支持）</el-radio>
+                </el-radio-group>
+                <div v-if="form.scoringMethod === '手动录入比赛分'" class="form-tip">
+                  请确保成绩提交字段配置表中包含「比赛分」字段。
+                </div>
+              </el-form-item>
+            </el-col>
             <el-col :xs="24">
               <el-form-item label="计分规则说明">
                 <el-input v-model="form.scoringDescription" :disabled="coreDisabled" type="textarea" :rows="3" />
@@ -437,7 +423,6 @@
             </el-col>
           </template>
         </el-row>
-      </div>
       </div>
     </div>
 
@@ -500,65 +485,10 @@
       </div>
     </div>
   </el-form>
-
-  <el-dialog
-    v-model="fieldDialogVisible"
-    :title="fieldEditIndex === -1 ? '新增字段' : '编辑字段'"
-    width="520px"
-    append-to-body
-    destroy-on-close
-  >
-    <el-form ref="fieldFormRef" :model="fieldForm" :rules="fieldRules" label-width="90px" @submit.prevent="">
-      <el-form-item label="所属项目">
-        <el-select
-          v-model="fieldForm.sportProject"
-          clearable
-          placeholder="可选，不选表示不归属于具体项目"
-          class="ele-fluid"
-        >
-          <el-option v-for="opt in sportProjectOptions" :key="opt" :label="opt" :value="opt" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="字段名称" prop="name">
-        <el-input v-model.trim="fieldForm.name" :maxlength="30" placeholder="请输入字段名称" />
-      </el-form-item>
-      <el-form-item label="字段类型" prop="type">
-        <el-select v-model="fieldForm.type" placeholder="请选择字段类型" class="ele-fluid">
-          <el-option v-for="opt in FIELD_TYPE_OPTIONS" :key="opt" :label="opt" :value="opt" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="是否必填">
-        <el-switch v-model="fieldForm.required" active-text="是" inactive-text="否" />
-      </el-form-item>
-      <el-form-item label="单位">
-        <el-input v-model.trim="fieldForm.unit" :maxlength="10" placeholder="如：次、秒、分" />
-      </el-form-item>
-      <el-form-item v-if="needOptions" label="选项配置" prop="options">
-        <el-select
-          v-model="fieldForm.options"
-          multiple
-          filterable
-          allow-create
-          default-first-option
-          :reserve-keyword="false"
-          placeholder="输入选项后回车"
-          class="ele-fluid"
-        />
-      </el-form-item>
-      <el-form-item label="说明">
-        <el-input v-model="fieldForm.description" type="textarea" :rows="2" :maxlength="100" />
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <el-button @click="fieldDialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="saveField">确定</el-button>
-    </template>
-  </el-dialog>
 </template>
 
 <script setup>
   import { computed, reactive, ref } from 'vue';
-  import { ElMessageBox } from 'element-plus';
   import { EleMessage } from 'ele-admin-plus';
   import AttachmentTable from './attachment-table.vue';
   import {
@@ -566,22 +496,29 @@
     SPORT_PROJECT_CATALOG,
     GENDER_OPTIONS,
     STAGE_OPTIONS,
-    RANK_BASIS_OPTIONS,
-    SORT_OPTIONS,
-    TIE_OPTIONS,
-    FIELD_TYPE_OPTIONS,
+    SCORE_TYPE_OPTIONS,
+    SCORE_SUBMITTER_OPTIONS,
+    REGISTRATION_METHOD_OPTIONS,
+    DEFAULT_INSURANCE_OPTIONS,
+    DURATION_STAT_METHOD_OPTIONS,
+    DURATION_UNIT_OPTIONS,
+    COUNT_STAT_METHOD_OPTIONS,
+    COUNT_UNIT_OPTIONS,
     REGION_OPTIONS,
     getGradesByStages,
-    getScoreFormOptions,
-    getScoreFormFields,
-    saveScoreFormTemplate,
+    applyScoreTypeDefaults,
+    syncScoreMetaFromFieldConfig,
+    syncScoreConfigFromForm,
+    syncStructuredFieldsFromForm,
+    ensureMatchScoreField,
+    removeMatchScoreField,
+    defaultUnitForCountStat,
+    migrateLegacyItem,
     clone,
     createDefaultItem,
     eventItemStore,
     formatNow,
-    formatSportProject,
-    hasScoreFieldNamed,
-    normalizeSportProject
+    hasScoreFieldNamed
   } from '@/views/event-item/data.js';
 
   const props = defineProps({
@@ -601,7 +538,7 @@
     Object.assign(form, createDefaultItem());
     sportPicker.value = [];
     if (props.data) {
-      Object.assign(form, clone(props.data));
+      Object.assign(form, migrateLegacyItem(clone(props.data)));
       sportPicker.value = (form.sports ?? []).map((s) => s.name);
       if (props.mode === 'copy') {
         form.itemId = void 0;
@@ -612,10 +549,9 @@
         form.updateTime = '';
         form.operationLogs = [];
       }
-      form.scoreFields = (form.scoreFields ?? []).map((f) => ({
-        ...f,
-        sportProject: normalizeSportProject(f.sportProject)
-      }));
+      syncMatchScoreField();
+    } else {
+      applyScoreTypeDefaults(form);
     }
   };
   initForm();
@@ -637,11 +573,11 @@
     ],
     matchForm: [{ required: true, message: '请选择比赛形式', trigger: 'change' }],
     gender: [{ required: true, message: '请选择性别要求', trigger: 'change' }],
-    scoreForm: [
+    scoreSubmitters: [
       {
         validator: (_, value, callback) => {
-          if (form.scoreFormType === 'existing' && !value) {
-            callback(new Error('请选择成绩提交表单'));
+          if (!value?.length) {
+            callback(new Error('请选择成绩提交人'));
           } else {
             callback();
           }
@@ -649,17 +585,21 @@
         trigger: 'change'
       }
     ],
-    scoreFormTemplateName: [
+    scoreType: [{ required: true, message: '请选择成绩类型', trigger: 'change' }],
+    registrationMethods: [
       {
         validator: (_, value, callback) => {
-          if (form.scoreFormType === 'custom' && form.saveAsTemplate && !value?.trim()) {
-            callback(new Error('请输入成绩表单模板名称'));
+          if (!value?.length) {
+            callback(new Error('请选择报名方式'));
           } else {
             callback();
           }
         },
-        trigger: 'blur'
+        trigger: 'change'
       }
+    ],
+    defaultInsuranceRequirement: [
+      { required: true, message: '请选择默认保险要求', trigger: 'change' }
     ],
     regions: [
       {
@@ -676,7 +616,7 @@
     teamMin: [
       {
         validator: (_, value, callback) => {
-          if (form.matchForm === '团体' && (!value || value <= 0)) {
+          if (form.matchForm === '团体' && form.enableTeamMemberLimit && (!value || value <= 0)) {
             callback(new Error('每队最少人数必须大于 0'));
           } else {
             callback();
@@ -688,32 +628,14 @@
     teamMax: [
       {
         validator: (_, value, callback) => {
-          if (form.matchForm === '团体' && value < form.teamMin) {
+          if (
+            form.matchForm === '团体' &&
+            form.enableTeamMemberLimit &&
+            value != null &&
+            form.teamMin != null &&
+            value < form.teamMin
+          ) {
             callback(new Error('每队最多人数必须大于等于最少人数'));
-          } else {
-            callback();
-          }
-        },
-        trigger: 'change'
-      }
-    ],
-    rankBasis: [
-      {
-        validator: (_, value, callback) => {
-          if (form.rankingEnabled && !value) {
-            callback(new Error('请选择排名依据'));
-          } else {
-            callback();
-          }
-        },
-        trigger: 'change'
-      }
-    ],
-    sortType: [
-      {
-        validator: (_, value, callback) => {
-          if (form.rankingEnabled && needSortType.value && !value) {
-            callback(new Error('请选择排序方式'));
           } else {
             callback();
           }
@@ -732,73 +654,66 @@
     children: 'children'
   };
 
-  const needSortType = computed(() => ['成绩值', '比赛分'].includes(form.rankBasis));
   const gradeOptions = computed(() => getGradesByStages(form.stages));
-  const scoreFormOptions = computed(() => getScoreFormOptions());
-  const formPreview = computed(() => {
-    const fields = getScoreFormFields(form.scoreForm);
-    return fields.map((d) => ({
-      ...d,
-      sportProject: formatSportProject(d.sportProject),
-      required: typeof d.required === 'boolean' ? (d.required ? '是' : '否') : d.required
-    }));
-  });
-  const sportProjectOptions = computed(() => (form.sports ?? []).map((s) => s.name));
 
-  const confirmRemoveSportFields = (name) => {
-    const related = form.scoreFields.filter((f) => normalizeSportProject(f.sportProject) === name);
-    if (!related.length) {
-      return Promise.resolve(true);
+  const statMethodOptions = computed(() => {
+    if (form.scoreType === '时长/用时类') {
+      return DURATION_STAT_METHOD_OPTIONS;
     }
-    return ElMessageBox.confirm(
-      '该项目下已配置成绩字段，移除后相关字段将被删除，是否继续？',
-      '移除体育项目',
-      { type: 'warning', draggable: true }
-    )
-      .then(() => {
-        form.scoreFields = form.scoreFields.filter(
-          (f) => normalizeSportProject(f.sportProject) !== name
-        );
-        return true;
-      })
-      .catch(() => false);
+    if (form.scoreType === '个数/距离类') {
+      return COUNT_STAT_METHOD_OPTIONS;
+    }
+    return [];
+  });
+
+  const isStatMethodEditable = (row) =>
+    row.name === '成绩数值' && form.scoreType !== '胜负类';
+
+  const isUnitEditable = (row) =>
+    row.name === '成绩数值' && form.scoreType !== '胜负类';
+
+  const unitOptionsForRow = () => {
+    if (form.scoreType === '时长/用时类') {
+      return DURATION_UNIT_OPTIONS;
+    }
+    if (form.scoreType === '个数/距离类') {
+      return COUNT_UNIT_OPTIONS;
+    }
+    return [];
   };
 
-  const syncSports = async () => {
-    const prevNames = (form.sports ?? []).map((s) => s.name);
-    const nextNames = [...sportPicker.value];
-    const removedNames = prevNames.filter((n) => !nextNames.includes(n));
-
-    for (const name of removedNames) {
-      const ok = await confirmRemoveSportFields(name);
-      if (!ok) {
-        sportPicker.value = [...prevNames];
-        return;
-      }
+  const formatUnitOrOptions = (row) => {
+    if (row.name === '比赛结果') {
+      return row.options || '胜、负、平';
     }
+    if (row.unit && row.unit !== '-') {
+      return row.unit;
+    }
+    return '-';
+  };
 
-    form.sports = nextNames.map((name) => {
+  const syncMatchScoreField = () => {
+    if (
+      form.matchForm === '团体' &&
+      form.scoringEnabled &&
+      form.scoringMethod === '手动录入比赛分'
+    ) {
+      form.scoreFieldConfig = ensureMatchScoreField(form.scoreFieldConfig ?? []);
+    } else {
+      form.scoreFieldConfig = removeMatchScoreField(form.scoreFieldConfig ?? []);
+    }
+  };
+
+  const syncSports = () => {
+    form.sports = sportPicker.value.map((name) => {
       return SPORT_PROJECT_CATALOG.find((d) => d.name === name) ?? { name, projectType: '-', unit: '-' };
     });
     formRef.value?.validateField?.('sports');
   };
 
-  const removeSport = async (name) => {
-    const ok = await confirmRemoveSportFields(name);
-    if (!ok) {
-      return;
-    }
+  const removeSport = (name) => {
     sportPicker.value = sportPicker.value.filter((d) => d !== name);
-    form.sports = sportPicker.value.map((sportName) => {
-      return (
-        SPORT_PROJECT_CATALOG.find((d) => d.name === sportName) ?? {
-          name: sportName,
-          projectType: '-',
-          unit: '-'
-        }
-      );
-    });
-    formRef.value?.validateField?.('sports');
+    syncSports();
   };
 
   const handleStageChange = () => {
@@ -813,82 +728,48 @@
     }
   };
 
-  const fieldDialogVisible = ref(false);
-  const fieldEditIndex = ref(-1);
-  const fieldFormRef = ref(null);
-  const fieldForm = reactive({
-    sportProject: '',
-    name: '',
-    type: '数字',
-    required: true,
-    unit: '',
-    description: '',
-    options: []
-  });
-
-  const needOptions = computed(() => ['单选', '多选'].includes(fieldForm.type));
-  const fieldRules = reactive({
-    name: [{ required: true, message: '请输入字段名称', trigger: 'blur' }],
-    type: [{ required: true, message: '请选择字段类型', trigger: 'change' }],
-    options: [
-      {
-        validator: (_, value, callback) => {
-          if (needOptions.value && (!value || !value.length)) {
-            callback(new Error('请配置选项'));
-          } else {
-            callback();
-          }
-        },
-        trigger: 'change'
-      }
-    ]
-  });
-
-  const openFieldDialog = (row, index = -1) => {
-    fieldEditIndex.value = index;
-    if (row) {
-      Object.assign(fieldForm, clone(row));
-      fieldForm.sportProject = normalizeSportProject(fieldForm.sportProject);
-      fieldForm.options = fieldForm.options ?? [];
-    } else {
-      Object.assign(fieldForm, {
-        sportProject: '',
-        name: '',
-        type: '数字',
-        required: true,
-        unit: '',
-        description: '',
-        options: []
-      });
+  const handleMatchFormChange = (val) => {
+    if (val === '个人') {
+      form.enableTeamMemberLimit = false;
+      form.teamMin = null;
+      form.teamMax = null;
+      form.scoringEnabled = false;
+      form.scoringMethod = '';
+      form.scoringDescription = '';
+      form.scoringAttachments = [];
     }
-    fieldDialogVisible.value = true;
+    syncMatchScoreField();
   };
 
-  const saveField = () => {
-    fieldFormRef.value?.validate?.((valid) => {
-      if (!valid) {
-        return;
-      }
-      const payload = clone(fieldForm);
-      payload.sportProject = normalizeSportProject(payload.sportProject);
-      if (!needOptions.value) {
-        payload.options = [];
-      }
-      if (fieldEditIndex.value === -1) {
-        payload.fieldId = Date.now();
-        form.scoreFields.push(payload);
-      } else {
-        payload.fieldId = form.scoreFields[fieldEditIndex.value]?.fieldId ?? Date.now();
-        form.scoreFields[fieldEditIndex.value] = payload;
-      }
-      fieldDialogVisible.value = false;
-    });
+  const handleTeamMemberLimitChange = (val) => {
+    if (!val) {
+      form.teamMin = null;
+      form.teamMax = null;
+    } else if (!form.teamMin) {
+      form.teamMin = 1;
+      form.teamMax = 3;
+    }
   };
 
-  const removeField = (index) => {
-    ElMessageBox.confirm('确定删除该成绩字段吗？', '删除字段', { type: 'warning', draggable: true })
-      .then(() => form.scoreFields.splice(index, 1))
-      .catch(() => {});
+  const handleScoreTypeChange = () => {
+    applyScoreTypeDefaults(form);
+    syncMatchScoreField();
+  };
+
+  const handleStatMethodChange = (row) => {
+    if (form.scoreType === '个数/距离类' && row.name === '成绩数值') {
+      row.unit = defaultUnitForCountStat(row.statMethod);
+    }
+    syncScoreMetaFromFieldConfig(form);
+    syncScoreConfigFromForm(form);
+  };
+
+  const handleScoringEnabledChange = (val) => {
+    if (val && !form.scoringMethod) {
+      form.scoringMethod = '手动录入比赛分';
+    }
+    syncMatchScoreField();
+    syncScoreConfigFromForm(form);
   };
 
   const handleAttachmentAdd = (field, file) => {
@@ -905,34 +786,31 @@
   };
 
   const buildPayload = () => {
+    syncMatchScoreField();
+    syncStructuredFieldsFromForm(form);
     const payload = clone(form);
     payload.dataSource = '表单提交';
     if (payload.matchForm === '个人') {
       payload.teamRule = '';
+      payload.enableTeamMemberLimit = false;
+      payload.teamMin = null;
+      payload.teamMax = null;
+      payload.scoringEnabled = false;
+      payload.scoringMethod = '';
+      payload.scoringDescription = '';
+      payload.scoringAttachments = [];
     }
-    if (!payload.needMaterial) {
-      payload.materialDescription = '';
+    if (!payload.enableTeamMemberLimit) {
+      payload.teamMin = null;
+      payload.teamMax = null;
     }
-    if (payload.scoreFormType === 'custom') {
-      payload.scoreForm = '';
-      payload.scoreFields = (payload.scoreFields ?? []).map((f) => ({
-        ...f,
-        sportProject: normalizeSportProject(f.sportProject)
-      }));
-      if (payload.saveAsTemplate && payload.scoreFormTemplateName?.trim()) {
-        saveScoreFormTemplate(payload.scoreFormTemplateName.trim(), payload.scoreFields);
-      }
-    } else {
-      payload.scoreFields = [];
-      payload.saveAsTemplate = false;
-      payload.scoreFormTemplateName = '';
-    }
-    if (!payload.rankingEnabled) {
-      payload.rankBasis = '';
-      payload.sortType = '';
-      payload.tieRule = '';
-    }
-    if (!payload.scoringEnabled) {
+    payload.rankingEnabled = false;
+    payload.rankBasis = '';
+    payload.sortType = '';
+    payload.tieRule = '';
+    payload.rankDescription = '';
+    payload.rankAttachments = [];
+    if (payload.matchForm !== '团体' || !payload.scoringEnabled) {
       payload.scoringMethod = '';
       payload.scoringDescription = '';
       payload.scoringAttachments = [];
@@ -940,22 +818,20 @@
     if (payload.regionType === '全国') {
       payload.regions = [];
     }
+    syncStructuredFieldsFromForm(payload);
     return payload;
   };
 
   const validateBusinessRules = () => {
-    if (form.rankingEnabled && form.rankBasis === '比赛分' && !form.scoringEnabled) {
-      EleMessage.error({ message: '排名依据为比赛分时，需要启用计分规则。', plain: true });
-      return false;
-    }
-    if (form.scoringEnabled && form.scoringMethod === '手动录入比赛分') {
-      const fields =
-        form.scoreFormType === 'custom'
-          ? form.scoreFields
-          : getScoreFormFields(form.scoreForm);
+    if (
+      form.matchForm === '团体' &&
+      form.scoringEnabled &&
+      form.scoringMethod === '手动录入比赛分'
+    ) {
+      const fields = form.scoreFieldConfig ?? [];
       if (!hasScoreFieldNamed(fields, '比赛分')) {
         EleMessage.error({
-          message: '当前计分方式为手动录入比赛分，请在成绩字段中添加“比赛分”字段。',
+          message: '当前计分方式为手动录入比赛分，请在成绩字段中添加「比赛分」字段。',
           plain: true
         });
         return false;
@@ -967,11 +843,6 @@
   const submit = () => {
     formRef.value?.validate?.((valid) => {
       if (!valid) {
-        emit('fail');
-        return;
-      }
-      if (form.scoreFormType === 'custom' && !form.scoreFields.length) {
-        EleMessage.error({ message: '请至少配置一个成绩字段', plain: true });
         emit('fail');
         return;
       }
@@ -999,6 +870,7 @@
           ...payload,
           itemId: eventItemStore.nextId++,
           isReferenced: false,
+          createBy: '管理员',
           createTime: now,
           updateTime: now,
           operationLogs: [
@@ -1110,12 +982,25 @@
     color: var(--el-text-color-secondary);
     font-size: 12px;
     line-height: 1.5;
+
+    &--emphasis {
+      margin-top: 6px;
+      color: var(--el-text-color-regular);
+    }
   }
 
   .form-static-text {
     color: var(--el-text-color-primary);
     font-size: 14px;
     line-height: 32px;
+  }
+
+  :deep(.team-form-item--top.el-form-item) {
+    align-items: flex-start;
+
+    .el-form-item__label {
+      line-height: 32px;
+    }
   }
 
   .range-line {
@@ -1162,6 +1047,15 @@
     :deep(.el-table__cell) {
       padding: 6px 0;
     }
+  }
+
+  .cell-select {
+    width: 100%;
+  }
+
+  .cell-text {
+    color: var(--el-text-color-regular);
+    font-size: 13px;
   }
 
   @media (max-width: 768px) {
