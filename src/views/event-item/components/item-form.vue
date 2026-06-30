@@ -20,7 +20,6 @@
     <div class="form-section">
       <div class="section-head">
         <div class="section-title">基本信息</div>
-        <div class="section-desc">填写设项名称、来源及关联体育项目</div>
       </div>
       <div class="section-body">
       <el-row :gutter="16">
@@ -43,48 +42,12 @@
         </el-col>
         <el-col :xs="24">
           <el-form-item label="关联体育项目" prop="sports">
-            <el-select
-              v-model="sportPicker"
-              multiple
-              collapse-tags
-              collapse-tags-tooltip
-              filterable
+            <sport-project-select
+              v-model="form.sports"
               :disabled="coreDisabled"
-              placeholder="请选择一个或多个体育项目"
-              class="ele-fluid"
-              @change="syncSports"
-            >
-              <el-option
-                v-for="item in SPORT_PROJECT_CATALOG"
-                :key="item.name"
-                :label="item.name"
-                :value="item.name"
-              />
-            </el-select>
-            <div class="form-tip">单项设项可只选一个项目；综合类设项可选多个项目。</div>
+              @update:model-value="handleSportsChange"
+            />
           </el-form-item>
-        </el-col>
-        <el-col v-if="form.sports.length" :xs="24">
-          <div class="config-block">
-            <div class="config-title">已选体育项目</div>
-            <el-table :data="form.sports" border size="small" class="config-table">
-              <el-table-column prop="name" label="体育项目" min-width="120" />
-              <el-table-column prop="projectType" label="项目类型" width="110" align="center" />
-              <el-table-column prop="unit" label="单位" width="80" align="center" />
-              <el-table-column label="操作" width="80" align="center">
-                <template #default="{ row }">
-                  <el-link
-                    type="danger"
-                    underline="never"
-                    :disabled="coreDisabled"
-                    @click="removeSport(row.name)"
-                  >
-                    移除
-                  </el-link>
-                </template>
-              </el-table-column>
-            </el-table>
-          </div>
         </el-col>
         <el-col :sm="12" :xs="24">
           <el-form-item label="启用状态">
@@ -113,7 +76,6 @@
     <div class="form-section">
       <div class="section-head">
         <div class="section-title">比赛形式</div>
-        <div class="section-desc">配置个人或团体比赛形式；团体比赛可按需设置每支队伍的组队规则</div>
       </div>
       <div class="section-body">
       <el-row :gutter="16">
@@ -170,138 +132,13 @@
 
     <div class="form-section">
       <div class="section-head">
-        <div class="section-title">适用范围</div>
-        <div class="section-desc">设置性别、学段、年级等适用范围条件</div>
-      </div>
-      <div class="section-body">
-      <el-row :gutter="16">
-        <el-col :sm="12" :xs="24">
-          <el-form-item label="性别要求" prop="gender">
-            <el-radio-group v-model="form.gender" :disabled="coreDisabled">
-              <el-radio v-for="opt in GENDER_OPTIONS" :key="opt" :value="opt">{{ opt }}</el-radio>
-            </el-radio-group>
-          </el-form-item>
-        </el-col>
-        <el-col :sm="12" :xs="24">
-          <el-form-item label="适用学段">
-            <el-select
-              v-model="form.stages"
-              multiple
-              collapse-tags
-              collapse-tags-tooltip
-              :disabled="coreDisabled"
-              placeholder="请选择适用学段"
-              class="ele-fluid"
-              @change="handleStageChange"
-            >
-              <el-option v-for="opt in STAGE_OPTIONS" :key="opt" :label="opt" :value="opt" />
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :sm="12" :xs="24">
-          <el-form-item label="适用年级">
-            <el-select
-              v-model="form.grades"
-              multiple
-              collapse-tags
-              collapse-tags-tooltip
-              :disabled="coreDisabled || !form.stages.length"
-              :placeholder="form.stages.length ? '请选择适用年级' : '请先选择适用学段'"
-              class="ele-fluid"
-            >
-              <el-option v-for="opt in gradeOptions" :key="opt" :label="opt" :value="opt" />
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :sm="12" :xs="24">
-          <el-form-item label="年龄范围">
-            <div class="range-line">
-              <el-input-number v-model="form.ageStart" :disabled="coreDisabled" :min="1" placeholder="起始年龄" />
-              <span class="range-separator">至</span>
-              <el-input-number v-model="form.ageEnd" :disabled="coreDisabled" :min="1" placeholder="结束年龄" />
-            </div>
-          </el-form-item>
-        </el-col>
-        <el-col :xs="24">
-          <el-form-item label="适用范围说明">
-            <el-input v-model="form.qualification" :disabled="coreDisabled" type="textarea" :rows="3" :maxlength="300" />
-          </el-form-item>
-        </el-col>
-      </el-row>
-      </div>
-    </div>
-
-    <div class="form-section">
-      <div class="section-head">
-        <div class="section-title">报名设置</div>
-        <div class="section-desc">配置设项默认报名规则，具体报名时间与名额在发布比赛时配置</div>
-      </div>
-      <div class="section-body">
-        <el-row :gutter="16">
-          <el-col :sm="12" :xs="24">
-            <el-form-item label="报名方式" prop="registrationMethods">
-              <el-select
-                v-model="form.registrationMethods"
-                multiple
-                collapse-tags
-                collapse-tags-tooltip
-                :disabled="coreDisabled"
-                placeholder="请选择报名方式"
-                class="ele-fluid"
-              >
-                <el-option
-                  v-for="opt in REGISTRATION_METHOD_OPTIONS"
-                  :key="opt"
-                  :label="opt"
-                  :value="opt"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :sm="12" :xs="24">
-            <el-form-item label="默认保险要求" prop="defaultInsuranceRequirement">
-              <el-radio-group v-model="form.defaultInsuranceRequirement" :disabled="coreDisabled">
-                <el-radio v-for="opt in DEFAULT_INSURANCE_OPTIONS" :key="opt" :value="opt">
-                  {{ opt }}
-                </el-radio>
-              </el-radio-group>
-              <div class="form-tip">
-                仅配置该设项的默认保险要求，具体保险方案可在赛事活动或发布比赛时配置。
-              </div>
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </div>
-    </div>
-
-    <div class="form-section">
-      <div class="section-head">
         <div class="section-title">成绩配置</div>
-        <div class="section-desc">配置成绩采集方式与固定成绩类型；提交成绩时直接填写成绩和名次，不配置自动排名规则</div>
       </div>
       <div class="section-body">
       <el-row :gutter="16">
         <el-col :sm="12" :xs="24">
           <el-form-item label="数据来源">
             <span class="form-static-text">表单提交</span>
-          </el-form-item>
-        </el-col>
-        <el-col :sm="12" :xs="24">
-          <el-form-item label="成绩提交人" prop="scoreSubmitters">
-            <el-select
-              v-model="form.scoreSubmitters"
-              multiple
-              collapse-tags
-              collapse-tags-tooltip
-              :disabled="coreDisabled"
-              placeholder="请选择成绩提交人"
-              class="ele-fluid"
-            >
-              <el-option v-for="opt in SCORE_SUBMITTER_OPTIONS" :key="opt" :label="opt" :value="opt" />
-            </el-select>
-            <div class="form-tip form-tip--emphasis">
-              比赛结束后，由体育教师或赛事专员提交比赛成绩和名次。
-            </div>
           </el-form-item>
         </el-col>
         <el-col :xs="24">
@@ -314,10 +151,7 @@
         <el-col :xs="24">
           <div class="config-block">
             <div class="config-toolbar">
-              <div>
-                <div class="config-title">成绩提交字段配置表</div>
-                <div class="config-desc">根据成绩类型生成默认字段，可在表格中调整统计方式与单位</div>
-              </div>
+              <div class="config-title">成绩提交字段配置表</div>
             </div>
             <el-table :data="form.scoreFieldConfig" border size="small" class="config-table">
               <el-table-column prop="name" label="字段名称" min-width="100" />
@@ -381,7 +215,6 @@
     <div v-if="form.matchForm === '团体'" class="form-section">
       <div class="section-head">
         <div class="section-title">比赛计分规则</div>
-        <div class="section-desc">团体比赛可配置比赛计分规则</div>
       </div>
       <div class="section-body">
         <el-row :gutter="16">
@@ -428,21 +261,108 @@
 
     <div class="form-section">
       <div class="section-head">
-        <div class="section-title">设项适用地区</div>
-        <div class="section-desc">设置设项可适用的地区范围</div>
+        <div class="section-title">奖项设置</div>
+      </div>
+      <div class="section-body">
+        <award-setting-list v-model="form.awardSettings" :disabled="coreDisabled" />
+        <el-form-item label="奖项补充说明" class="award-remark-item">
+          <el-input
+            v-model="form.awardRemark"
+            type="textarea"
+            :rows="3"
+            :maxlength="500"
+            :disabled="coreDisabled"
+            placeholder="可补充说明并列名次、参赛人数不足、奖项调整、重复获奖、团体奖统计口径等特殊规则"
+          />
+        </el-form-item>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-head">
+        <div class="section-title">参赛要求</div>
       </div>
       <div class="section-body">
       <el-row :gutter="16">
         <el-col :sm="12" :xs="24">
-          <el-form-item label="适用地区类型">
+          <el-form-item label="性别要求" prop="gender">
+            <el-radio-group v-model="form.gender" :disabled="coreDisabled">
+              <el-radio v-for="opt in GENDER_OPTIONS" :key="opt" :value="opt">{{ opt }}</el-radio>
+            </el-radio-group>
+          </el-form-item>
+        </el-col>
+        <el-col :sm="12" :xs="24">
+          <el-form-item label="适用学段">
+            <el-select
+              v-model="form.stages"
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
+              :disabled="coreDisabled"
+              placeholder="请选择适用学段"
+              class="ele-fluid"
+              @change="handleStageChange"
+            >
+              <el-option v-for="opt in STAGE_OPTIONS" :key="opt" :label="opt" :value="opt" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :sm="12" :xs="24">
+          <el-form-item label="适用年级">
+            <el-select
+              v-model="form.grades"
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
+              :disabled="coreDisabled || !form.stages.length"
+              :placeholder="form.stages.length ? '请选择适用年级' : '请选择适用学段'"
+              class="ele-fluid"
+            >
+              <el-option v-for="opt in gradeOptions" :key="opt" :label="opt" :value="opt" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :sm="12" :xs="24">
+          <el-form-item label="年龄范围">
+            <div class="range-line">
+              <el-input-number v-model="form.ageStart" :disabled="coreDisabled" :min="1" placeholder="起始年龄" />
+              <span class="range-separator">至</span>
+              <el-input-number v-model="form.ageEnd" :disabled="coreDisabled" :min="1" placeholder="结束年龄" />
+            </div>
+          </el-form-item>
+        </el-col>
+        <el-col :xs="24">
+          <el-form-item label="其他参赛条件说明">
+            <el-input
+              v-model="form.qualification"
+              :disabled="coreDisabled"
+              type="textarea"
+              :rows="3"
+              :maxlength="300"
+              placeholder="可补充说明其他参赛条件，例如：面向小学三至四年级学生"
+            />
+          </el-form-item>
+        </el-col>
+      </el-row>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-head">
+        <div class="section-title">适用区域</div>
+      </div>
+      <div class="section-body">
+      <el-row :gutter="16">
+        <el-col :sm="12" :xs="24">
+          <el-form-item label="适用区域">
             <el-radio-group v-model="form.regionType" :disabled="coreDisabled" @change="handleRegionTypeChange">
               <el-radio value="全国">全国</el-radio>
-              <el-radio value="指定地区">指定地区</el-radio>
+              <el-radio value="指定地区">指定区域</el-radio>
             </el-radio-group>
           </el-form-item>
         </el-col>
         <el-col v-if="form.regionType === '指定地区'" :xs="24">
-          <el-form-item label="指定地区" prop="regions">
+          <el-form-item label="指定区域" prop="regions">
             <el-cascader
               v-model="form.regions"
               :options="REGION_OPTIONS"
@@ -457,11 +377,6 @@
             />
           </el-form-item>
         </el-col>
-        <el-col v-if="form.regionType === '指定地区'" :sm="12" :xs="24">
-          <el-form-item label="包含下级地区">
-            <el-switch v-model="form.includeChildren" :disabled="coreDisabled" active-text="是" inactive-text="否" />
-          </el-form-item>
-        </el-col>
       </el-row>
       </div>
     </div>
@@ -469,7 +384,6 @@
     <div class="form-section form-section--last">
       <div class="section-head">
         <div class="section-title">设项规则说明</div>
-        <div class="section-desc">补充竞赛规程说明及相关附件</div>
       </div>
       <div class="section-body">
       <el-form-item label="规则说明">
@@ -491,20 +405,18 @@
   import { computed, reactive, ref } from 'vue';
   import { EleMessage } from 'ele-admin-plus';
   import AttachmentTable from './attachment-table.vue';
+  import AwardSettingList from './award-setting-list.vue';
+  import SportProjectSelect from './sport-project-select.vue';
   import {
     SOURCE_OPTIONS,
-    SPORT_PROJECT_CATALOG,
     GENDER_OPTIONS,
     STAGE_OPTIONS,
     SCORE_TYPE_OPTIONS,
-    SCORE_SUBMITTER_OPTIONS,
-    REGISTRATION_METHOD_OPTIONS,
-    DEFAULT_INSURANCE_OPTIONS,
+    REGION_OPTIONS,
     DURATION_STAT_METHOD_OPTIONS,
     DURATION_UNIT_OPTIONS,
     COUNT_STAT_METHOD_OPTIONS,
     COUNT_UNIT_OPTIONS,
-    REGION_OPTIONS,
     getGradesByStages,
     applyScoreTypeDefaults,
     syncScoreMetaFromFieldConfig,
@@ -518,7 +430,10 @@
     createDefaultItem,
     eventItemStore,
     formatNow,
-    hasScoreFieldNamed
+    hasScoreFieldNamed,
+    validateAwardSettings,
+    normalizeAwardSettings,
+    normalizeSportEntry
   } from '@/views/event-item/data.js';
 
   const props = defineProps({
@@ -532,14 +447,12 @@
   const coreDisabled = computed(() => isUpdate.value && props.data?.isReferenced);
 
   const form = reactive(createDefaultItem());
-  const sportPicker = ref([]);
 
   const initForm = () => {
     Object.assign(form, createDefaultItem());
-    sportPicker.value = [];
     if (props.data) {
       Object.assign(form, migrateLegacyItem(clone(props.data)));
-      sportPicker.value = (form.sports ?? []).map((s) => s.name);
+      form.sports = (form.sports ?? []).map((s) => normalizeSportEntry(s));
       if (props.mode === 'copy') {
         form.itemId = void 0;
         form.itemName = `${props.data.itemName}-副本`;
@@ -573,39 +486,12 @@
     ],
     matchForm: [{ required: true, message: '请选择比赛形式', trigger: 'change' }],
     gender: [{ required: true, message: '请选择性别要求', trigger: 'change' }],
-    scoreSubmitters: [
-      {
-        validator: (_, value, callback) => {
-          if (!value?.length) {
-            callback(new Error('请选择成绩提交人'));
-          } else {
-            callback();
-          }
-        },
-        trigger: 'change'
-      }
-    ],
     scoreType: [{ required: true, message: '请选择成绩类型', trigger: 'change' }],
-    registrationMethods: [
-      {
-        validator: (_, value, callback) => {
-          if (!value?.length) {
-            callback(new Error('请选择报名方式'));
-          } else {
-            callback();
-          }
-        },
-        trigger: 'change'
-      }
-    ],
-    defaultInsuranceRequirement: [
-      { required: true, message: '请选择默认保险要求', trigger: 'change' }
-    ],
     regions: [
       {
         validator: (_, value, callback) => {
           if (form.regionType === '指定地区' && (!value || !value.length)) {
-            callback(new Error('请选择指定地区'));
+            callback(new Error('请选择指定区域'));
           } else {
             callback();
           }
@@ -644,6 +530,7 @@
       }
     ]
   });
+
 
   const cascaderProps = {
     multiple: true,
@@ -704,16 +591,8 @@
     }
   };
 
-  const syncSports = () => {
-    form.sports = sportPicker.value.map((name) => {
-      return SPORT_PROJECT_CATALOG.find((d) => d.name === name) ?? { name, projectType: '-', unit: '-' };
-    });
+  const handleSportsChange = () => {
     formRef.value?.validateField?.('sports');
-  };
-
-  const removeSport = (name) => {
-    sportPicker.value = sportPicker.value.filter((d) => d !== name);
-    syncSports();
   };
 
   const handleStageChange = () => {
@@ -818,6 +697,14 @@
     if (payload.regionType === '全国') {
       payload.regions = [];
     }
+    payload.awardSettings = normalizeAwardSettings(payload.awardSettings ?? []);
+    payload.awardRemark = payload.awardRemark?.trim() ?? '';
+    payload.qualification = payload.qualification?.trim() ?? '';
+    payload.sports = (payload.sports ?? []).map((s) => normalizeSportEntry(s));
+    delete payload.registrationSetting;
+    delete payload.insuranceSetting;
+    delete payload.scoreSubmitters;
+    delete payload.itemRequirement;
     syncStructuredFieldsFromForm(payload);
     return payload;
   };
@@ -836,6 +723,11 @@
         });
         return false;
       }
+    }
+    const awardErrors = validateAwardSettings(form.awardSettings);
+    if (awardErrors.length) {
+      EleMessage.error({ message: awardErrors[0], plain: true });
+      return false;
     }
     return true;
   };
@@ -925,6 +817,11 @@
   .section-head {
     padding: 12px 16px 0;
     background: transparent;
+  }
+
+  .award-remark-item {
+    margin-top: 12px;
+    margin-bottom: 0;
   }
 
   .section-title {
@@ -1062,5 +959,11 @@
     .config-block {
       margin-left: 0;
     }
+  }
+
+  .readonly-text {
+    font-size: 13px;
+    color: var(--el-text-color-regular);
+    line-height: 32px;
   }
 </style>

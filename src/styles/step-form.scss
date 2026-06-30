@@ -1,0 +1,141 @@
+/** 宽版分步骤表单页：新建活动、发布比赛等流程页共用 */
+.step-form-view {
+  height: calc(100vh - 104px);
+  min-height: 0;
+  overflow: hidden;
+
+  &,
+  & > .el-card,
+  & > .el-card > .el-card__body,
+  .ele-page-card,
+  .ele-page-body {
+    min-height: 0;
+  }
+
+  & > .el-card,
+  & > .el-card > .el-card__body,
+  .ele-page-card,
+  .ele-page-body {
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
+.step-form-loading {
+  height: 100%;
+  min-height: 0;
+}
+
+.step-form-page {
+  --step-form-width: min(1320px, calc(100% - 48px));
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  margin: -12px -16px 0;
+  overflow: hidden;
+  background: var(--el-bg-color-page);
+}
+
+.step-form-header {
+  flex-shrink: 0;
+  z-index: 10;
+  padding: 14px 20px 10px;
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.step-form-header-inner,
+.step-form-main,
+.step-form-footer-inner {
+  width: var(--step-form-width);
+  margin: 0 auto;
+}
+
+.step-form-title {
+  margin-bottom: 12px;
+  color: var(--el-text-color-primary);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.step-form-steps {
+  width: min(920px, 100%);
+  margin: 0 auto;
+
+  .el-step__title {
+    font-size: 13px;
+  }
+}
+
+.step-form-content {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 0 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.step-form-main {
+  padding-bottom: 0;
+}
+
+.step-form-footer {
+  flex-shrink: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  height: 56px;
+  padding: 0;
+  background: var(--el-bg-color);
+  border-top: 1px solid var(--el-border-color-lighter);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.step-form-footer-inner {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.step-section-card {
+  margin-bottom: 12px;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+
+  &--last {
+    margin-bottom: 0;
+  }
+
+  .section-head {
+    padding: 12px 20px 0;
+  }
+
+  .section-title {
+    padding-left: 8px;
+    color: var(--el-text-color-primary);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    border-left: 3px solid var(--el-color-primary);
+  }
+
+  .section-desc {
+    margin: 4px 0 0 11px;
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .section-body {
+    margin-top: 10px;
+    padding: 12px 20px 6px;
+    border-top: 1px solid var(--el-border-color-extra-light);
+  }
+}

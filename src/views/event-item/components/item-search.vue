@@ -8,7 +8,7 @@
             <el-input
               v-model.trim="form.itemName"
               clearable
-              placeholder="如：一分钟跳绳、3v3篮球"
+              placeholder="如：一分钟跳绳挑战赛、3v3篮球班级对抗赛"
             />
           </el-form-item>
         </el-col>
@@ -26,14 +26,7 @@
         </el-col>
         <el-col :lg="8" :md="12" :sm="12" :xs="24">
           <el-form-item label="体育项目">
-            <el-select
-              v-model="form.sport"
-              clearable
-              placeholder="请选择体育项目"
-              class="ele-fluid"
-            >
-              <el-option v-for="opt in SPORT_OPTIONS" :key="opt" :label="opt" :value="opt" />
-            </el-select>
+            <sport-project-cascader v-model="form.sportProjects" />
           </el-form-item>
         </el-col>
         <el-col :lg="8" :md="12" :sm="12" :xs="24">
@@ -83,9 +76,9 @@
 
 <script setup>
   import { useFormData } from '@/utils/use-form-data';
+  import SportProjectCascader from './sport-project-cascader.vue';
   import {
     SOURCE_OPTIONS,
-    SPORT_OPTIONS,
     MATCH_FORM_OPTIONS,
     STATUS_OPTIONS
   } from '@/views/event-item/data.js';
@@ -95,13 +88,13 @@
   const [form, resetFields] = useFormData({
     itemName: '',
     source: '',
-    sport: '',
+    sportProjects: [],
     matchForm: '',
     status: ''
   });
 
   const search = () => {
-    emit('search', { ...form });
+    emit('search', { ...form, sportProjects: [...(form.sportProjects ?? [])] });
   };
 
   const reset = () => {

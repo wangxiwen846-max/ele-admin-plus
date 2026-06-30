@@ -1,24 +1,20 @@
-<!-- 单位标签录入（el-select 可创建多选） -->
+<!-- 单位多行录入 -->
 <template>
-  <el-select
-    :model-value="modelValue"
-    multiple
-    filterable
-    allow-create
-    default-first-option
-    collapse-tags
-    collapse-tags-tooltip
+  <el-input
+    :model-value="inputValue"
+    type="textarea"
+    :rows="3"
     :disabled="disabled"
     :placeholder="placeholder"
     class="ele-fluid unit-tag-select"
     @update:model-value="handleChange"
-  >
-    <el-option v-for="item in modelValue" :key="item" :label="item" :value="item" />
-  </el-select>
+  />
 </template>
 
 <script setup>
-  defineProps({
+  import { computed } from 'vue';
+
+  const props = defineProps({
     modelValue: {
       type: Array,
       default: () => []
@@ -32,8 +28,11 @@
 
   const emit = defineEmits(['update:modelValue']);
 
+  const inputValue = computed(() => (props.modelValue ?? []).join('\n'));
+
   const handleChange = (value) => {
-    const next = (value ?? [])
+    const next = String(value ?? '')
+      .split(/\r?\n/)
       .map((item) => String(item).trim())
       .filter(Boolean);
     emit('update:modelValue', [...new Set(next)]);

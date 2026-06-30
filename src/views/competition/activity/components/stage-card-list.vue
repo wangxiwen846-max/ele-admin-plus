@@ -27,17 +27,19 @@
             <ele-dot v-else text="禁用" type="info" size="8px" :ripple="false" />
           </div>
           <div class="summary-row">
-            <span class="summary-label">比赛日期：</span>
+            <span class="summary-label">赛段时间：</span>
             <span>{{ formatStageDateRange(stage) }}</span>
           </div>
-          <div class="summary-row">
-            <span class="summary-label">参赛范围：</span>
-            <span>{{ formatScopeDisplaySummary(stage.scope, { isStage: true, parentScope }) }}</span>
-          </div>
-          <div class="summary-row">
-            <span class="summary-label">赛段裁判长：</span>
-            <span>{{ stage.chiefReferee || '未填写' }}</span>
-          </div>
+          <template v-if="!simplified">
+            <div class="summary-row">
+              <span class="summary-label">参赛范围：</span>
+              <span>{{ formatScopeDisplaySummary(stage.scope, { isStage: true, parentScope }) }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">赛段裁判长：</span>
+              <span>{{ stage.chiefReferee || '未填写' }}</span>
+            </div>
+          </template>
         </div>
         <div class="stage-card-actions" @click.stop>
           <el-button link type="primary" @click="toggleExpand(stage.stageId)">
@@ -55,7 +57,7 @@
       </div>
 
       <div v-show="isExpanded(stage.stageId)" class="stage-card-body">
-        <el-row :gutter="16">
+        <el-row :gutter="20">
           <el-col :sm="12" :xs="24">
             <el-form-item label="赛段名称" :label-width="labelWidth" required>
               <el-input
@@ -71,7 +73,7 @@
             </el-form-item>
           </el-col>
           <el-col :sm="12" :xs="24">
-            <el-form-item label="比赛开始日期" :label-width="labelWidth" required>
+            <el-form-item label="赛段开始时间" :label-width="labelWidth" required>
               <el-date-picker
                 v-model="stage.startTime"
                 type="date"
@@ -79,11 +81,12 @@
                 placeholder="请选择"
                 class="ele-fluid"
                 :disabled="disabled"
+                :disabled-date="(date) => disabledStageStartDate(date, stage)"
               />
             </el-form-item>
           </el-col>
           <el-col :sm="12" :xs="24">
-            <el-form-item label="比赛结束日期" :label-width="labelWidth" required>
+            <el-form-item label="赛段结束时间" :label-width="labelWidth" required>
               <el-date-picker
                 v-model="stage.endTime"
                 type="date"
@@ -91,47 +94,50 @@
                 placeholder="请选择"
                 class="ele-fluid"
                 :disabled="disabled"
+                :disabled-date="(date) => disabledStageEndDate(date, stage)"
               />
             </el-form-item>
           </el-col>
-          <el-col :xs="24">
-            <el-form-item label="参赛范围" :label-width="labelWidth">
-              <div class="scope-config-row">
-                <span class="scope-status">{{
-                  formatScopeDisplaySummary(stage.scope, { isStage: true, parentScope })
-                }}</span>
-                <el-button
-                  type="primary"
-                  link
+          <template v-if="!simplified">
+            <el-col :xs="24">
+              <el-form-item label="参赛范围" :label-width="labelWidth">
+                <div class="scope-config-row">
+                  <span class="scope-status">{{
+                    formatScopeDisplaySummary(stage.scope, { isStage: true, parentScope })
+                  }}</span>
+                  <el-button
+                    type="primary"
+                    link
+                    :disabled="disabled"
+                    @click="openStageScope(index, stage)"
+                  >
+                    配置
+                  </el-button>
+                </div>
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24">
+              <el-form-item label="参赛门槛" :label-width="labelWidth">
+                <el-input
+                  v-model="stage.threshold"
+                  type="textarea"
+                  :rows="3"
                   :disabled="disabled"
-                  @click="openStageScope(index, stage)"
-                >
-                  配置
-                </el-button>
-              </div>
-            </el-form-item>
-          </el-col>
+                  placeholder="进入该赛段的条件"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :sm="12" :xs="24">
+              <el-form-item label="赛段裁判长" :label-width="labelWidth">
+                <el-input
+                  v-model.trim="stage.chiefReferee"
+                  :disabled="disabled"
+                  placeholder="填写赛段裁判长"
+                />
+              </el-form-item>
+            </el-col>
+          </template>
           <el-col :xs="24">
-            <el-form-item label="参赛门槛" :label-width="labelWidth">
-              <el-input
-                v-model="stage.threshold"
-                type="textarea"
-                :rows="3"
-                :disabled="disabled"
-                placeholder="进入该赛段的条件"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :sm="12" :xs="24">
-            <el-form-item label="赛段裁判长" :label-width="labelWidth">
-              <el-input
-                v-model.trim="stage.chiefReferee"
-                :disabled="disabled"
-                placeholder="填写赛段裁判长"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :sm="12" :xs="24">
             <el-form-item label="赛段说明" :label-width="labelWidth">
               <el-input
                 v-model="stage.description"
@@ -147,6 +153,7 @@
     </div>
 
     <stage-scope-dialog
+      v-if="!simplified"
       v-model="stageScopeVisible"
       :scope="editingStageScope"
       :parent-scope="parentScope"
@@ -157,7 +164,8 @@
 </template>
 
 <script setup>
-  import { ref } from 'vue';
+  import { ref, watch } from 'vue';
+  import { ElMessageBox } from 'element-plus';
   import { EleMessage } from 'ele-admin-plus';
   import StageScopeDialog from './stage-scope-dialog.vue';
   import {
@@ -175,6 +183,9 @@
     },
     parentScope: Object,
     disabled: Boolean,
+    simplified: Boolean,
+    activityStartTime: String,
+    activityEndTime: String,
     labelWidth: {
       type: String,
       default: '118px'
@@ -207,7 +218,7 @@
     emit('update:stages', [...props.stages, stage]);
   };
 
-  const removeStage = (index, row) => {
+  const removeStage = async (index, row) => {
     if (row.matchCount > 0) {
       EleMessage.error({ message: '已有关联比赛的赛段不允许删除', plain: true });
       return;
@@ -216,8 +227,20 @@
       EleMessage.error({ message: '至少保留一个赛段', plain: true });
       return;
     }
+    const stageName = row.stageName?.trim() || '未命名赛段';
+    try {
+      await ElMessageBox.confirm(`确定删除赛段「${stageName}」吗？`, '删除赛段', {
+        type: 'warning',
+        draggable: true
+      });
+    } catch {
+      return;
+    }
     const next = [...props.stages];
     next.splice(index, 1);
+    const nextExpanded = new Set(expandedIds.value);
+    nextExpanded.delete(row.stageId);
+    expandedIds.value = nextExpanded;
     emit('update:stages', next);
   };
 
@@ -239,16 +262,69 @@
     }
   };
 
-  /** 新建赛段时默认展开第一张卡片 */
-  const expandFirst = () => {
-    if (props.stages.length && expandedIds.value.size === 0) {
-      expandedIds.value = new Set([props.stages[0].stageId]);
+  const disabledStageStartDate = (date, stage) => {
+    const time = date.getTime();
+    if (props.activityStartTime) {
+      const activityStart = new Date(`${props.activityStartTime}T00:00:00`).getTime();
+      if (time < activityStart) {
+        return true;
+      }
+    }
+    if (props.activityEndTime) {
+      const activityEnd = new Date(`${props.activityEndTime}T23:59:59`).getTime();
+      if (time > activityEnd) {
+        return true;
+      }
+    }
+    if (stage.endTime) {
+      const stageEnd = new Date(`${stage.endTime}T23:59:59`).getTime();
+      if (time > stageEnd) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const disabledStageEndDate = (date, stage) => {
+    const time = date.getTime();
+    if (props.activityStartTime) {
+      const activityStart = new Date(`${props.activityStartTime}T00:00:00`).getTime();
+      if (time < activityStart) {
+        return true;
+      }
+    }
+    if (props.activityEndTime) {
+      const activityEnd = new Date(`${props.activityEndTime}T23:59:59`).getTime();
+      if (time > activityEnd) {
+        return true;
+      }
+    }
+    if (stage.startTime) {
+      const stageStart = new Date(`${stage.startTime}T00:00:00`).getTime();
+      if (time <= stageStart) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const expandAll = () => {
+    if (props.stages.length) {
+      expandedIds.value = new Set(props.stages.map((d) => d.stageId));
     }
   };
 
-  expandFirst();
+  watch(
+    () => props.stages,
+    (list) => {
+      if (list?.length && expandedIds.value.size === 0) {
+        expandAll();
+      }
+    },
+    { immediate: true }
+  );
 
-  defineExpose({ expandFirst });
+  defineExpose({ expandFirst: expandAll });
 </script>
 
 <style scoped lang="scss">
@@ -283,7 +359,7 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: 12px;
-    padding: 12px 14px;
+    padding: 12px 18px;
     cursor: pointer;
     background: var(--el-fill-color-lighter);
 
@@ -330,7 +406,7 @@
   }
 
   .stage-card-body {
-    padding: 14px 16px 4px;
+    padding: 16px 20px 6px;
     border-top: 1px solid var(--el-border-color-extra-light);
   }
 

@@ -118,6 +118,46 @@ const FITNESS_AUTHORITIES = [
     path: '/competition/activity/detail/:id',
     component: '/competition/activity/detail',
     authority: 'competition:activity:detail'
+  },
+  {
+    menuId: 405,
+    parentId: 400,
+    menuType: 0,
+    title: '比赛管理',
+    icon: 'TrophyOutlined',
+    path: '/competition/match',
+    component: '/competition/match',
+    authority: 'competition:match'
+  },
+  {
+    menuId: 406,
+    parentId: 400,
+    menuType: 0,
+    title: '发布比赛',
+    hide: true,
+    path: '/competition/match/add',
+    component: '/competition/match/add',
+    authority: 'competition:match:add'
+  },
+  {
+    menuId: 407,
+    parentId: 400,
+    menuType: 0,
+    title: '编辑比赛',
+    hide: true,
+    path: '/competition/match/edit/:id',
+    component: '/competition/match/edit',
+    authority: 'competition:match:edit'
+  },
+  {
+    menuId: 408,
+    parentId: 400,
+    menuType: 0,
+    title: '比赛详情',
+    hide: true,
+    path: '/competition/match/detail/:id',
+    component: '/competition/match/detail',
+    authority: 'competition:match:detail'
   }
 ];
 

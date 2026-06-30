@@ -110,7 +110,6 @@
 
       <div class="detail-block">
         <div class="block-title">组织信息</div>
-        <div class="org-detail-subtitle">单位信息</div>
         <el-descriptions :column="2" size="small" class="desc-plain">
           <el-descriptions-item label="指导单位">
             {{ formatUnits(data.guidingUnits) }}
@@ -124,12 +123,12 @@
           <el-descriptions-item label="协办单位">
             {{ formatUnits(data.coOrganizerUnits) }}
           </el-descriptions-item>
-          <el-descriptions-item label="支持单位" :span="2">
+          <el-descriptions-item label="运营服务单位">
+            {{ formatUnits(data.operationServiceUnits) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="支持单位">
             {{ formatUnits(data.supportUnits) }}
           </el-descriptions-item>
-        </el-descriptions>
-        <div class="org-detail-subtitle org-detail-subtitle--committee">组委会信息</div>
-        <el-descriptions :column="2" size="small" class="desc-plain">
           <el-descriptions-item label="大赛总裁判长" :span="2">
             {{ data.chiefReferee || '-' }}
           </el-descriptions-item>
@@ -163,7 +162,13 @@
           <div class="coverage-summary-main">
             覆盖范围：{{ formatScopeDisplaySummary(data.coverage) }}
           </div>
-          <el-table :data="coverageDetailRows" border size="small" class="coverage-detail-table">
+          <el-table
+            v-if="coverageDetailRows.length"
+            :data="coverageDetailRows"
+            border
+            size="small"
+            class="coverage-detail-table"
+          >
             <el-table-column prop="level" label="范围层级" width="120" />
             <el-table-column prop="content" label="内容" min-width="280">
               <template #default="{ row }">
@@ -247,6 +252,21 @@
               <detail-text-cell :text="row.qualification" :max-length="20" />
             </template>
           </el-table-column>
+          <el-table-column label="适用区域" min-width="120">
+            <template #default="{ row }">
+              <detail-text-cell :text="row.applicableRegion" :max-length="20" />
+            </template>
+          </el-table-column>
+          <el-table-column label="奖项设置" min-width="140">
+            <template #default="{ row }">
+              <detail-text-cell :text="row.awardSummary" :max-length="22" />
+            </template>
+          </el-table-column>
+          <el-table-column label="奖项补充说明" min-width="140">
+            <template #default="{ row }">
+              <detail-text-cell :text="row.awardRemark || '未填写'" :max-length="22" />
+            </template>
+          </el-table-column>
           <el-table-column label="启用状态" width="88" align="center">
             <template #default="{ row }">
               <ele-dot
@@ -292,8 +312,8 @@
             <template #default="{ row }">{{ row.registrationCount }}</template>
           </el-table-column>
           <el-table-column label="操作" width="110" align="center" fixed="right">
-            <template #default>
-              <el-link type="primary" underline="never" @click="viewMatch">查看比赛详情</el-link>
+            <template #default="{ row }">
+              <el-link type="primary" underline="never" @click="viewMatch(row)">查看比赛详情</el-link>
             </template>
           </el-table-column>
         </el-table>
@@ -328,7 +348,7 @@
 
 <script setup>
   import { computed, ref } from 'vue';
-  import { EleMessage } from 'ele-admin-plus';
+  import { useRouter } from 'vue-router';
   import AttachmentTable from '@/views/event-item/components/attachment-table.vue';
   import DetailTextCell from './detail-text-cell.vue';
   import {
@@ -341,7 +361,7 @@
     getActivityStatus,
     getEditMode,
     getMatchStats,
-    getScopeDetailRows,
+    getScopeEffectiveDetailRows,
     getStatusTagType
   } from '../data.js';
 
@@ -350,6 +370,7 @@
   });
   const emit = defineEmits(['closed', 'edit', 'copy']);
 
+  const router = useRouter();
   const visible = ref(true);
   const data = computed(() => findActivity(props.activityId));
   const status = computed(() => (data.value ? getActivityStatus(data.value) : ''));
@@ -359,7 +380,9 @@
   const matchStats = computed(() => getMatchStats(data.value?.matches ?? [], data.value));
   const linkedItems = computed(() => getActivityLinkedItems(data.value?.itemIds ?? []));
   const canEdit = computed(() => data.value && getEditMode(data.value) !== 'readonly');
-  const coverageDetailRows = computed(() => getScopeDetailRows(data.value?.coverage ?? {}));
+  const coverageDetailRows = computed(() =>
+    getScopeEffectiveDetailRows(data.value?.coverage ?? {}, { labelPrefix: '覆盖' })
+  );
   const displayMatches = computed(() => enrichedMatches.value.slice(0, 5));
   const hasMoreMatches = computed(() => enrichedMatches.value.length > 5);
 
@@ -368,15 +391,16 @@
     emit(action, data.value);
   };
 
-  const viewMatch = () => {
-    EleMessage.info({ message: '比赛管理模块开发中，暂不支持查看比赛详情', plain: true });
+  const viewMatch = (row) => {
+    visible.value = false;
+    emit('closed');
+    router.push({ path: '/competition/match', query: { matchId: row.matchId } });
   };
 
   const viewAllMatches = () => {
-    EleMessage.info({
-      message: `比赛管理模块开发中，暂不支持跳转。当前活动「${data.value?.activityName}」共 ${enrichedMatches.value.length} 场比赛。`,
-      plain: true
-    });
+    visible.value = false;
+    emit('closed');
+    router.push({ path: '/competition/match', query: { activityId: data.value?.activityId } });
   };
 
   const previewRegulation = (file) => {

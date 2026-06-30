@@ -30,13 +30,13 @@
           <el-descriptions-item label="关联体育项目" :span="2">
             <el-tag
               v-for="sport in data.sports"
-              :key="sport.name"
+              :key="getSportCatalogKey(sport)"
               size="small"
               effect="light"
               :disable-transitions="true"
               class="inline-tag"
             >
-              {{ sport.name }}
+              {{ formatSportEntryDetailDisplay(sport) }}
             </el-tag>
             <span v-if="!data.sports?.length" class="text-secondary">-</span>
           </el-descriptions-item>
@@ -77,37 +77,15 @@
         </el-descriptions>
       </div>
 
-      <!-- 适用范围 -->
-      <div class="detail-block">
-        <div class="block-title">适用范围</div>
-        <el-descriptions :column="2" size="small" class="desc-plain">
-          <el-descriptions-item label="性别要求">{{ data.gender }}</el-descriptions-item>
-          <el-descriptions-item label="适用学段">{{ joinText(data.stages) }}</el-descriptions-item>
-          <el-descriptions-item label="适用年级">{{ joinText(data.grades) }}</el-descriptions-item>
-          <el-descriptions-item label="年龄范围">{{ formatAge(data) }}</el-descriptions-item>
-          <el-descriptions-item label="适用范围说明" :span="2">{{ data.qualification || '-' }}</el-descriptions-item>
-        </el-descriptions>
-      </div>
-
-      <!-- 报名设置 -->
-      <div class="detail-block">
-        <div class="block-title">报名设置</div>
-        <el-descriptions :column="2" size="small" class="desc-plain">
-          <el-descriptions-item label="报名方式">{{ joinText(data.registrationMethods) }}</el-descriptions-item>
-          <el-descriptions-item label="默认保险要求">{{ data.defaultInsuranceRequirement || '-' }}</el-descriptions-item>
-        </el-descriptions>
-      </div>
-
       <!-- 成绩配置 -->
       <div class="detail-block">
         <div class="block-title">成绩配置</div>
         <el-descriptions :column="2" size="small" class="desc-plain">
           <el-descriptions-item label="数据来源">表单提交</el-descriptions-item>
-          <el-descriptions-item label="成绩提交人">{{ joinText(data.scoreSubmitters) }}</el-descriptions-item>
           <el-descriptions-item label="成绩类型" :span="2">{{ data.scoreType || '-' }}</el-descriptions-item>
         </el-descriptions>
         <div class="score-config-hint">
-          比赛结束后，由体育教师或赛事专员提交比赛成绩和名次；设项管理不配置自动排名规则。
+          成绩提交人、提交时间等比赛执行配置请在发布比赛时设置；设项管理不配置自动排名规则。
         </div>
 
         <div class="inner-card">
@@ -156,28 +134,50 @@
         <div v-else class="rule-disabled-hint">未配置</div>
       </div>
 
-      <!-- 设项适用地区 -->
-      <div class="detail-block detail-block--compact">
-        <div class="block-title">设项适用地区</div>
-        <el-descriptions :column="1" size="small" class="desc-plain">
-          <el-descriptions-item label="适用地区类型">{{ data.regionType }}</el-descriptions-item>
-          <el-descriptions-item v-if="data.regionType === '指定地区'" label="指定地区">
-            <template v-if="regionLabels.length">
-              <span
-                v-for="(label, idx) in regionLabels"
-                :key="idx"
-                class="region-path-text"
-              >
-                {{ label }}<template v-if="idx < regionLabels.length - 1">；</template>
-              </span>
-            </template>
-            <span v-else class="text-secondary">未指定地区</span>
+      <!-- 奖项设置 -->
+      <div class="detail-block">
+        <div class="block-title">奖项设置</div>
+        <div class="award-summary-text">{{ awardSummary }}</div>
+        <el-table
+          v-if="data.awardSettings?.length"
+          :data="data.awardSettings"
+          border
+          size="small"
+          class="inner-table"
+        >
+          <el-table-column type="index" label="序号" width="60" align="center" />
+          <el-table-column prop="awardName" label="奖项名称" min-width="120" />
+          <el-table-column prop="awardRule" label="奖项规则" min-width="140" show-overflow-tooltip />
+          <el-table-column prop="awardTarget" label="获奖对象" width="100" align="center" />
+        </el-table>
+        <el-descriptions :column="1" size="small" class="desc-plain award-remark-desc">
+          <el-descriptions-item label="奖项补充说明">
+            {{ data.awardRemark?.trim() || '未填写' }}
           </el-descriptions-item>
-          <el-descriptions-item v-if="data.regionType === '指定地区'" label="包含下级地区">
-            {{ data.includeChildren ? '是' : '否' }}
-          </el-descriptions-item>
-          <el-descriptions-item v-if="data.regionType === '全国'" label="指定地区">全国</el-descriptions-item>
         </el-descriptions>
+      </div>
+
+      <!-- 参赛要求 -->
+      <div class="detail-block">
+        <div class="block-title">参赛要求</div>
+        <el-descriptions :column="2" size="small" class="desc-plain">
+          <el-descriptions-item label="性别要求">{{ data.gender }}</el-descriptions-item>
+          <el-descriptions-item label="适用学段">{{ joinText(data.stages) }}</el-descriptions-item>
+          <el-descriptions-item label="适用年级">{{ joinText(data.grades) }}</el-descriptions-item>
+          <el-descriptions-item label="年龄范围">{{ formatAge(data) }}</el-descriptions-item>
+          <el-descriptions-item label="其他参赛条件说明" :span="2">{{ data.qualification || '未填写' }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+
+      <!-- 适用区域 -->
+      <div class="detail-block detail-block--compact">
+        <div class="block-title">适用区域</div>
+        <el-descriptions :column="1" size="small" class="desc-plain">
+          <el-descriptions-item label="适用区域">{{ applicableRegionSummary }}</el-descriptions-item>
+        </el-descriptions>
+        <div class="score-config-hint">
+          适用区域用于限制该设项可在哪些地区或区域下被活动或比赛选择，不代表具体比赛的参赛范围。
+        </div>
       </div>
 
       <!-- 规则说明 -->
@@ -243,9 +243,12 @@
   import {
     createReferenceRecords,
     findEventItem,
-    getRegionLabelList,
+    formatAwardSettingSummary,
     getScoreFieldConfigForDisplay,
-    formatRequiredDisplay
+    formatRequiredDisplay,
+    formatSportEntryDetailDisplay,
+    getSportCatalogKey,
+    formatApplicableRegionSummary
   } from '@/views/event-item/data.js';
   import AttachmentTable from './attachment-table.vue';
 
@@ -257,7 +260,8 @@
   const visible = ref(true);
   const data = computed(() => findEventItem(props.itemId));
   const referenceRecords = computed(() => createReferenceRecords(data.value));
-  const regionLabels = computed(() => getRegionLabelList(data.value?.regions ?? []));
+  const awardSummary = computed(() => formatAwardSettingSummary(data.value?.awardSettings));
+  const applicableRegionSummary = computed(() => formatApplicableRegionSummary(data.value));
 
   const scoreFieldsDisplay = computed(() => {
     if (!data.value) {
@@ -371,6 +375,16 @@
     font-size: 12px;
     line-height: 1.5;
     color: var(--el-text-color-secondary);
+  }
+
+  .award-summary-text {
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: var(--el-text-color-regular);
+  }
+
+  .award-remark-desc {
+    margin-top: 10px;
   }
 
   .inner-card {

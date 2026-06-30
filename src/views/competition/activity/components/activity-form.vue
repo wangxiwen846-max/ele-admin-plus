@@ -9,44 +9,58 @@
     @submit.prevent=""
   >
     <el-alert
-      v-if="mode === 'copy'"
+      v-if="showStep1 && mode === 'copy'"
       title="复制活动：活动规程文本和附件需重新填写，活动时间和赛段时间建议重新选择。"
       type="info"
       show-icon
       :closable="false"
       style="margin-bottom: 14px"
     />
-    <el-alert
-      v-else-if="editMode === 'limited'"
-      title="活动进行中，仅允许编辑活动介绍、活动规程、附件和组织信息等说明类内容。"
-      type="warning"
-      show-icon
-      :closable="false"
-      style="margin-bottom: 14px"
-    />
-    <el-alert
-      v-else-if="editMode === 'cautious'"
-      title="活动已关联比赛，修改活动时间、活动覆盖范围、赛段或活动设项范围时请谨慎操作。"
-      type="warning"
-      show-icon
-      :closable="false"
-      style="margin-bottom: 14px"
-    />
 
-    <div class="form-section">
+    <div v-show="showStep1" class="form-section step-section-card">
       <div class="section-head">
-        <div class="section-title">活动基础信息</div>
-        <div class="section-desc">维护活动名称、封面、介绍与活动规程</div>
+        <div class="section-title">基础信息</div>
       </div>
       <div class="section-body">
-        <el-row :gutter="16">
-          <el-col :xs="24">
+        <el-row :gutter="20">
+          <el-col :sm="16" :xs="24">
             <el-form-item label="活动名称" prop="activityName">
               <el-input
                 v-model.trim="form.activityName"
                 :disabled="nameDisabled"
                 :maxlength="80"
                 placeholder="请输入赛事活动完整名称"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :sm="8" :xs="24">
+            <el-form-item label="活动状态">
+              <el-tag :type="statusTagType" size="small" effect="plain">{{ activityStatus }}</el-tag>
+            </el-form-item>
+          </el-col>
+          <el-col :sm="12" :xs="24">
+            <el-form-item label="活动开始时间" prop="startTime">
+              <el-date-picker
+                v-model="form.startTime"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="请选择开始日期"
+                class="ele-fluid"
+                :disabled="timeDisabled"
+                :disabled-date="disabledStartDate"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :sm="12" :xs="24">
+            <el-form-item label="活动结束时间" prop="endTime">
+              <el-date-picker
+                v-model="form.endTime"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="请选择结束日期"
+                class="ele-fluid"
+                :disabled="timeDisabled"
+                :disabled-date="disabledEndDate"
               />
             </el-form-item>
           </el-col>
@@ -61,7 +75,7 @@
             </el-form-item>
           </el-col>
           <el-col :xs="24">
-            <el-form-item label="活动介绍">
+            <el-form-item label="活动简介">
               <el-input
                 v-model="form.introduction"
                 type="textarea"
@@ -72,133 +86,85 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :xs="24">
-            <el-form-item label="活动规程">
-              <regulation-field
-                :text="form.regulationText"
-                :attachments="form.regulationAttachments"
-                :disabled="regulationDisabled"
-                @update:text="form.regulationText = $event"
-                @add="handleRegulationAdd"
-                @remove="handleRegulationRemove"
-              />
-            </el-form-item>
-          </el-col>
         </el-row>
       </div>
     </div>
 
-    <div class="form-section">
+    <div v-show="showStep1" class="form-section step-section-card">
       <div class="section-head">
         <div class="section-title">组织信息</div>
-        <div class="section-desc">维护指导、主办、承办、协办、支持单位及组委会信息</div>
       </div>
       <div class="section-body">
-        <div class="org-subsection">
-          <div class="org-subtitle">单位信息</div>
-          <el-row :gutter="16">
-            <el-col :sm="12" :xs="24">
-              <el-form-item label="指导单位">
-                <unit-tag-select
-                  v-model="form.guidingUnits"
-                  :disabled="orgDisabled"
-                  placeholder="输入指导单位，回车添加"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :sm="12" :xs="24">
-              <el-form-item label="主办单位">
-                <unit-tag-select
-                  v-model="form.hostUnits"
-                  :disabled="orgDisabled"
-                  placeholder="输入主办单位，回车添加"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :sm="12" :xs="24">
-              <el-form-item label="承办单位">
-                <unit-tag-select
-                  v-model="form.organizerUnits"
-                  :disabled="orgDisabled"
-                  placeholder="输入承办单位，回车添加"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :sm="12" :xs="24">
-              <el-form-item label="协办单位">
-                <unit-tag-select
-                  v-model="form.coOrganizerUnits"
-                  :disabled="orgDisabled"
-                  placeholder="输入协办单位，回车添加"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :sm="12" :xs="24">
-              <el-form-item label="支持单位">
-                <unit-tag-select
-                  v-model="form.supportUnits"
-                  :disabled="orgDisabled"
-                  placeholder="输入支持单位，回车添加"
-                />
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </div>
-
-        <div class="org-subsection org-subsection--last">
-          <div class="org-subtitle">组委会信息</div>
-          <el-row :gutter="16">
-            <el-col :sm="12" :xs="24">
-              <el-form-item label="大赛总裁判长">
-                <el-input
-                  v-model.trim="form.chiefReferee"
-                  :disabled="orgDisabled"
-                  :maxlength="30"
-                  placeholder="填写整个赛事活动的总裁判长"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24">
-              <el-form-item label=" " class="committee-form-item">
-                <committee-member-list
-                  v-model="form.committeeMembers"
-                  :disabled="orgDisabled"
-                />
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </div>
-      </div>
-    </div>
-
-    <div class="form-section">
-      <div class="section-head">
-        <div class="section-title">活动时间</div>
-        <div class="section-desc">活动时间应覆盖下方赛段的比赛日期区间</div>
-      </div>
-      <div class="section-body">
-        <el-row :gutter="16">
-          <el-col :sm="12" :xs="24">
-            <el-form-item label="活动开始时间" prop="startTime">
-              <el-date-picker
-                v-model="form.startTime"
-                type="date"
-                value-format="YYYY-MM-DD"
-                placeholder="请选择"
-                class="ele-fluid"
-                :disabled="timeDisabled"
+        <el-row :gutter="20">
+          <el-col :xs="24">
+            <el-form-item label="指导单位">
+              <unit-tag-select
+                v-model="form.guidingUnits"
+                :disabled="orgDisabled"
+                placeholder="请输入指导单位，多个单位换行填写"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24">
+            <el-form-item label="主办单位">
+              <unit-tag-select
+                v-model="form.hostUnits"
+                :disabled="orgDisabled"
+                placeholder="请输入主办单位，多个单位换行填写"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24">
+            <el-form-item label="承办单位">
+              <unit-tag-select
+                v-model="form.organizerUnits"
+                :disabled="orgDisabled"
+                placeholder="请输入承办单位，多个单位换行填写"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24">
+            <el-form-item label="协办单位">
+              <unit-tag-select
+                v-model="form.coOrganizerUnits"
+                :disabled="orgDisabled"
+                placeholder="请输入协办单位，多个单位换行填写"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24">
+            <el-form-item label="运营服务单位">
+              <unit-tag-select
+                v-model="form.operationServiceUnits"
+                :disabled="orgDisabled"
+                placeholder="请输入运营服务单位，多个单位换行填写"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24">
+            <el-form-item label="支持单位">
+              <unit-tag-select
+                v-model="form.supportUnits"
+                :disabled="orgDisabled"
+                placeholder="请输入支持单位，多个单位换行填写"
               />
             </el-form-item>
           </el-col>
           <el-col :sm="12" :xs="24">
-            <el-form-item label="活动结束时间" prop="endTime">
-              <el-date-picker
-                v-model="form.endTime"
-                type="date"
-                value-format="YYYY-MM-DD"
-                placeholder="请选择"
-                class="ele-fluid"
-                :disabled="timeDisabled"
+            <el-form-item label="大赛总裁判长">
+              <el-input
+                v-model.trim="form.chiefReferee"
+                :disabled="orgDisabled"
+                :maxlength="30"
+                placeholder="填写整个赛事活动的总裁判长"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24">
+            <el-form-item label="组委会成员">
+              <committee-member-list
+                v-model="form.committeeMembers"
+                :disabled="orgDisabled"
               />
             </el-form-item>
           </el-col>
@@ -206,48 +172,72 @@
       </div>
     </div>
 
-    <div class="form-section">
+    <div v-show="showStep1" class="form-section step-section-card">
       <div class="section-head">
-        <div class="section-title">活动覆盖范围</div>
-        <div class="section-desc">活动层面的最大覆盖范围，赛段参赛范围不能超出此范围</div>
+        <div class="section-title">活动规程</div>
       </div>
       <div class="section-body">
-        <scope-summary-field v-model="form.coverage" :disabled="scopeDisabled" />
+        <el-form-item label="活动规程">
+          <regulation-field
+            :text="form.regulationText"
+            :attachments="form.regulationAttachments"
+            :disabled="regulationDisabled"
+            @update:text="form.regulationText = $event"
+            @add="handleRegulationAdd"
+            @remove="handleRegulationRemove"
+          />
+        </el-form-item>
       </div>
     </div>
 
-    <div class="form-section">
+    <div v-show="showStep2" class="form-section step-section-card">
+      <div class="section-head">
+        <div class="section-title">活动覆盖范围</div>
+      </div>
+      <div class="section-body">
+        <scope-summary-field
+          v-model="form.coverage"
+          :stages="form.stages"
+          :disabled="scopeDisabled"
+          :fixed-national="useSimplifiedLayout"
+        />
+      </div>
+    </div>
+
+    <div v-show="showStep2" class="form-section step-section-card">
       <div class="section-head">
         <div class="section-title">赛段管理</div>
-        <div class="section-desc">配置赛段比赛日期区间、参赛范围、参赛门槛与赛段裁判长</div>
       </div>
       <div class="section-body">
         <stage-card-list
           v-model:stages="form.stages"
           :parent-scope="form.coverage"
           :disabled="stageDisabled"
+          :simplified="useSimplifiedLayout"
+          :activity-start-time="form.startTime"
+          :activity-end-time="form.endTime"
         />
       </div>
     </div>
 
-    <div class="form-section">
+    <div v-show="showStep2" class="form-section step-section-card">
       <div class="section-head">
         <div class="section-title">活动设项范围</div>
-        <div class="section-desc">从设项管理模块选择当前活动可使用的设项</div>
       </div>
       <div class="section-body">
         <activity-item-picker
           v-model="form.itemIds"
+          :coverage="form.coverage"
           :locked-item-ids="lockedItemIds"
           :disabled="itemDisabled"
+          :ignore-coverage="useSimplifiedLayout"
         />
       </div>
     </div>
 
-    <div class="form-section form-section--last">
+    <div v-show="showStep2" class="form-section form-section--last step-section-card step-section-card--last">
       <div class="section-head">
         <div class="section-title">附件</div>
-        <div class="section-desc">可上传活动通知、保险说明、补充材料等，不作为系统规则判断依据</div>
       </div>
       <div class="section-body">
         <attachment-table
@@ -258,9 +248,6 @@
           @add="handleAttachmentAdd"
           @remove="handleAttachmentRemove"
         />
-        <div class="form-tip">
-          活动规程为活动基础信息中的单独字段；附件为其他补充材料。附件中的保险说明不作为最终保险规则，最终规则以后续发布比赛时确认的保险方案为准。
-        </div>
       </div>
     </div>
   </el-form>
@@ -280,8 +267,13 @@
   import StageCardList from './stage-card-list.vue';
   import {
     clone,
+    getActivityStatus,
     getEditMode,
+    getStatusTagType,
+    getTodayStart,
     getUsedItemIds,
+    isActivityStartBeforeToday,
+    resolveActivityErrorStep,
     saveActivity,
     validateActivityForm
   } from '../data.js';
@@ -292,7 +284,8 @@
     mode: {
       type: String,
       default: 'add'
-    }
+    },
+    step: { type: Number, default: null }
   });
 
   const emit = defineEmits(['done', 'fail']);
@@ -300,20 +293,45 @@
   const formRef = ref(null);
   const form = ref(clone(props.data ?? {}));
 
-  const editMode = computed(() =>
-    getEditMode({ ...form.value, matchCount: props.data?.matchCount })
-  );
+  const showStep1 = computed(() => props.step == null || props.step === 1);
+  const showStep2 = computed(() => props.step == null || props.step === 2);
+  const isEditPage = computed(() => props.mode === 'edit');
+  const useSimplifiedLayout = computed(() => ['add', 'copy', 'edit'].includes(props.mode));
+  const activityStatus = computed(() => getActivityStatus(form.value));
+  const statusTagType = computed(() => getStatusTagType(activityStatus.value));
 
-  const nameDisabled = computed(() => !['full', 'cautious'].includes(editMode.value));
-  const coverDisabled = computed(() => !['full', 'cautious'].includes(editMode.value));
-  const introDisabled = computed(() => editMode.value === 'readonly');
-  const regulationDisabled = computed(() => editMode.value === 'readonly');
-  const orgDisabled = computed(() => editMode.value === 'readonly');
-  const attachmentDisabled = computed(() => editMode.value === 'readonly');
-  const timeDisabled = computed(() => !['full', 'cautious'].includes(editMode.value));
-  const stageDisabled = computed(() => !['full', 'cautious'].includes(editMode.value));
-  const scopeDisabled = computed(() => !['full', 'cautious'].includes(editMode.value));
-  const itemDisabled = computed(() => !['full', 'cautious'].includes(editMode.value));
+  const validationContext = computed(() => ({
+    matchCount: props.data?.matchCount,
+    matches: props.data?.matches ?? []
+  }));
+
+  const editMode = computed(() => {
+    if (!isEditPage.value) {
+      return 'full';
+    }
+    return getEditMode({ ...form.value, matchCount: props.data?.matchCount });
+  });
+
+  const nameDisabled = computed(
+    () => !isEditPage.value && !['full', 'cautious'].includes(editMode.value)
+  );
+  const coverDisabled = computed(
+    () => !isEditPage.value && !['full', 'cautious'].includes(editMode.value)
+  );
+  const introDisabled = computed(() => !isEditPage.value && editMode.value === 'readonly');
+  const regulationDisabled = computed(() => !isEditPage.value && editMode.value === 'readonly');
+  const orgDisabled = computed(() => !isEditPage.value && editMode.value === 'readonly');
+  const attachmentDisabled = computed(() => !isEditPage.value && editMode.value === 'readonly');
+  const timeDisabled = computed(
+    () => !isEditPage.value && !['full', 'cautious'].includes(editMode.value)
+  );
+  const stageDisabled = computed(
+    () => !isEditPage.value && !['full', 'cautious'].includes(editMode.value)
+  );
+  const scopeDisabled = computed(() => useSimplifiedLayout.value);
+  const itemDisabled = computed(
+    () => !isEditPage.value && !['full', 'cautious'].includes(editMode.value)
+  );
 
   const lockedItemIds = computed(() =>
     getUsedItemIds({
@@ -322,10 +340,62 @@
     })
   );
 
+  const validationOptions = computed(() => ({
+    simplified: useSimplifiedLayout.value,
+    allowExistingPastStart: isEditPage.value,
+    originalStartTime: props.data?.startTime
+  }));
+
   const rules = {
     activityName: [{ required: true, message: '请输入活动名称', trigger: 'blur' }],
-    startTime: [{ required: true, message: '请选择活动开始时间', trigger: 'change' }],
-    endTime: [{ required: true, message: '请选择活动结束时间', trigger: 'change' }]
+    startTime: [
+      { required: true, message: '请选择活动开始时间', trigger: 'change' },
+      {
+        validator: (_rule, value, callback) => {
+          if (value && isActivityStartBeforeToday(value)) {
+            if (isEditPage.value && value === props.data?.startTime) {
+              callback();
+              return;
+            }
+            callback(new Error('活动开始时间不能早于今天'));
+            return;
+          }
+          callback();
+        },
+        trigger: 'change'
+      }
+    ],
+    endTime: [
+      { required: true, message: '请选择活动结束时间', trigger: 'change' },
+      {
+        validator: (_rule, value, callback) => {
+          if (value && form.value.startTime && value <= form.value.startTime) {
+            callback(new Error('活动结束时间必须晚于活动开始时间'));
+            return;
+          }
+          callback();
+        },
+        trigger: 'change'
+      }
+    ]
+  };
+
+  const disabledStartDate = (date) => {
+    const todayStart = getTodayStart().getTime();
+    if (date.getTime() < todayStart) {
+      return true;
+    }
+    if (form.value.endTime) {
+      return date.getTime() > new Date(`${form.value.endTime}T23:59:59`).getTime();
+    }
+    return false;
+  };
+
+  const disabledEndDate = (date) => {
+    if (!form.value.startTime) {
+      return false;
+    }
+    return date.getTime() <= new Date(`${form.value.startTime}T00:00:00`).getTime();
   };
 
   watch(
@@ -344,10 +414,13 @@
         }
       }
     },
-    { deep: true }
+    { immediate: true, deep: true }
   );
 
   const handleRegulationAdd = (file) => {
+    if (!form.value.regulationAttachments) {
+      form.value.regulationAttachments = [];
+    }
     form.value.regulationAttachments.push(file);
   };
 
@@ -375,24 +448,22 @@
   const submit = async () => {
     if (editMode.value === 'readonly') {
       EleMessage.warning({ message: '已结束活动不允许编辑', plain: true });
-      emit('fail');
+      emit('fail', { step: 1 });
       return;
     }
     const valid = await formRef.value?.validate?.().catch(() => false);
     if (!valid) {
-      emit('fail');
+      emit('fail', { step: 1, message: '请完善基础信息' });
       return;
     }
-    const errors = validateActivityForm(form.value, {
-      matchCount: props.data?.matchCount,
-      matches: props.data?.matches
-    });
+    const errors = validateActivityForm(form.value, validationContext.value, validationOptions.value);
     if (errors.length) {
+      const step = resolveActivityErrorStep(errors[0]);
       EleMessage.error({ message: errors[0], plain: true });
-      emit('fail');
+      emit('fail', { step, message: errors[0] });
       return;
     }
-    if (editMode.value === 'cautious') {
+    if (editMode.value === 'cautious' && isEditPage.value) {
       try {
         await ElMessageBox.confirm(
           '活动已关联比赛，修改活动时间、覆盖范围、赛段或设项范围可能影响已有比赛，是否继续保存？',
@@ -400,58 +471,53 @@
           { type: 'warning', draggable: true }
         );
       } catch {
-        emit('fail');
+        emit('fail', { step: 2 });
         return;
       }
     }
     saveActivity(form.value, props.activityId);
-    EleMessage.success({ message: '保存成功，活动已生效', plain: true });
+    EleMessage.success({
+      message: isEditPage.value ? '活动修改成功' : '活动发布成功',
+      plain: true
+    });
     emit('done');
   };
 
-  defineExpose({ submit });
+  const validateStep = async (stepNum) => {
+    if (stepNum === 1) {
+      try {
+        await formRef.value?.validateField?.(['activityName', 'startTime', 'endTime']);
+      } catch {
+        return { valid: false, step: 1, message: '请完善基础信息' };
+      }
+      const errors = validateActivityForm(form.value, validationContext.value, {
+        ...validationOptions.value,
+        step: 1
+      });
+      if (errors.length) {
+        return { valid: false, step: 1, message: errors[0] };
+      }
+      return { valid: true };
+    }
+    if (stepNum === 2) {
+      const errors = validateActivityForm(form.value, validationContext.value, {
+        ...validationOptions.value,
+        step: 2
+      });
+      if (errors.length) {
+        return { valid: false, step: 2, message: errors[0] };
+      }
+      return { valid: true };
+    }
+    return { valid: true };
+  };
+
+  defineExpose({ submit, validateStep, getForm: () => form.value });
 </script>
 
 <style scoped lang="scss">
   .activity-form {
     max-width: none;
-  }
-
-  .form-section {
-    margin-bottom: 10px;
-    background: var(--el-bg-color);
-    border: 1px solid var(--el-border-color-lighter);
-    border-radius: 6px;
-
-    &--last {
-      margin-bottom: 0;
-    }
-  }
-
-  .section-head {
-    padding: 12px 16px 0;
-  }
-
-  .section-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--el-text-color-primary);
-    line-height: 1.4;
-    padding-left: 8px;
-    border-left: 3px solid var(--el-color-primary);
-  }
-
-  .section-desc {
-    margin: 4px 0 0 11px;
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-    line-height: 1.4;
-  }
-
-  .section-body {
-    padding: 10px 16px 4px;
-    border-top: 1px solid var(--el-border-color-extra-light);
-    margin-top: 10px;
   }
 
   .form-tip {
@@ -460,32 +526,11 @@
     color: var(--el-text-color-secondary);
     font-size: 12px;
     line-height: 1.5;
-  }
 
-  .org-subsection {
-    margin-bottom: 12px;
-    padding-bottom: 4px;
-    border-bottom: 1px dashed var(--el-border-color-extra-light);
-
-    &--last {
-      margin-bottom: 0;
-      padding-bottom: 0;
-      border-bottom: none;
-    }
-  }
-
-  .org-subtitle {
-    margin-bottom: 10px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--el-text-color-primary);
-  }
-
-  .committee-form-item {
-    margin-bottom: 0;
-
-    :deep(.el-form-item__label) {
-      padding: 0;
+    &--inline {
+      width: auto;
+      margin-top: 0;
+      margin-left: 8px;
     }
   }
 </style>

@@ -161,6 +161,56 @@ function isRegionPathWithin(path = [], parentPaths = []) {
   });
 }
 
+/** 活动覆盖区域路径是否落在设项适用区域内 */
+function isCoveragePathWithinItemRegion(coveragePath = [], itemPath = []) {
+  const coverageKey = regionPathKey(coveragePath);
+  const itemKey = regionPathKey(itemPath);
+  return coverageKey === itemKey || coverageKey.startsWith(`${itemKey}/`);
+}
+
+function getActivityCoverageRegionPaths(coverage = {}) {
+  const scope = migrateLegacyScope(coverage ?? {});
+  if (isScopeAllNational(scope)) {
+    return { national: true, paths: [] };
+  }
+  if (scope.regionMode === SCOPE_MODE_SPECIFIED && scope.regions?.length) {
+    return { national: false, paths: scope.regions };
+  }
+  if (scope.schoolMode === SCOPE_MODE_SPECIFIED && scope.schools?.length) {
+    const pathMap = new Map();
+    scope.schools.forEach((schoolId) => {
+      const school = SCHOOL_OPTIONS.find((item) => item.value === schoolId);
+      if (!school?.region?.length) {
+        return;
+      }
+      pathMap.set(regionPathKey(school.region), school.region);
+    });
+    return { national: false, paths: [...pathMap.values()] };
+  }
+  return { national: false, paths: [] };
+}
+
+/** 判断活动覆盖范围是否在设项适用区域内 */
+export function isItemApplicableToActivityCoverage(item, coverage) {
+  if (!item || item.regionType === '全国') {
+    return true;
+  }
+  const itemPaths = item.regions ?? [];
+  if (!itemPaths.length) {
+    return false;
+  }
+  const { national, paths } = getActivityCoverageRegionPaths(coverage);
+  if (national) {
+    return false;
+  }
+  if (!paths.length) {
+    return false;
+  }
+  return paths.every((coveragePath) =>
+    itemPaths.some((itemPath) => isCoveragePathWithinItemRegion(coveragePath, itemPath))
+  );
+}
+
 export function getSchoolsByRegions(regionPaths = []) {
   if (!regionPaths.length) {
     return [...SCHOOL_OPTIONS];
@@ -171,8 +221,14 @@ export function getSchoolsByRegions(regionPaths = []) {
 }
 
 function getEffectiveRegions(scope = {}, parentScope = null) {
-  if (parentScope?.regionMode === SCOPE_MODE_SPECIFIED && parentScope.regions?.length) {
-    return parentScope.regions;
+  const parent = parentScope ? migrateLegacyScope(parentScope) : null;
+  if (parent && !isScopeAllNational(parent)) {
+    if (parent.regionMode === SCOPE_MODE_SPECIFIED && parent.regions?.length) {
+      if (scope.regionMode === SCOPE_MODE_SPECIFIED && scope.regions?.length) {
+        return scope.regions;
+      }
+      return parent.regions;
+    }
   }
   if (scope.regionMode === SCOPE_MODE_SPECIFIED) {
     return scope.regions ?? [];
@@ -279,24 +335,47 @@ function isSubset(child = [], parent = []) {
   return child.every((item) => parent.includes(item));
 }
 
-function formatRegionShortLabel(path = []) {
+export function formatRegionShortLabel(path = []) {
   const labels = getRegionLabelList([path]);
   const text = labels[0] ?? '';
   const parts = text.split(' / ');
   return parts[parts.length - 1] || text;
 }
 
+/** 业务化地区展示，如「北京市海淀区」 */
+export function formatRegionDisplayLabel(path = []) {
+  const text = getRegionLabelList([path])[0] ?? '';
+  const parts = text.split(' / ').filter(Boolean);
+  if (!parts.length) {
+    return text;
+  }
+  const compact = [];
+  parts.forEach((part) => {
+    if (compact[compact.length - 1] !== part) {
+      compact.push(part);
+    }
+  });
+  return compact.join('');
+}
+
+export function formatRegionReadonlyLabel(paths = []) {
+  if (!paths?.length) {
+    return '';
+  }
+  return paths.map((path) => formatRegionDisplayLabel(path)).join('、');
+}
+
 function formatRegionSummary(scope = {}) {
   if (scope.regionMode === SCOPE_MODE_ALL) {
-    return '全国';
+    return '全国范围';
   }
   if (!scope.regions?.length) {
     return '';
   }
   if (scope.regions.length <= 2) {
-    return scope.regions.map((path) => formatRegionShortLabel(path)).join('、');
+    return scope.regions.map((path) => formatRegionDisplayLabel(path)).join('、');
   }
-  return `${scope.regions.length}个区域`;
+  return `已选择 ${scope.regions.length} 个地区`;
 }
 
 function formatSchoolSummary(scope = {}) {
@@ -312,6 +391,20 @@ function formatSchoolSummary(scope = {}) {
       .join('、');
   }
   return `${scope.schools.length}所学校`;
+}
+
+function formatSchoolBusinessSummary(scope = {}, regionText = '') {
+  if (scope.schoolMode === SCOPE_MODE_ALL) {
+    return `${regionText}全部学校`;
+  }
+  const schools = scope.schools ?? [];
+  if (!schools.length) {
+    return regionText;
+  }
+  if (schools.length === 1) {
+    return SCHOOL_OPTIONS.find((item) => item.value === schools[0])?.label ?? schools[0];
+  }
+  return `${regionText} ${schools.length} 所学校`.replace(/\s+/g, ' ').trim();
 }
 
 function formatStageEduSummary(scope = {}) {
@@ -334,6 +427,18 @@ function formatGradeSummary(scope = {}) {
   return `${scope.grades.length}个年级`;
 }
 
+function formatClassBusinessSummary(scope = {}) {
+  if (scope.classMode !== SCOPE_MODE_SPECIFIED || !scope.classes?.length) {
+    return '';
+  }
+  if (scope.classes.length <= 3) {
+    return scope.classes
+      .map((id) => CLASS_OPTIONS.find((item) => item.value === id)?.label ?? id)
+      .join('、');
+  }
+  return `${scope.classes.length}个班级`;
+}
+
 export function isScopeAllNational(scope = {}) {
   return (
     scope.regionMode === SCOPE_MODE_ALL &&
@@ -342,6 +447,114 @@ export function isScopeAllNational(scope = {}) {
     scope.gradeMode === SCOPE_MODE_ALL &&
     scope.classMode === SCOPE_MODE_ALL
   );
+}
+
+/** 解析上级范围约束，供下级范围配置使用 */
+export function getParentScopeConstraints(parentScope = {}) {
+  const parent = migrateLegacyScope(parentScope);
+  const national = isScopeAllNational(parent);
+  return {
+    isNational: national,
+    regionSpecified: !national && parent.regionMode === SCOPE_MODE_SPECIFIED && !!parent.regions?.length,
+    regionPaths: parent.regionMode === SCOPE_MODE_SPECIFIED ? clone(parent.regions ?? []) : [],
+    schoolSpecified: parent.schoolMode === SCOPE_MODE_SPECIFIED && !!parent.schools?.length,
+    schoolIds: parent.schoolMode === SCOPE_MODE_SPECIFIED ? [...(parent.schools ?? [])] : [],
+    stageSpecified: parent.stageMode === SCOPE_MODE_SPECIFIED && !!parent.stages?.length,
+    stages: parent.stageMode === SCOPE_MODE_SPECIFIED ? [...(parent.stages ?? [])] : [],
+    gradeSpecified: parent.gradeMode === SCOPE_MODE_SPECIFIED && !!parent.grades?.length,
+    grades: parent.gradeMode === SCOPE_MODE_SPECIFIED ? [...(parent.grades ?? [])] : [],
+    classSpecified: parent.classMode === SCOPE_MODE_SPECIFIED && !!parent.classes?.length,
+    classes: parent.classMode === SCOPE_MODE_SPECIFIED ? [...(parent.classes ?? [])] : []
+  };
+}
+
+/** 按上级地区路径过滤级联选项 */
+export function filterRegionOptionsByPaths(regionPaths = [], options = REGION_OPTIONS) {
+  if (!regionPaths?.length) {
+    return options;
+  }
+  const filterNodes = (nodes, prefix = []) => {
+    const result = [];
+    nodes.forEach((node) => {
+      const path = [...prefix, node.value];
+      const key = regionPathKey(path);
+      const allowed = regionPaths.some((parentPath) => {
+        const parentKey = regionPathKey(parentPath);
+        return key.startsWith(parentKey) || parentKey.startsWith(key);
+      });
+      if (!allowed) {
+        return;
+      }
+      const item = { value: node.value, label: node.label };
+      if (node.children?.length) {
+        const children = filterNodes(node.children, path);
+        if (children.length) {
+          item.children = children;
+        }
+      }
+      result.push(item);
+    });
+    return result;
+  };
+  return filterNodes(options);
+}
+
+/** 从上级范围初始化下级可缩小范围 */
+export function initScopeFromParent(parentScope = {}) {
+  return migrateLegacyScope(parentScope);
+}
+
+export function clampScopeToParent(childScope = {}, parentScope = {}) {
+  const parent = migrateLegacyScope(parentScope);
+  const child = migrateLegacyScope(childScope);
+  const constraints = getParentScopeConstraints(parent);
+
+  if (constraints.isNational) {
+    return child;
+  }
+
+  const next = { ...child };
+
+  if (constraints.regionSpecified) {
+    next.regionMode = SCOPE_MODE_SPECIFIED;
+    const allowed = constraints.regionPaths;
+    next.regions = (child.regions ?? []).filter((path) =>
+      allowed.some((p) => regionPathKey(path) === regionPathKey(p) || isRegionPathWithin(path, [p]))
+    );
+    if (!next.regions.length) {
+      next.regions = clone(allowed);
+    }
+  }
+
+  const allowedSchools = getAvailableSchoolOptions(next, parent).map((d) => d.value);
+  if (constraints.schoolSpecified || allowedSchools.length) {
+    if (child.schoolMode === SCOPE_MODE_SPECIFIED) {
+      next.schools = (child.schools ?? []).filter((id) => allowedSchools.includes(id));
+    }
+  }
+
+  const allowedStages = getAvailableStageOptions(next, parent).map((d) => d.value);
+  if (constraints.stageSpecified) {
+    if (child.stageMode === SCOPE_MODE_SPECIFIED) {
+      next.stages = (child.stages ?? []).filter((s) => allowedStages.includes(s));
+    }
+  }
+
+  const allowedGrades = getAvailableGradeOptions(next, parent);
+  if (constraints.gradeSpecified) {
+    if (child.gradeMode === SCOPE_MODE_SPECIFIED) {
+      next.grades = (child.grades ?? []).filter((g) => allowedGrades.includes(g));
+    }
+  }
+
+  const allowedClasses = getAvailableClassOptions(next, parent).map((d) => d.value);
+  if (constraints.classSpecified) {
+    if (child.classMode === SCOPE_MODE_SPECIFIED) {
+      next.classes = (child.classes ?? []).filter((id) => allowedClasses.includes(id));
+    }
+  }
+
+  return next;
 }
 
 export function getCoverageMode(scope = {}) {
@@ -358,10 +571,13 @@ export function createNationalScope(remark = '') {
 }
 
 export function formatScopeDisplaySummary(scope = {}, options = {}) {
-  const { isStage = false } = options;
+  const { isStage = false, parentScope = null } = options;
   const normalized = migrateLegacyScope(scope, { isStage });
   if (isStage && normalized.inherit) {
-    return '继承活动覆盖范围';
+    if (parentScope) {
+      return formatScopeDisplaySummary(parentScope);
+    }
+    return '使用活动覆盖范围';
   }
 
   if (isScopeAllNational(normalized)) {
@@ -369,56 +585,25 @@ export function formatScopeDisplaySummary(scope = {}, options = {}) {
   }
 
   const regionText = formatRegionSummary(normalized);
+  const schoolText = formatSchoolBusinessSummary(normalized, regionText);
   const stageText = formatStageEduSummary(normalized);
   const gradeText = formatGradeSummary(normalized);
-  const hasClassFilter =
-    normalized.classMode === SCOPE_MODE_SPECIFIED && normalized.classes?.length;
+  const classText = formatClassBusinessSummary(normalized);
 
-  if (
-    normalized.schoolMode === SCOPE_MODE_ALL &&
-    !stageText &&
-    !gradeText &&
-    !hasClassFilter
-  ) {
-    return `${regionText}全部学校`;
+  if (classText) {
+    return `${schoolText}${classText}学生`;
   }
 
-  if (
-    normalized.schoolMode === SCOPE_MODE_SPECIFIED &&
-    normalized.schools?.length &&
-    !stageText &&
-    !gradeText &&
-    !hasClassFilter
-  ) {
-    const schoolPart = formatSchoolSummary(normalized);
-    return `${regionText} ${schoolPart}`.replace(/\s+/g, ' ').trim();
-  }
-
-  if (stageText) {
-    const parts = [regionText];
-    if (normalized.schoolMode === SCOPE_MODE_SPECIFIED && normalized.schools?.length) {
-      parts.push(formatSchoolSummary(normalized));
-    }
-    parts.push(`${stageText}阶段`);
-    if (normalized.gradeMode === SCOPE_MODE_SPECIFIED && gradeText) {
-      parts.push(gradeText);
-    }
-    return `${parts.join('，')}学生`;
-  }
-
-  const parts = [regionText];
-  if (normalized.schoolMode === SCOPE_MODE_ALL) {
-    parts.push('全部学校');
-  } else if (normalized.schools?.length) {
-    parts.push(formatSchoolSummary(normalized));
-  }
-  if (stageText) {
-    parts.push(stageText);
-  }
   if (gradeText) {
-    parts.push(gradeText);
+    const prefix = stageText ? `${stageText}${gradeText}` : gradeText;
+    return `${schoolText}，${prefix}学生`;
   }
-  return parts.join('，');
+
+  if (stageText) {
+    return `${schoolText}，${stageText}阶段学生`;
+  }
+
+  return schoolText;
 }
 
 export function getScopeDetailRows(scope = {}, options = {}) {
@@ -429,15 +614,62 @@ export function getScopeDetailRows(scope = {}, options = {}) {
   }
   const labels = getScopeDimensionLabels(normalized, options);
   const rows = [
-    { level: `${labelPrefix}区域`, content: labels.region },
+    { level: `${labelPrefix}地区`, content: labels.region },
     { level: `${labelPrefix}学校`, content: labels.school },
     { level: `${labelPrefix}学段`, content: labels.stage },
     { level: `${labelPrefix}年级`, content: labels.grade },
     { level: `${labelPrefix}班级`, content: labels.class }
   ];
+  if (!isScopeAllNational(normalized)) {
+    rows.push({
+      level: `${labelPrefix}对象说明`,
+      content: normalized.remark?.trim() || '未填写'
+    });
+  }
+  return rows;
+}
+
+/** 详情页：仅展示实际限制到的有效层级 */
+export function getScopeEffectiveDetailRows(scope = {}, options = {}) {
+  const { isStage = false, labelPrefix = '覆盖' } = options;
+  const normalized = migrateLegacyScope(scope, { isStage });
+  if (isStage && normalized.inherit) {
+    return [];
+  }
+  if (isScopeAllNational(normalized)) {
+    return [];
+  }
+
+  const labels = getScopeDimensionLabels(normalized, options);
+  const rows = [];
+
+  if (normalized.regionMode === SCOPE_MODE_SPECIFIED && normalized.regions?.length) {
+    rows.push({ level: `${labelPrefix}地区`, content: labels.region });
+  }
+
+  rows.push({ level: `${labelPrefix}学校`, content: labels.school });
+
+  if (normalized.stageMode === SCOPE_MODE_SPECIFIED && normalized.stages?.length) {
+    rows.push({ level: `${labelPrefix}学段`, content: labels.stage });
+  }
+
+  if (normalized.gradeMode === SCOPE_MODE_SPECIFIED && normalized.grades?.length) {
+    rows.push({ level: `${labelPrefix}年级`, content: labels.grade });
+  }
+
+  if (
+    normalized.classMode === SCOPE_MODE_SPECIFIED &&
+    normalized.classes?.length &&
+    normalized.schoolMode === SCOPE_MODE_SPECIFIED &&
+    normalized.schools?.length
+  ) {
+    rows.push({ level: `${labelPrefix}班级`, content: labels.class });
+  }
+
   if (normalized.remark?.trim()) {
     rows.push({ level: `${labelPrefix}对象说明`, content: normalized.remark.trim() });
   }
+
   return rows;
 }
 
@@ -476,7 +708,8 @@ export function getScopeDimensionLabels(scope = {}, options = {}) {
 
 export function formatScopeDetailText(scope = {}, options = {}) {
   const labels = getScopeDimensionLabels(scope, options);
-  return `覆盖区域：${labels.region}；学校：${labels.school}；学段：${labels.stage}；年级：${labels.grade}；班级：${labels.class}`;
+  const { labelPrefix = '覆盖' } = options;
+  return `${labelPrefix}地区：${labels.region}；学校：${labels.school}；学段：${labels.stage}；年级：${labels.grade}；班级：${labels.class}`;
 }
 
 /** @deprecated 详情表格等场景兼容 */
@@ -519,39 +752,89 @@ export function validateScopeConfig(scope = {}, options = {}) {
   if (isStage && scope.inherit) {
     return errors;
   }
+  const normalized = migrateLegacyScope(scope);
   const needRegion =
-    activitySpecified || scope.regionMode === SCOPE_MODE_SPECIFIED;
-  if (needRegion && !scope.regions?.length) {
-    errors.push(`请选择${labelPrefix}区域`);
+    activitySpecified || normalized.regionMode === SCOPE_MODE_SPECIFIED;
+  if (needRegion && !normalized.regions?.length) {
+    errors.push(`请选择${labelPrefix}地区`);
   }
-  if (scope.schoolMode === SCOPE_MODE_SPECIFIED && !scope.schools?.length) {
+  if (normalized.schoolMode === SCOPE_MODE_SPECIFIED && !normalized.schools?.length) {
     errors.push(`请选择${labelPrefix}学校`);
   }
-  if (scope.stageMode === SCOPE_MODE_SPECIFIED && !scope.stages?.length) {
+  if (normalized.stageMode === SCOPE_MODE_SPECIFIED && !normalized.stages?.length) {
     errors.push(`请选择${labelPrefix}学段`);
   }
-  if (scope.gradeMode === SCOPE_MODE_SPECIFIED && !scope.grades?.length) {
+  if (normalized.gradeMode === SCOPE_MODE_SPECIFIED && !normalized.grades?.length) {
     errors.push(`请选择${labelPrefix}年级`);
   }
-  if (scope.classMode === SCOPE_MODE_SPECIFIED && !scope.classes?.length) {
-    errors.push(`请选择${labelPrefix}班级`);
+  if (normalized.classMode === SCOPE_MODE_SPECIFIED) {
+    if (normalized.schoolMode !== SCOPE_MODE_SPECIFIED && !isStage) {
+      errors.push('指定班级前请先选择指定学校');
+    } else if (!normalized.classes?.length) {
+      errors.push(`请选择${labelPrefix}班级`);
+    }
   }
+
+  const allowedSchools = getAvailableSchoolOptions(normalized).map((item) => item.value);
+  if (normalized.schoolMode === SCOPE_MODE_SPECIFIED && normalized.schools?.length) {
+    if (!isSubset(normalized.schools, allowedSchools)) {
+      errors.push(`${labelPrefix}学校不能超出${labelPrefix}地区范围`);
+    }
+  }
+
+  const allowedGrades = getAvailableGradeOptions(normalized);
+  if (normalized.gradeMode === SCOPE_MODE_SPECIFIED && normalized.grades?.length) {
+    if (!isSubset(normalized.grades, allowedGrades)) {
+      errors.push(`${labelPrefix}年级不能超出${labelPrefix}学段范围`);
+    }
+  }
+
+  const allowedClasses = getAvailableClassOptions(normalized).map((item) => item.value);
+  if (normalized.classMode === SCOPE_MODE_SPECIFIED && normalized.classes?.length) {
+    if (!isSubset(normalized.classes, allowedClasses)) {
+      errors.push(`${labelPrefix}班级不能超出上级范围`);
+    }
+  }
+
   return errors;
 }
 
-export function validateStageScopeWithinCoverage(stageScope = {}, activityCoverage = {}) {
-  if (stageScope?.inherit) {
-    return [];
-  }
+/** 活动覆盖范围变更时，校验已有赛段范围是否超出新覆盖范围 */
+export function validateCoverageAgainstStages(coverage = {}, stages = []) {
   const errors = [];
-  const parent = migrateLegacyScope(activityCoverage);
-  const child = migrateLegacyScope(stageScope);
+  const normalizedCoverage = migrateLegacyScope(coverage);
+  (stages ?? []).forEach((stage, index) => {
+    const stageScope = migrateLegacyScope(stage.scope, { isStage: true });
+    if (stageScope.inherit) {
+      return;
+    }
+    const stageErrors = validateStageScopeWithinCoverage(stageScope, normalizedCoverage);
+    if (stageErrors.length) {
+      const label = stage.stageName || `第${index + 1}个赛段`;
+      errors.push(`${label}的参赛范围超出新的活动覆盖范围，请先调整赛段范围`);
+    }
+  });
+  return errors;
+}
 
-  if (parent.regionMode === SCOPE_MODE_SPECIFIED && parent.regions?.length) {
-    if (child.regionMode === SCOPE_MODE_SPECIFIED && child.regions?.length) {
-      const ok = child.regions.every((path) => isRegionPathWithin(path, parent.regions));
+export function validateScopeWithinParent(childScope = {}, parentScope = {}, options = {}) {
+  const { labelPrefix = '参赛' } = options;
+  const errors = [];
+  const parent = migrateLegacyScope(parentScope);
+  const child = migrateLegacyScope(childScope);
+  const constraints = getParentScopeConstraints(parent);
+
+  if (constraints.isNational) {
+    return errors;
+  }
+
+  if (constraints.regionSpecified) {
+    if (child.regionMode === SCOPE_MODE_ALL) {
+      errors.push(`${labelPrefix}区域不能超出上级范围`);
+    } else if (child.regions?.length) {
+      const ok = child.regions.every((path) => isRegionPathWithin(path, constraints.regionPaths));
       if (!ok) {
-        errors.push('赛段参赛区域不能超出活动覆盖区域');
+        errors.push(`${labelPrefix}区域不能超出上级范围`);
       }
     }
   }
@@ -559,32 +842,39 @@ export function validateStageScopeWithinCoverage(stageScope = {}, activityCovera
   const parentSchools = getEffectiveSchoolIds(parent);
   if (child.schoolMode === SCOPE_MODE_SPECIFIED && child.schools?.length) {
     if (!isSubset(child.schools, parentSchools)) {
-      errors.push('赛段参赛学校不能超出活动覆盖学校范围');
+      errors.push(`${labelPrefix}学校不能超出上级范围`);
     }
   }
 
   const parentStages = getEffectiveStages(parent);
   if (child.stageMode === SCOPE_MODE_SPECIFIED && child.stages?.length) {
     if (!isSubset(child.stages, parentStages)) {
-      errors.push('赛段参赛学段不能超出活动覆盖学段范围');
+      errors.push(`${labelPrefix}学段不能超出上级范围`);
     }
   }
 
   const parentGrades = getEffectiveGrades(parent);
   if (child.gradeMode === SCOPE_MODE_SPECIFIED && child.grades?.length) {
     if (!isSubset(child.grades, parentGrades)) {
-      errors.push('赛段参赛年级不能超出活动覆盖年级范围');
+      errors.push(`${labelPrefix}年级不能超出上级范围`);
     }
   }
 
   const parentClasses = getAvailableClassOptions(parent).map((item) => item.value);
   if (child.classMode === SCOPE_MODE_SPECIFIED && child.classes?.length) {
     if (!isSubset(child.classes, parentClasses)) {
-      errors.push('赛段参赛班级不能超出活动覆盖班级范围');
+      errors.push(`${labelPrefix}班级不能超出上级范围`);
     }
   }
 
   return errors;
+}
+
+export function validateStageScopeWithinCoverage(stageScope = {}, activityCoverage = {}) {
+  if (stageScope?.inherit) {
+    return [];
+  }
+  return validateScopeWithinParent(stageScope, activityCoverage, { labelPrefix: '参赛' });
 }
 
 export { REGION_OPTIONS, STAGE_OPTIONS, STAGE_GRADE_MAP, clone };

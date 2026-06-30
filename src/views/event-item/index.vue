@@ -36,7 +36,20 @@
         </template>
 
         <template #sports="{ row }">
-          {{ formatSportsDisplay(row.sports) }}
+          <div v-if="!row.sports?.length" class="sports-cell sports-cell--empty">-</div>
+          <div v-else class="sports-cell">
+            <div
+              v-for="sport in getSportsPreview(row.sports)"
+              :key="getSportCatalogKey(sport)"
+              class="sport-entry"
+            >
+              <div class="sport-entry-name">{{ normalizeSportEntry(sport).name }}</div>
+              <div class="sport-entry-category">{{ normalizeSportEntry(sport).category }}</div>
+            </div>
+            <div v-if="row.sports.length > 2" class="sport-entry-more">
+              等 {{ row.sports.length }} 项
+            </div>
+          </div>
         </template>
 
         <template #matchForm="{ row }">
@@ -50,12 +63,16 @@
           </el-tag>
         </template>
 
-        <template #requirement="{ row }">
-          {{ formatRequirement(row) || '-' }}
+        <template #scoreRule="{ row }">
+          {{ formatScoreRuleSummaryForList(row) }}
         </template>
 
-        <template #dataSource="{ row }">
-          {{ row.dataSource || '表单提交' }}
+        <template #participationRequirement="{ row }">
+          {{ formatParticipationRequirementSummary(row) }}
+        </template>
+
+        <template #applicableRegion="{ row }">
+          {{ formatApplicableRegionSummary(row) }}
         </template>
 
         <template #scoreType="{ row }">
@@ -64,6 +81,10 @@
 
         <template #scoringRule="{ row }">
           {{ formatScoringRuleDisplay(row) }}
+        </template>
+
+        <template #awardCount="{ row }">
+          {{ formatAwardCountDisplay(row.awardSettings) }}
         </template>
 
         <template #status="{ row }">
@@ -122,11 +143,16 @@
   import ItemDetail from './components/item-detail.vue';
   import {
     eventItemStore,
-    formatRequirement,
-    formatSportsDisplay,
     formatScoringRuleDisplay,
+    formatAwardCountDisplay,
+    formatParticipationRequirementSummary,
+    formatApplicableRegionSummary,
+    formatScoreRuleSummaryForList,
     formatListDateTime,
-    formatNow
+    formatNow,
+    getSportCatalogKey,
+    matchesSportProjectFilter,
+    normalizeSportEntry
   } from '@/views/event-item/data.js';
 
   defineOptions({ name: 'EventItem' });
@@ -141,7 +167,6 @@
   const columns = ref([
     { type: 'index', columnKey: 'index', width: 60, align: 'center' },
     { prop: 'itemName', label: '设项名称', minWidth: 180, slot: 'itemName' },
-    { prop: 'source', label: '设项来源', width: 110, align: 'center', slot: 'source' },
     {
       columnKey: 'sports',
       label: '关联体育项目',
@@ -149,14 +174,6 @@
       slot: 'sports'
     },
     { prop: 'matchForm', label: '比赛形式', width: 100, align: 'center', slot: 'matchForm' },
-    { columnKey: 'requirement', label: '适用范围', minWidth: 200, slot: 'requirement' },
-    {
-      prop: 'dataSource',
-      label: '数据来源',
-      width: 110,
-      align: 'center',
-      slot: 'dataSource'
-    },
     {
       prop: 'scoreType',
       label: '成绩类型',
@@ -165,13 +182,41 @@
       slot: 'scoreType'
     },
     {
+      columnKey: 'scoreRule',
+      label: '成绩规则',
+      minWidth: 140,
+      slot: 'scoreRule',
+      showOverflowTooltip: true
+    },
+    {
       columnKey: 'scoringRule',
-      label: '比赛计分规则',
+      label: '计分规则',
       width: 120,
       align: 'center',
       slot: 'scoringRule'
     },
-    { prop: 'status', label: '启用状态', width: 100, align: 'center', slot: 'status' },
+    {
+      columnKey: 'awardCount',
+      label: '奖项数量',
+      width: 100,
+      align: 'center',
+      slot: 'awardCount'
+    },
+    {
+      columnKey: 'participationRequirement',
+      label: '参赛要求',
+      minWidth: 160,
+      slot: 'participationRequirement',
+      showOverflowTooltip: true
+    },
+    {
+      columnKey: 'applicableRegion',
+      label: '适用区域',
+      minWidth: 140,
+      slot: 'applicableRegion',
+      showOverflowTooltip: true
+    },
+    { prop: 'status', label: '状态', width: 100, align: 'center', slot: 'status' },
     { prop: 'createBy', label: '创建人', width: 100, align: 'center' },
     {
       prop: 'createTime',
@@ -180,7 +225,6 @@
       align: 'center',
       slot: 'createTime'
     },
-    { prop: 'updateTime', label: '更新时间', width: 170, align: 'center' },
     {
       columnKey: 'action',
       label: '操作',
@@ -191,6 +235,8 @@
     }
   ]);
 
+  const getSportsPreview = (sports = []) => sports.slice(0, 2);
+
   const datasource = ({ pages }) => {
     let result = [...eventItemStore.list];
     const keyword = lastWhere.itemName?.trim();
@@ -200,9 +246,9 @@
     if (lastWhere.source) {
       result = result.filter((d) => d.source === lastWhere.source);
     }
-    if (lastWhere.sport) {
+    if (lastWhere.sportProjects?.length) {
       result = result.filter((d) =>
-        (d.sports ?? []).some((s) => s.name === lastWhere.sport)
+        matchesSportProjectFilter(d.sports, lastWhere.sportProjects)
       );
     }
     if (lastWhere.matchForm) {
@@ -310,3 +356,31 @@
       .catch(() => {});
   };
 </script>
+
+<style scoped lang="scss">
+  .sports-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    line-height: 1.4;
+
+    &--empty {
+      color: var(--el-text-color-secondary);
+    }
+  }
+
+  .sport-entry-name {
+    font-size: 13px;
+    color: var(--el-text-color-primary);
+  }
+
+  .sport-entry-category {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .sport-entry-more {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+</style>

@@ -69,14 +69,15 @@
 
 <script setup>
   import { reactive, ref } from 'vue';
-  import { EleMessage, useModal } from 'ele-admin-plus';
+  import { useRouter } from 'vue-router';
+  import { EleMessage } from 'ele-admin-plus';
   import { PlusOutlined } from '@/components/icons';
+  import { usePageTab } from '@/utils/use-page-tab';
   import ActivitySearch from './components/activity-search.vue';
   import ActivityDetail from './components/activity-detail.vue';
   import {
     activityStore,
     copyActivityData,
-    createDefaultActivity,
     formatActivityTime,
     formatUnits,
     getActivityStatus,
@@ -86,7 +87,8 @@
 
   defineOptions({ name: 'CompetitionActivity' });
 
-  const { openModal } = useModal();
+  const router = useRouter();
+  const { addPageTab } = usePageTab();
   const tableRef = ref(null);
   const lastWhere = reactive({});
 
@@ -177,16 +179,13 @@
     tableRef.value?.reload?.();
   };
 
-  const openModalForm = (props) => {
-    openModal({
-      custom: true,
-      asyncComponent: () => import('./components/activity-edit-modal.vue'),
-      componentProps: { ...props, onDone: reload }
-    });
+  const goFormPage = (path, title) => {
+    addPageTab({ title, key: path, closable: true });
+    router.push(path);
   };
 
   const openAdd = () => {
-    openModalForm({ data: createDefaultActivity(), mode: 'add' });
+    goFormPage('/competition/activity/add', '新建活动');
   };
 
   const openEdit = (row) => {
@@ -197,7 +196,8 @@
       return;
     }
     detailVisible.value = false;
-    openModalForm({ data: row, activityId: row.activityId, mode: 'edit' });
+    const path = `/competition/activity/edit/${row.activityId}`;
+    goFormPage(path, `编辑活动[${row.activityName}]`);
   };
 
   const openDetail = (row) => {
@@ -207,6 +207,13 @@
 
   const copyActivity = (row) => {
     detailVisible.value = false;
-    openModalForm({ data: copyActivityData(row), mode: 'copy' });
+    router.push({
+      path: '/competition/activity/add',
+      state: {
+        initialData: copyActivityData(row),
+        formMode: 'copy'
+      }
+    });
+    addPageTab({ title: '复制活动', key: '/competition/activity/add', closable: true });
   };
 </script>

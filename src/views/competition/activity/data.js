@@ -8,7 +8,14 @@ import {
   formatRequirement,
   formatSportsDisplay,
   eventItemStore,
-  clone
+  clone,
+  buildAwardSettingFromItem,
+  cloneAwardsFromItem,
+  cloneAwardConfigFromItem,
+  formatAwardSettingSummary,
+  formatParticipationRequirementSummary,
+  formatApplicableRegionSummary,
+  getAwardCount
 } from '@/views/event-item/data.js';
 import {
   CLASS_OPTIONS,
@@ -24,10 +31,14 @@ import {
   formatScopeDisplaySummary,
   formatScopeSummary,
   getScopeDetailRows,
+  getScopeEffectiveDetailRows,
   getScopeDimensionLabels,
   migrateLegacyScope,
   normalizeScope,
+  getCoverageMode,
+  COVERAGE_MODE_SPECIFIED,
   validateScopeConfig,
+  validateCoverageAgainstStages,
   validateStageScopeWithinCoverage
 } from './scope-utils.js';
 
@@ -46,9 +57,12 @@ export {
   formatScopeDisplaySummary,
   formatScopeSummary,
   getScopeDetailRows,
+  getScopeEffectiveDetailRows,
   getScopeDimensionLabels,
+  getCoverageMode,
   normalizeScope,
   validateScopeConfig,
+  validateCoverageAgainstStages,
   validateStageScopeWithinCoverage
 };
 export { REGION_OPTIONS, STAGE_OPTIONS, STAGE_GRADE_MAP } from './scope-utils.js';
@@ -85,16 +99,10 @@ export function createDefaultStage(partial = {}) {
 export function createDefaultStages() {
   return [
     createDefaultStage({
-      stageName: '校园积分赛',
-      description: '面向全校学生开展的基础积分赛事阶段。'
+      stageName: '校园行'
     }),
     createDefaultStage({
-      stageName: '区域晋级赛',
-      description: '区域范围内优胜代表参与的晋级阶段。'
-    }),
-    createDefaultStage({
-      stageName: '全国总决赛',
-      description: '全国范围最终决赛阶段。'
+      stageName: '全国总决赛'
     })
   ];
 }
@@ -144,6 +152,7 @@ function baseActivity() {
     organizerUnits: [],
     coOrganizerUnits: [],
     supportUnits: [],
+    operationServiceUnits: [],
     chiefReferee: '',
     committeeMembers: [],
     startTime: '',
@@ -190,20 +199,81 @@ export function formatScoringRuleSummary(item) {
   return item.scoringMethod || '已配置';
 }
 
-export function formatRegistrationSummary(item) {
-  const methods = item?.registrationMethods?.join('、') || '-';
-  const insurance = item?.defaultInsuranceRequirement;
-  return insurance ? `${methods}；${insurance}` : methods;
+export function formatRegistrationSummary() {
+  return '-';
 }
 
 export function formatQualificationSummary(item) {
-  return formatRequirement(item) || item?.qualification || '-';
+  return formatParticipationRequirementSummary(item);
+}
+
+export function formatAwardSummaryForDisplay(item) {
+  const count = getAwardCount(item?.awardSettings);
+  if (!count) {
+    return '暂无奖项';
+  }
+  return formatAwardSettingSummary(item?.awardSettings);
+}
+
+/** 获取比赛设项奖项（优先使用比赛级配置，否则从设项管理带出） */
+export function getMatchItemAwards(match, itemId) {
+  return getMatchItemAwardConfig(match, itemId).awards;
+}
+
+/** 获取比赛设项完整奖项配置（含补充说明） */
+export function getMatchItemAwardConfig(match, itemId) {
+  const key = String(itemId);
+  if (match?.itemAwardConfig?.[key]) {
+    return clone(match.itemAwardConfig[key]);
+  }
+  const item = findEventItem(itemId);
+  const config = cloneAwardConfigFromItem(item);
+  if (match?.itemAwards?.[key]?.length) {
+    config.awards = clone(match.itemAwards[key]);
+  }
+  if (match?.itemAwardRemarks && Object.prototype.hasOwnProperty.call(match.itemAwardRemarks, key)) {
+    config.awardRemark = match.itemAwardRemarks[key] ?? '';
+  }
+  return config;
+}
+
+/** 从设项管理复制奖项配置，供比赛发布时确认或调整（不回写设项管理） */
+export function cloneAwardsForMatch(itemId, overrides = null) {
+  const item = findEventItem(itemId);
+  if (!item) {
+    return [];
+  }
+  if (overrides) {
+    return clone(Array.isArray(overrides) ? overrides : overrides.awards ?? []);
+  }
+  return cloneAwardsFromItem(item);
+}
+
+export function cloneAwardConfigForMatch(itemId, overrides = null) {
+  const item = findEventItem(itemId);
+  if (!item) {
+    return { awards: [], awardRemark: '' };
+  }
+  if (overrides) {
+    return clone(overrides);
+  }
+  return cloneAwardConfigFromItem(item);
+}
+
+export function formatMatchItemAwardSummary(match, itemId) {
+  const awards = getMatchItemAwards(match, itemId);
+  const count = getAwardCount(awards);
+  if (!count) {
+    return '暂无奖项';
+  }
+  return formatAwardSettingSummary(awards);
 }
 
 export function mapEventItemForActivity(item) {
   if (!item) {
     return null;
   }
+  const awards = buildAwardSettingFromItem(item);
   return {
     itemId: item.itemId,
     itemName: item.itemName,
@@ -213,16 +283,53 @@ export function mapEventItemForActivity(item) {
     scoringRule: formatScoringRuleSummary(item),
     registrationSetting: formatRegistrationSummary(item),
     qualification: formatQualificationSummary(item),
-    status: item.status
+    applicableRegion: formatApplicableRegionSummary(item),
+    awardCount: getAwardCount(awards),
+    matchForm: item.matchForm || '-',
+    awardCountText: getAwardCount(awards) ? `${getAwardCount(awards)} 个` : '暂无奖项',
+    awardSummary: formatAwardSummaryForDisplay(item),
+    awards,
+    awardRemark: item.awardRemark?.trim() ?? '',
+    status: item.status,
+    statusText: item.status === 1 ? '启用' : '停用'
   };
 }
 
-/** 从设项管理读取可选择的设项 */
+/** 从设项管理读取可选择的设项（仅启用） */
 export function getSelectableEventItems() {
   return eventItemStore.list
     .filter((d) => d.status === 1)
     .map((item) => mapEventItemForActivity(item))
     .filter(Boolean);
+}
+
+/** 设项选择弹窗：展示全部设项（含停用） */
+export function getAllEventItemsForPicker() {
+  return eventItemStore.list.map((item) => mapEventItemForActivity(item)).filter(Boolean);
+}
+
+/** 今天 00:00:00 */
+export function getTodayStart() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+/** 活动开始时间不能早于今天 */
+export function isActivityStartBeforeToday(startTime) {
+  if (!startTime) {
+    return false;
+  }
+  const start = new Date(`${startTime}T00:00:00`);
+  return start.getTime() < getTodayStart().getTime();
+}
+
+/** 赛段时间是否超出活动时间范围 */
+export function isStageTimeOutOfActivityRange(stage, activityStart, activityEnd) {
+  if (!stage?.startTime || !stage?.endTime || !activityStart || !activityEnd) {
+    return false;
+  }
+  return stage.startTime < activityStart || stage.endTime > activityEnd;
 }
 
 export function getActivityLinkedItems(itemIds = []) {
@@ -293,53 +400,105 @@ export function getEditMode(activity) {
   return 'full';
 }
 
-export function validateActivityForm(form, context = {}) {
-  const errors = [];
+export function validateActivityForm(form, context = {}, options = {}) {
+  const step1Errors = [];
+  const step2Errors = [];
+  const simplified = options.simplified === true;
+
   if (!form.activityName?.trim()) {
-    errors.push('请填写活动名称');
+    step1Errors.push('请填写活动名称');
   }
   if (!form.startTime) {
-    errors.push('请选择活动开始时间');
+    step1Errors.push('请选择活动开始时间');
   }
   if (!form.endTime) {
-    errors.push('请选择活动结束时间');
+    step1Errors.push('请选择活动结束时间');
+  }
+  if (isActivityStartBeforeToday(form.startTime)) {
+    const keepExistingStart =
+      options.allowExistingPastStart &&
+      options.originalStartTime &&
+      form.startTime === options.originalStartTime;
+    if (!keepExistingStart) {
+      step1Errors.push('活动开始时间不能早于今天');
+    }
   }
   if (form.startTime && form.endTime && form.endTime <= form.startTime) {
-    errors.push('活动结束时间必须晚于活动开始时间');
+    step1Errors.push('活动结束时间必须晚于活动开始时间');
   }
+
+  const invalidRegulationPdf = (form.regulationAttachments ?? []).some((file) => {
+    const name = (file.name ?? '').toLowerCase();
+    return name && !name.endsWith('.pdf');
+  });
+  if (invalidRegulationPdf) {
+    step1Errors.push('仅支持上传 PDF 文件');
+  }
+
   if (!form.stages?.length) {
-    errors.push('至少保留一个赛段');
+    step2Errors.push('至少保留一个赛段');
   }
-  errors.push(...validateScopeConfig(form.coverage, { labelPrefix: '覆盖' }));
+  if (!simplified) {
+    if (getCoverageMode(form.coverage) === COVERAGE_MODE_SPECIFIED) {
+      step2Errors.push(
+        ...validateScopeConfig(form.coverage, { labelPrefix: '覆盖', activitySpecified: true })
+      );
+    }
+    step2Errors.push(...validateCoverageAgainstStages(form.coverage, form.stages));
+  }
   form.stages?.forEach((stage, index) => {
     const label = stage.stageName || `第${index + 1}个赛段`;
     if (!stage.stageName?.trim()) {
-      errors.push(`${label}：请填写赛段名称`);
+      step2Errors.push(`${label}：请填写赛段名称`);
     }
     if (!stage.startTime) {
-      errors.push(`${label}：请选择比赛开始日期`);
+      step2Errors.push(`${label}：请选择赛段开始时间`);
     }
     if (!stage.endTime) {
-      errors.push(`${label}：请选择比赛结束日期`);
+      step2Errors.push(`${label}：请选择赛段结束时间`);
     }
     if (stage.startTime && stage.endTime && stage.endTime <= stage.startTime) {
-      errors.push(`${label}：赛段比赛结束日期必须晚于比赛开始日期`);
+      step2Errors.push(`${label}：赛段结束时间必须晚于赛段开始时间`);
     }
-    if (form.startTime && stage.startTime && stage.startTime < form.startTime) {
-      errors.push(`${label}：赛段比赛开始日期不能早于活动开始时间`);
+    if (isStageTimeOutOfActivityRange(stage, form.startTime, form.endTime)) {
+      step2Errors.push(`${label}：赛段时间必须在活动时间范围内`);
     }
-    if (form.endTime && stage.endTime && stage.endTime > form.endTime) {
-      errors.push(`${label}：赛段比赛结束日期不能晚于活动结束时间`);
-    }
-    errors.push(...validateStageScopeWithinCoverage(stage.scope, form.coverage));
-    if (!stage.scope?.inherit) {
-      errors.push(
-        ...validateScopeConfig(stage.scope, { isStage: true, labelPrefix: '参赛' })
-      );
+    if (!simplified) {
+      step2Errors.push(...validateStageScopeWithinCoverage(stage.scope, form.coverage));
+      if (!stage.scope?.inherit) {
+        step2Errors.push(
+          ...validateScopeConfig(stage.scope, { isStage: true, labelPrefix: '参赛' })
+        );
+      }
     }
   });
-  errors.push(...validateActivityItemScope(form, context));
-  return errors;
+
+  const enabledItemCount = (form.itemIds ?? []).filter((id) => {
+    const item = findEventItem(id);
+    return item?.status === 1;
+  }).length;
+  if (!enabledItemCount) {
+    step2Errors.push('活动设项范围至少选择一个启用设项');
+  }
+
+  step2Errors.push(...validateActivityItemScope(form, context));
+
+  if (options.step === 1) {
+    return step1Errors;
+  }
+  if (options.step === 2) {
+    return step2Errors;
+  }
+  return [...step1Errors, ...step2Errors];
+}
+
+/** 根据校验错误文案判断所属步骤 */
+export function resolveActivityErrorStep(message = '') {
+  const step1Keywords = ['活动名称', '活动开始', '活动结束', 'PDF', '规程'];
+  if (step1Keywords.some((key) => message.includes(key))) {
+    return 1;
+  }
+  return 2;
 }
 
 /** 已被下属比赛使用的设项不可从活动设项范围移除 */
@@ -376,6 +535,12 @@ function makeActivity(data) {
     ...data,
     regulationText: data.regulationText ?? '',
     regulationAttachments: clone(data.regulationAttachments ?? []),
+    guidingUnits: clone(data.guidingUnits ?? []),
+    hostUnits: clone(data.hostUnits ?? []),
+    organizerUnits: clone(data.organizerUnits ?? []),
+    coOrganizerUnits: clone(data.coOrganizerUnits ?? []),
+    supportUnits: clone(data.supportUnits ?? []),
+    operationServiceUnits: clone(data.operationServiceUnits ?? data.supportUnits ?? []),
     committeeMembers: normalizeCommitteeMembers(data.committeeMembers ?? []),
     stages: makeStages(data.stages ?? createDefaultStages()),
     itemIds: [...(data.itemIds ?? [])],
@@ -417,24 +582,22 @@ export const activityStore = reactive({
           uploadTime: '2026-01-09 09:00:00'
         }
       ],
-      guidingUnits: ['教育部体育卫生与艺术教育司'],
-      hostUnits: ['中国学生体育联合会'],
-      organizerUnits: ['北京市海淀区教育委员会'],
-      coOrganizerUnits: ['北京市学生体育协会'],
-      supportUnits: ['智慧体育平台'],
-      chiefReferee: '王建国',
-      committeeMembers: [
-        { id: 'cm_1', name: '李明', position: '主任', organization: '中国学生体育联合会' },
-        { id: 'cm_2', name: '张华', position: '副主任', organization: '北京市学生体育协会' }
-      ],
-      startTime: '2026-03-01',
-      endTime: '2027-08-31',
+      guidingUnits: [],
+      hostUnits: [],
+      organizerUnits: [],
+      coOrganizerUnits: [],
+      supportUnits: [],
+      operationServiceUnits: [],
+      chiefReferee: '',
+      committeeMembers: [],
+      startTime: '2026-08-01',
+      endTime: '2027-09-30',
       stages: [
         {
           stageId: 'stage_1',
-          stageName: '校园积分赛',
-          startTime: '2026-03-01',
-          endTime: '2027-03-31',
+          stageName: '校园行',
+          startTime: '2026-08-01',
+          endTime: '2027-06-30',
           scope: {
             inherit: false,
             regionMode: 'specified',
@@ -449,42 +612,17 @@ export const activityStore = reactive({
             classes: [],
             remark: ''
           },
-          threshold: '全校学生均可参与校园积分赛。',
+          threshold: '全校学生均可参与校园行赛事。',
           chiefReferee: '刘志强',
-          description: '校园内开展的基础积分赛事。',
+          description: '校园内开展的基础积分与晋级赛事。',
           enabled: true,
-          matchCount: 3
-        },
-        {
-          stageId: 'stage_2',
-          stageName: '区域晋级赛',
-          startTime: '2027-04-01',
-          endTime: '2027-06-30',
-          scope: {
-            inherit: false,
-            regionMode: 'specified',
-            regions: [['110000', '110100', '110108']],
-            schoolMode: 'all',
-            schools: [],
-            stageMode: 'specified',
-            stages: ['小学', '初中'],
-            gradeMode: 'all',
-            grades: [],
-            classMode: 'all',
-            classes: [],
-            remark: ''
-          },
-          threshold: '校园积分赛积分达标或排名晋级。',
-          chiefReferee: '赵敏',
-          description: '区域范围内优胜代表参与的晋级阶段。',
-          enabled: true,
-          matchCount: 2
+          matchCount: 6
         },
         {
           stageId: 'stage_3',
           stageName: '全国总决赛',
           startTime: '2027-07-01',
-          endTime: '2027-08-31',
+          endTime: '2027-09-30',
           scope: {
             inherit: true,
             regionMode: 'all',
@@ -499,11 +637,11 @@ export const activityStore = reactive({
             classes: [],
             remark: ''
           },
-          threshold: '区域晋级赛优胜代表队。',
+          threshold: '校园行与区域赛优胜代表队。',
           chiefReferee: '陈刚',
           description: '全国范围最终决赛阶段。',
           enabled: true,
-          matchCount: 0
+          matchCount: 1
         }
       ],
       itemIds: [1, 2, 7],
@@ -523,7 +661,7 @@ export const activityStore = reactive({
         classes: ['class_1', 'class_2', 'class_3'],
         remark: '面向北京市海淀区、朝阳区指定学校开展。'
       },
-      matchCount: 5,
+      matchCount: 7,
       schoolCount: 186,
       studentCount: 8200,
       createBy: '赛事管理员',
@@ -534,21 +672,39 @@ export const activityStore = reactive({
         {
           matchId: 'm1',
           matchName: '海淀区校园跳绳积分赛',
-          stageName: '校园积分赛',
-          startTime: '2026-03-15',
+          stageId: 'stage_1',
+          stageName: '校园行',
+          matchType: '校内赛',
+          startTime: '2026-08-15',
           endTime: '2026-12-30',
+          regStartTime: '2026-08-01 00:00',
+          regEndTime: '2026-09-20 23:59',
           matchStatus: '进行中',
           registrationStatus: '报名中',
           itemCount: 2,
           itemIds: [1],
-          registrationCount: 1280
+          registrationCount: 1280,
+          itemAwards: {
+            1: [
+              { id: 'match_award_1', awardName: '冠军', awardRule: '第1名', awardTarget: '个人' },
+              { id: 'match_award_2', awardName: '亚军', awardRule: '第2名', awardTarget: '个人' },
+              { id: 'match_award_3', awardName: '参与奖', awardRule: '完成比赛', awardTarget: '个人' }
+            ]
+          },
+          itemAwardRemarks: {
+            1: '本比赛奖项以发布时确认配置为准，并列名次按现场裁判组判定。'
+          }
         },
         {
           matchId: 'm2',
           matchName: '3v3篮球班级对抗赛',
-          stageName: '校园积分赛',
-          startTime: '2026-04-01',
-          endTime: '2026-08-31',
+          stageId: 'stage_1',
+          stageName: '校园行',
+          matchType: '校内赛',
+          startTime: '2026-09-01',
+          endTime: '2027-03-31',
+          regStartTime: '2026-08-20 09:00',
+          regEndTime: '2026-10-31 18:00',
           matchStatus: '进行中',
           registrationStatus: '报名中',
           itemCount: 1,
@@ -558,9 +714,13 @@ export const activityStore = reactive({
         {
           matchId: 'm3',
           matchName: '朝阳区校园积分赛',
-          stageName: '校园积分赛',
-          startTime: '2026-03-01',
-          endTime: '2027-03-31',
+          stageId: 'stage_1',
+          stageName: '校园行',
+          matchType: '校内赛',
+          startTime: '2026-08-01',
+          endTime: '2027-06-30',
+          regStartTime: '2026-07-01 00:00',
+          regEndTime: '2026-07-31 23:59',
           matchStatus: '进行中',
           registrationStatus: '已截止',
           itemCount: 3,
@@ -569,9 +729,11 @@ export const activityStore = reactive({
         },
         {
           matchId: 'm4',
-          matchName: '海淀区区域晋级赛',
-          stageName: '区域晋级赛',
-          startTime: '2027-04-10',
+          matchName: '海淀区区域跳绳挑战赛',
+          stageId: 'stage_1',
+          stageName: '校园行',
+          matchType: '区域赛',
+          startTime: '2027-03-01',
           endTime: '2027-05-20',
           matchStatus: '未开始',
           registrationStatus: '未开始',
@@ -582,9 +744,40 @@ export const activityStore = reactive({
         {
           matchId: 'm5',
           matchName: '北京市区域跳绳挑战赛',
-          stageName: '区域晋级赛',
-          startTime: '2027-05-01',
+          stageId: 'stage_1',
+          stageName: '校园行',
+          matchType: '区域赛',
+          startTime: '2027-04-01',
           endTime: '2027-06-15',
+          matchStatus: '未开始',
+          registrationStatus: '未开始',
+          itemCount: 1,
+          itemIds: [1],
+          registrationCount: 0
+        },
+        {
+          matchId: 'm6',
+          matchName: '海淀区每日积分赛',
+          matchType: '每日积分赛',
+          stageId: 'stage_1',
+          stageName: '校园行',
+          startTime: '2026-09-01 00:00',
+          endTime: '2027-06-30 23:59',
+          matchStatus: '进行中',
+          itemIds: [],
+          registrationCount: 3200,
+          personCount: 3200
+        },
+        {
+          matchId: 'm7',
+          matchName: '全国总决赛跳绳精英赛',
+          stageId: 'stage_3',
+          stageName: '全国总决赛',
+          matchType: '全国总决赛',
+          startTime: '2027-07-10',
+          endTime: '2027-09-15',
+          regStartTime: '2027-06-01 00:00',
+          regEndTime: '2027-06-30 23:59',
           matchStatus: '未开始',
           registrationStatus: '未开始',
           itemCount: 1,
