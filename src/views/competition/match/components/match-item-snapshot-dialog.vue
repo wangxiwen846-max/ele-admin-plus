@@ -21,7 +21,6 @@
       <div class="section-block">
         <div class="section-title">本场配置</div>
         <el-descriptions :column="1" size="small" border>
-          <el-descriptions-item label="成绩规则">{{ row.scoreRule || '-' }}</el-descriptions-item>
           <el-descriptions-item label="计分规则">{{ row.scoringRule || '未启用' }}</el-descriptions-item>
           <el-descriptions-item label="报名设置">{{ registrationSummary }}</el-descriptions-item>
           <el-descriptions-item label="保险设置">{{ insuranceSummary }}</el-descriptions-item>

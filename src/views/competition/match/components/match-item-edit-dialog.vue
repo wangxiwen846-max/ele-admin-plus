@@ -19,14 +19,6 @@
       <el-form-item label="设项名称">
         <span>{{ itemName }}</span>
       </el-form-item>
-      <el-form-item label="成绩规则">
-        <el-input
-          v-model="editing.scoreRule"
-          type="textarea"
-          :rows="2"
-          placeholder="请输入成绩规则"
-        />
-      </el-form-item>
       <el-form-item label="计分规则">
         <el-input
           v-model="editing.scoringRule"
@@ -82,7 +74,6 @@
     () => [props.itemId, props.metaConfig, props.awardConfig],
     () => {
       editing.value = {
-        scoreRule: props.metaConfig?.scoreRule ?? '',
         scoringRule: props.metaConfig?.scoringRule ?? '',
         qualification: props.metaConfig?.qualification ?? '',
         awards: clone(props.awardConfig?.awards ?? []),
@@ -112,7 +103,6 @@
     }
     emit('save', {
       metaConfig: {
-        scoreRule: editing.value.scoreRule,
         scoringRule: editing.value.scoringRule,
         qualification: editing.value.qualification
       },

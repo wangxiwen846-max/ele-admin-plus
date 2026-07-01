@@ -151,61 +151,77 @@
         <el-col :xs="24">
           <div class="config-block">
             <div class="config-toolbar">
-              <div class="config-title">成绩提交字段配置表</div>
+              <div class="config-title">成绩字段配置表</div>
             </div>
-            <el-table :data="form.scoreFieldConfig" border size="small" class="config-table">
-              <el-table-column prop="name" label="字段名称" min-width="100" />
-              <el-table-column prop="type" label="字段类型" width="88" align="center" />
-              <el-table-column label="是否必填" width="96" align="center">
-                <template #default="{ row }">
-                  <el-select
-                    v-if="!coreDisabled"
-                    v-model="row.required"
-                    size="small"
-                    class="cell-select"
-                  >
-                    <el-option :value="true" label="是" />
-                    <el-option :value="false" label="否" />
-                  </el-select>
-                  <span v-else>{{ row.required ? '是' : '否' }}</span>
+            <el-table :data="scoreTemplateRows" border size="small" class="config-table score-template-table">
+              <el-table-column label="基本信息" align="center">
+                <el-table-column prop="school" label="学校" min-width="110" align="center" />
+                <el-table-column prop="grade" label="年级" min-width="90" align="center" />
+                <el-table-column prop="className" label="班级" min-width="90" align="center" />
+                <el-table-column
+                  v-if="form.matchForm === '个人'"
+                  prop="studentName"
+                  label="学生姓名"
+                  min-width="110"
+                  align="center"
+                />
+                <el-table-column
+                  v-if="form.matchForm === '个人'"
+                  prop="studentNo"
+                  label="学号"
+                  min-width="110"
+                  align="center"
+                />
+                <el-table-column
+                  v-else
+                  prop="teamName"
+                  label="团队名称"
+                  min-width="120"
+                  align="center"
+                />
+              </el-table-column>
+              <el-table-column label="成绩" align="center">
+                <template v-if="form.scoreType === '胜负类'">
+                  <el-table-column prop="matchResult" label="比赛结果" min-width="110" align="center" />
+                  <el-table-column prop="scoreText" label="比分" min-width="110" align="center" />
+                </template>
+                <template v-else>
+                  <el-table-column prop="scoreValue" label="成绩" min-width="110" align="center" />
+                  <el-table-column label="单位" min-width="120" align="center">
+                    <template #default>
+                      <el-select
+                        v-model="scoreUnit"
+                        :disabled="coreDisabled"
+                        size="small"
+                        class="cell-select"
+                      >
+                        <el-option
+                          v-for="opt in MEASUREMENT_UNIT_OPTIONS"
+                          :key="opt"
+                          :label="opt"
+                          :value="opt"
+                        />
+                      </el-select>
+                    </template>
+                  </el-table-column>
                 </template>
               </el-table-column>
-              <el-table-column label="成绩统计方式" min-width="120" align="center">
-                <template #default="{ row }">
-                  <el-select
-                    v-if="isStatMethodEditable(row)"
-                    v-model="row.statMethod"
-                    :disabled="coreDisabled"
-                    size="small"
-                    class="cell-select"
-                    @change="handleStatMethodChange(row)"
-                  >
-                    <el-option
-                      v-for="opt in statMethodOptions"
-                      :key="opt"
-                      :label="opt"
-                      :value="opt"
-                    />
-                  </el-select>
-                  <span v-else class="cell-text">{{ row.statMethod || '-' }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column label="单位/选项" min-width="100" align="center">
-                <template #default="{ row }">
-                  <el-select
-                    v-if="isUnitEditable(row)"
-                    v-model="row.unit"
-                    :disabled="coreDisabled"
-                    size="small"
-                    class="cell-select"
-                  >
-                    <el-option v-for="opt in unitOptionsForRow(row)" :key="opt" :label="opt" :value="opt" />
-                  </el-select>
-                  <span v-else class="cell-text">{{ formatUnitOrOptions(row) }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="description" label="说明" min-width="120" show-overflow-tooltip />
             </el-table>
+            <div class="additional-fields">
+              <el-checkbox-group
+                v-model="additionalFieldSelection"
+                :disabled="coreDisabled"
+                class="additional-fields-options"
+              >
+                <el-checkbox
+                  v-for="item in ADDITIONAL_FIELD_OPTIONS"
+                  :key="item.value"
+                  :value="item.value"
+                >
+                  {{ item.label }}
+                </el-checkbox>
+              </el-checkbox-group>
+            </div>
           </div>
         </el-col>
       </el-row>
@@ -235,7 +251,7 @@
                   <el-radio value="系统自动计算" disabled>系统自动计算（后续支持）</el-radio>
                 </el-radio-group>
                 <div v-if="form.scoringMethod === '手动录入比赛分'" class="form-tip">
-                  请确保成绩提交字段配置表中包含「比赛分」字段。
+                  请确保成绩字段配置表中包含「比赛分」字段。
                 </div>
               </el-form-item>
             </el-col>
@@ -264,7 +280,11 @@
         <div class="section-title">奖项设置</div>
       </div>
       <div class="section-body">
-        <award-setting-list v-model="form.awardSettings" :disabled="coreDisabled" />
+        <award-setting-list
+          v-model="form.awardSettings"
+          :match-form="form.matchForm"
+          :disabled="coreDisabled"
+        />
         <el-form-item label="奖项补充说明" class="award-remark-item">
           <el-input
             v-model="form.awardRemark"
@@ -301,24 +321,8 @@
               :disabled="coreDisabled"
               placeholder="请选择适用学段"
               class="ele-fluid"
-              @change="handleStageChange"
             >
               <el-option v-for="opt in STAGE_OPTIONS" :key="opt" :label="opt" :value="opt" />
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :sm="12" :xs="24">
-          <el-form-item label="适用年级">
-            <el-select
-              v-model="form.grades"
-              multiple
-              collapse-tags
-              collapse-tags-tooltip
-              :disabled="coreDisabled || !form.stages.length"
-              :placeholder="form.stages.length ? '请选择适用年级' : '请选择适用学段'"
-              class="ele-fluid"
-            >
-              <el-option v-for="opt in gradeOptions" :key="opt" :label="opt" :value="opt" />
             </el-select>
           </el-form-item>
         </el-col>
@@ -413,18 +417,13 @@
     STAGE_OPTIONS,
     SCORE_TYPE_OPTIONS,
     REGION_OPTIONS,
-    DURATION_STAT_METHOD_OPTIONS,
-    DURATION_UNIT_OPTIONS,
-    COUNT_STAT_METHOD_OPTIONS,
-    COUNT_UNIT_OPTIONS,
-    getGradesByStages,
+    MEASUREMENT_UNIT_OPTIONS,
     applyScoreTypeDefaults,
     syncScoreMetaFromFieldConfig,
     syncScoreConfigFromForm,
     syncStructuredFieldsFromForm,
     ensureMatchScoreField,
     removeMatchScoreField,
-    defaultUnitForCountStat,
     migrateLegacyItem,
     clone,
     createDefaultItem,
@@ -433,7 +432,8 @@
     hasScoreFieldNamed,
     validateAwardSettings,
     normalizeAwardSettings,
-    normalizeSportEntry
+    normalizeSportEntry,
+    normalizeScoreFieldRequired
   } from '@/views/event-item/data.js';
 
   const props = defineProps({
@@ -541,43 +541,80 @@
     children: 'children'
   };
 
-  const gradeOptions = computed(() => getGradesByStages(form.stages));
+  const ADDITIONAL_FIELD_OPTIONS = [
+    { label: '上传成绩证明', value: '成绩证明' },
+    { label: '备注', value: '备注' }
+  ];
 
-  const statMethodOptions = computed(() => {
-    if (form.scoreType === '时长/用时类') {
-      return DURATION_STAT_METHOD_OPTIONS;
+  const ADDITIONAL_FIELD_ROWS = {
+    成绩证明: {
+      name: '成绩证明',
+      type: '上传',
+      required: false,
+      statMethod: '',
+      unit: '-',
+      options: '',
+      description: '上传成绩证明材料'
+    },
+    备注: {
+      name: '备注',
+      type: '文本',
+      required: false,
+      statMethod: '',
+      unit: '-',
+      options: '',
+      description: '补充说明'
     }
-    if (form.scoreType === '个数/距离类') {
-      return COUNT_STAT_METHOD_OPTIONS;
+  };
+
+  const scoreTemplateRows = computed(() => [
+    {
+      school: '',
+      grade: '',
+      className: '',
+      studentName: '',
+      studentNo: '',
+      teamName: '',
+      scoreValue: '',
+      matchResult: '',
+      scoreText: ''
     }
-    return [];
+  ]);
+
+  const scoreValueField = computed(() =>
+    (form.scoreFieldConfig ?? []).find((field) => field.name === '成绩数值')
+  );
+
+  const scoreUnit = computed({
+    get: () => scoreValueField.value?.unit || '秒',
+    set: (value) => {
+      if (scoreValueField.value) {
+        scoreValueField.value.unit = value;
+      }
+      syncScoreMetaFromFieldConfig(form);
+      syncScoreConfigFromForm(form);
+    }
   });
 
-  const isStatMethodEditable = (row) =>
-    row.name === '成绩数值' && form.scoreType !== '胜负类';
-
-  const isUnitEditable = (row) =>
-    row.name === '成绩数值' && form.scoreType !== '胜负类';
-
-  const unitOptionsForRow = () => {
-    if (form.scoreType === '时长/用时类') {
-      return DURATION_UNIT_OPTIONS;
+  const additionalFieldSelection = computed({
+    get: () =>
+      ADDITIONAL_FIELD_OPTIONS.filter((item) =>
+        (form.scoreFieldConfig ?? []).some((field) => field.name === item.value)
+      ).map((item) => item.value),
+    set: (values) => {
+      const selected = new Set(values);
+      ADDITIONAL_FIELD_OPTIONS.forEach((item) => {
+        const exists = (form.scoreFieldConfig ?? []).some((field) => field.name === item.value);
+        if (selected.has(item.value) && !exists) {
+          form.scoreFieldConfig.push({ ...ADDITIONAL_FIELD_ROWS[item.value] });
+        }
+        if (!selected.has(item.value) && exists) {
+          form.scoreFieldConfig = form.scoreFieldConfig.filter((field) => field.name !== item.value);
+        }
+      });
+      syncScoreConfigFromForm(form);
     }
-    if (form.scoreType === '个数/距离类') {
-      return COUNT_UNIT_OPTIONS;
-    }
-    return [];
-  };
-
-  const formatUnitOrOptions = (row) => {
-    if (row.name === '比赛结果') {
-      return row.options || '胜、负、平';
-    }
-    if (row.unit && row.unit !== '-') {
-      return row.unit;
-    }
-    return '-';
-  };
+  });
 
   const syncMatchScoreField = () => {
     if (
@@ -593,11 +630,6 @@
 
   const handleSportsChange = () => {
     formRef.value?.validateField?.('sports');
-  };
-
-  const handleStageChange = () => {
-    const allowed = gradeOptions.value;
-    form.grades = (form.grades ?? []).filter((g) => allowed.includes(g));
   };
 
   const handleRegionTypeChange = (val) => {
@@ -616,6 +648,10 @@
       form.scoringMethod = '';
       form.scoringDescription = '';
       form.scoringAttachments = [];
+      form.awardSettings = (form.awardSettings ?? []).map((award) => ({
+        ...award,
+        awardTarget: '个人'
+      }));
     }
     syncMatchScoreField();
   };
@@ -633,14 +669,6 @@
   const handleScoreTypeChange = () => {
     applyScoreTypeDefaults(form);
     syncMatchScoreField();
-  };
-
-  const handleStatMethodChange = (row) => {
-    if (form.scoreType === '个数/距离类' && row.name === '成绩数值') {
-      row.unit = defaultUnitForCountStat(row.statMethod);
-    }
-    syncScoreMetaFromFieldConfig(form);
-    syncScoreConfigFromForm(form);
   };
 
   const handleScoringEnabledChange = (val) => {
@@ -698,6 +726,16 @@
       payload.regions = [];
     }
     payload.awardSettings = normalizeAwardSettings(payload.awardSettings ?? []);
+    if (payload.matchForm === '个人') {
+      payload.awardSettings = payload.awardSettings.map((award) => ({
+        ...award,
+        awardTarget: '个人'
+      }));
+    }
+    payload.scoreFieldConfig = (payload.scoreFieldConfig ?? []).map((row) => ({
+      ...row,
+      required: normalizeScoreFieldRequired(row.name)
+    }));
     payload.awardRemark = payload.awardRemark?.trim() ?? '';
     payload.qualification = payload.qualification?.trim() ?? '';
     payload.sports = (payload.sports ?? []).map((s) => normalizeSportEntry(s));
@@ -944,6 +982,24 @@
     :deep(.el-table__cell) {
       padding: 6px 0;
     }
+  }
+
+  .score-template-table {
+    :deep(.el-table__body .cell) {
+      min-height: 24px;
+    }
+  }
+
+  .additional-fields {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--el-border-color-extra-light);
+  }
+
+  .additional-fields-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
   }
 
   .cell-select {

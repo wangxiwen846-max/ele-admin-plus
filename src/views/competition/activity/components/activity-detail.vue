@@ -48,13 +48,13 @@
           </el-col>
           <el-col :md="4" :sm="8" :xs="12">
             <div class="stat-item">
-              <div class="stat-label">参与学校数</div>
+              <div class="stat-label">覆盖学校数</div>
               <div class="stat-value">{{ data.schoolCount }}</div>
             </div>
           </el-col>
           <el-col :md="4" :sm="8" :xs="12">
             <div class="stat-item">
-              <div class="stat-label">参与学生数</div>
+              <div class="stat-label">覆盖学生数</div>
               <div class="stat-value">{{ data.studentCount }}</div>
             </div>
           </el-col>
@@ -232,11 +232,6 @@
           <el-table-column prop="itemName" label="设项名称" min-width="120" />
           <el-table-column prop="project" label="关联项目" min-width="110" />
           <el-table-column prop="scoreType" label="成绩类型" width="110" align="center" />
-          <el-table-column label="成绩规则" min-width="120">
-            <template #default="{ row }">
-              <detail-text-cell :text="row.scoreRule" :max-length="20" />
-            </template>
-          </el-table-column>
           <el-table-column label="计分规则" min-width="120">
             <template #default="{ row }">
               <detail-text-cell :text="row.scoringRule" :max-length="20" />

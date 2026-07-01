@@ -31,12 +31,6 @@
           </el-tooltip>
         </template>
 
-        <template #activityStage="{ row }">
-          <el-tooltip :content="formatActivityStageLabel(row, findActivity(row.activityId))" placement="top">
-            <span class="ellipsis-text">{{ formatActivityStageLabel(row, findActivity(row.activityId)) }}</span>
-          </el-tooltip>
-        </template>
-
         <template #matchTime="{ row }">
           <el-tooltip :content="formatMatchTimeTooltip(row)" placement="top">
             <span class="ellipsis-text">{{ formatMatchTimeShort(row) }}</span>
@@ -128,7 +122,6 @@
   import DailyParticipantListModal from './components/daily-participant-list-modal.vue';
   import {
     copyMatchData,
-    formatActivityStageLabel,
     formatListDateTime,
     formatMatchContentPrimary,
     formatMatchContentSecondary,
@@ -142,7 +135,6 @@
     getStatusTagType,
     isDailyMatch
   } from './data.js';
-  import { findActivity } from '@/views/competition/activity/data.js';
 
   defineOptions({ name: 'CompetitionMatch' });
 
@@ -161,29 +153,29 @@
     {
       prop: 'matchName',
       label: '比赛名称',
-      minWidth: 200,
+      minWidth: 220,
       slot: 'matchName',
       fixed: 'left'
     },
-    { columnKey: 'activityStage', label: '所属活动 / 赛段', minWidth: 200, slot: 'activityStage' },
     { prop: 'matchType', label: '比赛类型', width: 110, align: 'center' },
-    { columnKey: 'matchTime', label: '比赛时间', minWidth: 160, slot: 'matchTime' },
+    { columnKey: 'matchTime', label: '比赛时间', minWidth: 170, slot: 'matchTime' },
     {
       columnKey: 'registrationInfo',
-      label: '报名时间 / 报名状态',
-      minWidth: 160,
+      label: '报名时间',
+      minWidth: 170,
       slot: 'registrationInfo'
     },
-    { columnKey: 'matchContent', label: '比赛内容', minWidth: 140, slot: 'matchContent' },
+    { columnKey: 'matchContent', label: '比赛内容', minWidth: 150, slot: 'matchContent' },
     {
       columnKey: 'registrationOverview',
       label: '报名概况',
-      width: 120,
+      width: 110,
       align: 'center',
       slot: 'registrationOverview'
     },
     { columnKey: 'matchStatus', label: '比赛状态', width: 100, align: 'center', slot: 'matchStatus' },
-    { columnKey: 'createTime', label: '创建时间', width: 140, align: 'center', slot: 'createTime' },
+    { prop: 'createBy', label: '创建人', width: 100, align: 'center' },
+    { columnKey: 'createTime', label: '创建时间', width: 150, align: 'center', slot: 'createTime' },
     {
       columnKey: 'action',
       label: '操作',

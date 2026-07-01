@@ -43,8 +43,7 @@
               :key="getSportCatalogKey(sport)"
               class="sport-entry"
             >
-              <div class="sport-entry-name">{{ normalizeSportEntry(sport).name }}</div>
-              <div class="sport-entry-category">{{ normalizeSportEntry(sport).category }}</div>
+              <div class="sport-entry-name">{{ formatSportEntryDisplay(sport) }}</div>
             </div>
             <div v-if="row.sports.length > 2" class="sport-entry-more">
               等 {{ row.sports.length }} 项
@@ -61,10 +60,6 @@
           >
             {{ row.matchForm }}
           </el-tag>
-        </template>
-
-        <template #scoreRule="{ row }">
-          {{ formatScoreRuleSummaryForList(row) }}
         </template>
 
         <template #participationRequirement="{ row }">
@@ -147,12 +142,12 @@
     formatAwardCountDisplay,
     formatParticipationRequirementSummary,
     formatApplicableRegionSummary,
-    formatScoreRuleSummaryForList,
     formatListDateTime,
     formatNow,
     getSportCatalogKey,
     matchesSportProjectFilter,
-    normalizeSportEntry
+    normalizeSportEntry,
+    formatSportEntryDisplay
   } from '@/views/event-item/data.js';
 
   defineOptions({ name: 'EventItem' });
@@ -182,16 +177,9 @@
       slot: 'scoreType'
     },
     {
-      columnKey: 'scoreRule',
-      label: '成绩规则',
-      minWidth: 140,
-      slot: 'scoreRule',
-      showOverflowTooltip: true
-    },
-    {
       columnKey: 'scoringRule',
       label: '计分规则',
-      width: 120,
+      width: 110,
       align: 'center',
       slot: 'scoringRule'
     },
@@ -205,14 +193,14 @@
     {
       columnKey: 'participationRequirement',
       label: '参赛要求',
-      minWidth: 160,
+      minWidth: 180,
       slot: 'participationRequirement',
       showOverflowTooltip: true
     },
     {
       columnKey: 'applicableRegion',
       label: '适用区域',
-      minWidth: 140,
+      minWidth: 150,
       slot: 'applicableRegion',
       showOverflowTooltip: true
     },
@@ -372,11 +360,7 @@
   .sport-entry-name {
     font-size: 13px;
     color: var(--el-text-color-primary);
-  }
-
-  .sport-entry-category {
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
+    line-height: 1.4;
   }
 
   .sport-entry-more {

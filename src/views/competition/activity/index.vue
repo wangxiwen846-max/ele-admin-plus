@@ -124,8 +124,8 @@
       slot: 'stageCount'
     },
     { prop: 'matchCount', label: '关联比赛数量', width: 120, align: 'center' },
-    { prop: 'schoolCount', label: '参与学校数', width: 110, align: 'center' },
-    { prop: 'studentCount', label: '参与学生数', width: 110, align: 'center' },
+    { prop: 'schoolCount', label: '覆盖学校数', width: 110, align: 'center' },
+    { prop: 'studentCount', label: '覆盖学生数', width: 110, align: 'center' },
     { prop: 'createBy', label: '创建人', width: 110, align: 'center' },
     { prop: 'createTime', label: '创建时间', width: 170, align: 'center' },
     { prop: 'updateBy', label: '最近更新人', width: 110, align: 'center' },

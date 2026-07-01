@@ -42,64 +42,167 @@ export const SPORT_PROJECT_CASCADER_OPTIONS = SPORT_CATEGORY_OPTIONS.map((catego
 
 export const SPORT_OPTIONS = SPORT_PROJECT_CATALOG.map((d) => d.name);
 
+export function inferSportSelectLevel(entry) {
+  if (!entry) {
+    return 'item';
+  }
+  if (entry.selectLevel === 'category' || entry.selectLevel === 'item') {
+    return entry.selectLevel;
+  }
+  if (typeof entry === 'string') {
+    const byName = SPORT_PROJECT_CATALOG.find((d) => d.name === entry);
+    if (byName) {
+      return 'item';
+    }
+    return SPORT_CATEGORY_OPTIONS.includes(entry) ? 'category' : 'item';
+  }
+  const category = entry.category ?? '';
+  const name = entry.name ?? '';
+  if (SPORT_CATEGORY_OPTIONS.includes(category) && (!name || name === category)) {
+    return 'category';
+  }
+  if (name && name !== category) {
+    return 'item';
+  }
+  return category ? 'category' : 'item';
+}
+
 export function getSportCatalogKey(entry) {
   if (!entry) {
     return '';
   }
   const normalized = normalizeSportEntry(entry);
+  if (inferSportSelectLevel(normalized) === 'category') {
+    return `${normalized.category}::__category__`;
+  }
   return `${normalized.category}::${normalized.name}`;
 }
 
 export function normalizeSportEntry(entry) {
+  let normalized;
   if (typeof entry === 'string') {
     const found =
       SPORT_PROJECT_CATALOG.find((d) => d.name === entry) ??
       SPORT_PROJECT_CATALOG.find((d) => d.category === entry);
-    return found ?? { category: '', name: entry, projectType: '-', unit: '-' };
-  }
-  if (entry.category && entry.name) {
+    if (found) {
+      normalized = { ...found, selectLevel: 'item' };
+    } else if (SPORT_CATEGORY_OPTIONS.includes(entry)) {
+      normalized = {
+        category: entry,
+        name: entry,
+        projectType: '-',
+        unit: '-',
+        selectLevel: 'category'
+      };
+    } else {
+      normalized = { category: '', name: entry, projectType: '-', unit: '-', selectLevel: 'item' };
+    }
+  } else if (entry.selectLevel === 'category') {
+    normalized = {
+      category: entry.category ?? entry.name ?? '',
+      name: entry.category ?? entry.name ?? '',
+      projectType: entry.projectType ?? '-',
+      unit: entry.unit ?? '-',
+      selectLevel: 'category'
+    };
+  } else if (entry.category && entry.name) {
     const found = SPORT_PROJECT_CATALOG.find(
       (d) => d.category === entry.category && d.name === entry.name
     );
-    return found ?? entry;
+    normalized = {
+      ...(found ?? entry),
+      selectLevel: entry.selectLevel ?? (entry.name === entry.category ? 'category' : 'item')
+    };
+  } else {
+    const legacyName = entry.name ?? '';
+    const found =
+      SPORT_PROJECT_CATALOG.find((d) => d.name === legacyName) ??
+      SPORT_PROJECT_CATALOG.find((d) => d.category === legacyName);
+    if (found) {
+      normalized = { ...found, selectLevel: entry.selectLevel ?? 'item' };
+    } else if (SPORT_CATEGORY_OPTIONS.includes(legacyName)) {
+      normalized = {
+        category: legacyName,
+        name: legacyName,
+        projectType: entry.projectType ?? '-',
+        unit: entry.unit ?? '-',
+        selectLevel: 'category'
+      };
+    } else {
+      normalized = {
+        category: entry.category ?? legacyName,
+        name: legacyName,
+        projectType: entry.projectType ?? '-',
+        unit: entry.unit ?? '-',
+        selectLevel: entry.selectLevel ?? 'item'
+      };
+    }
   }
-  const legacyName = entry.name ?? '';
-  const found =
-    SPORT_PROJECT_CATALOG.find((d) => d.name === legacyName) ??
-    SPORT_PROJECT_CATALOG.find((d) => d.category === legacyName);
-  if (found) {
-    return found;
+  normalized.selectLevel = normalized.selectLevel ?? inferSportSelectLevel(entry);
+  return normalized;
+}
+
+/** 展示用户实际选中的项目名，不拼接上级分类 */
+export function getSportEntryDisplayLabel(entry) {
+  const normalized = normalizeSportEntry(entry);
+  if (inferSportSelectLevel(normalized) === 'category') {
+    return normalized.category || '-';
   }
-  return {
-    category: entry.category ?? legacyName,
-    name: legacyName,
-    projectType: entry.projectType ?? '-',
-    unit: entry.unit ?? '-'
-  };
+  return normalized.name || normalized.category || '-';
 }
 
 export function formatSportEntryDisplay(entry) {
-  const normalized = normalizeSportEntry(entry);
-  if (!normalized.name) {
-    return '-';
-  }
-  if (normalized.category && normalized.category !== normalized.name) {
-    return `${normalized.category} / ${normalized.name}`;
-  }
-  return normalized.name;
+  return getSportEntryDisplayLabel(entry);
 }
 
-/** 详情展示：完整路径 + 项目类型 */
+/** 详情展示：选中项 + 项目类型 */
 export function formatSportEntryDetailDisplay(entry) {
-  const normalized = normalizeSportEntry(entry);
-  if (!normalized.name) {
+  const label = getSportEntryDisplayLabel(entry);
+  if (label === '-') {
     return '-';
   }
-  const path = formatSportEntryDisplay(normalized);
+  const normalized = normalizeSportEntry(entry);
   if (normalized.projectType && normalized.projectType !== '-') {
-    return `${path}（${normalized.projectType}）`;
+    return `${label}（${normalized.projectType}）`;
   }
-  return path;
+  return label;
+}
+
+export function sportEntryFromCascaderPath(path = []) {
+  if (!path?.length) {
+    return null;
+  }
+  const [category, name] = path;
+  if (path.length === 1 || !name) {
+    return {
+      category,
+      name: category,
+      projectType: '-',
+      unit: '-',
+      selectLevel: 'category'
+    };
+  }
+  const found = SPORT_PROJECT_CATALOG.find((d) => d.category === category && d.name === name);
+  return {
+    ...(found ?? { category, name, projectType: '-', unit: '-' }),
+    selectLevel: 'item'
+  };
+}
+
+export function cascaderPathsFromSports(sports = []) {
+  return (sports ?? [])
+    .map((sport) => {
+      const normalized = normalizeSportEntry(sport);
+      if (inferSportSelectLevel(normalized) === 'category') {
+        return [normalized.category];
+      }
+      return [normalized.category, normalized.name];
+    })
+    .filter((path) => path[0]);
+}
+
+export function sportsFromCascaderPaths(paths = []) {
+  return (paths ?? []).map((path) => sportEntryFromCascaderPath(path)).filter(Boolean);
 }
 
 /** 列表筛选：按级联选择路径匹配设项关联项目 */
@@ -223,7 +326,9 @@ export const SCORING_METHOD_OPTIONS = ['手动录入比赛分', '系统自动计
 export const MATCH_STAGE_OPTIONS = ['校园积分赛', '区域晋级赛', '全国总决赛'];
 
 /** 1.0 固定成绩类型 */
-export const SCORE_TYPE_OPTIONS = ['时长/用时类', '个数/距离类', '胜负类'];
+export const SCORE_TYPE_MEASUREMENT = '计量计数类';
+export const SCORE_TYPE_RESULT = '胜负类';
+export const SCORE_TYPE_OPTIONS = [SCORE_TYPE_MEASUREMENT, SCORE_TYPE_RESULT];
 export const SCORE_SUBMITTER_OPTIONS = ['体育教师', '赛事专员'];
 /** 1.0 报名方式（可多选） */
 export const REGISTRATION_METHOD_OPTIONS = ['教师报名', '赛事专员报名'];
@@ -236,9 +341,10 @@ export const DEFAULT_INSURANCE_OPTIONS = ['赛事统一保险', '参赛方自行
 
 /** 成绩提交字段配置 - 可编辑项选项 */
 export const DURATION_STAT_METHOD_OPTIONS = ['坚持时长', '完成用时'];
-export const DURATION_UNIT_OPTIONS = ['秒', '分钟'];
+export const MEASUREMENT_UNIT_OPTIONS = ['个', '次', '米', '厘米', '秒'];
+export const DURATION_UNIT_OPTIONS = ['秒'];
 export const COUNT_STAT_METHOD_OPTIONS = ['固定时间计数', '规定次数命中', '距离成绩'];
-export const COUNT_UNIT_OPTIONS = ['个', '次', '米', '厘米'];
+export const COUNT_UNIT_OPTIONS = MEASUREMENT_UNIT_OPTIONS;
 export const MATCH_RESULT_OPTIONS = ['胜', '负', '平'];
 
 /** @deprecated 仅用于旧数据迁移 */
@@ -261,6 +367,14 @@ const COUNT_STAT_TO_LEGACY = {
   规定次数命中: '规定次数命中数',
   距离成绩: '距离'
 };
+
+export function isMeasurementScoreType(scoreType) {
+  return ['计量计数类', '时长/用时类', '个数/距离类'].includes(scoreType);
+}
+
+export function normalizeScoreType(scoreType) {
+  return isMeasurementScoreType(scoreType) ? SCORE_TYPE_MEASUREMENT : scoreType || SCORE_TYPE_MEASUREMENT;
+}
 
 export function defaultUnitForCountStat(statMethod) {
   if (statMethod === '规定次数命中') {
@@ -309,7 +423,7 @@ function createRemarkFieldRow() {
 }
 
 export function createDefaultScoreFieldConfig(scoreType, options = {}) {
-  if (scoreType === '时长/用时类') {
+  if (isMeasurementScoreType(scoreType)) {
     const statMethod = options.statMethod ?? '完成用时';
     return [
       {
@@ -321,57 +435,12 @@ export function createDefaultScoreFieldConfig(scoreType, options = {}) {
         options: '',
         description: '填写实际成绩数值'
       },
-      createRankFieldRow(),
-      createProofFieldRow(),
-      createRemarkFieldRow()
-    ];
-  }
-  if (scoreType === '个数/距离类') {
-    const statMethod = options.statMethod ?? '固定时间计数';
-    return [
-      {
-        name: '成绩数值',
-        type: '数字',
-        required: true,
-        statMethod,
-        unit: options.unit ?? defaultUnitForCountStat(statMethod),
-        options: '',
-        description: '填写实际成绩数值'
-      },
-      createRankFieldRow(),
       createProofFieldRow(),
       createRemarkFieldRow()
     ];
   }
   if (scoreType === '胜负类') {
     return [
-      {
-        name: '对阵对象',
-        type: '文本',
-        required: true,
-        statMethod: '',
-        unit: '-',
-        options: '',
-        description: '填写对阵班级、队伍或学校'
-      },
-      {
-        name: '本方得分',
-        type: '数字',
-        required: true,
-        statMethod: '',
-        unit: '分',
-        options: '',
-        description: '填写本方得分'
-      },
-      {
-        name: '对方得分',
-        type: '数字',
-        required: true,
-        statMethod: '',
-        unit: '分',
-        options: '',
-        description: '填写对方得分'
-      },
       {
         name: '比赛结果',
         type: '单选',
@@ -381,7 +450,15 @@ export function createDefaultScoreFieldConfig(scoreType, options = {}) {
         options: MATCH_RESULT_OPTIONS.join('、'),
         description: '选择比赛结果'
       },
-      createRankFieldRow(),
+      {
+        name: '比分',
+        type: '文本',
+        required: false,
+        statMethod: '',
+        unit: '-',
+        options: '',
+        description: '填写比分'
+      },
       createProofFieldRow(),
       createRemarkFieldRow()
     ];
@@ -417,9 +494,8 @@ export function syncScoreMetaFromFieldConfig(form) {
     return;
   }
   const scoreValueRow = (form.scoreFieldConfig ?? []).find((f) => f.name === '成绩数值');
-  if (form.scoreType === '时长/用时类' && scoreValueRow) {
+  if (isMeasurementScoreType(form.scoreType) && scoreValueRow) {
     form.durationCaliber = scoreValueRow.statMethod;
-  } else if (form.scoreType === '个数/距离类' && scoreValueRow) {
     form.countStatCaliber = COUNT_STAT_TO_LEGACY[scoreValueRow.statMethod] ?? scoreValueRow.statMethod;
   }
 }
@@ -454,7 +530,7 @@ export function buildScoreConfigFromItem(item) {
   const fields = normalizeScoreFieldConfig(item?.scoreFieldConfig ?? []);
   return {
     dataSource: item?.dataSource ?? '表单提交',
-    scoreType: item?.scoreType ?? '个数/距离类',
+    scoreType: normalizeScoreType(item?.scoreType),
     fields: fields.map(fieldConfigRowToScoreConfigField)
   };
 }
@@ -501,12 +577,25 @@ export function applyScoreTypeDefaults(form) {
   syncStructuredFieldsFromForm(form);
 }
 
+export function isOptionalScoreField(name) {
+  return name === '比分' || name === '成绩证明' || name === '备注';
+}
+
+export function normalizeScoreFieldRequired(name) {
+  return !isOptionalScoreField(name);
+}
+
+export function formatScoreFieldRequiredDisplay(row) {
+  return isOptionalScoreField(row?.name) ? '否' : '必填';
+}
+
 export function normalizeScoreFieldConfig(config = []) {
   return config.map((row) => {
+    const name = row.name ?? row.fieldName;
     const normalized = {
-      name: row.name ?? row.fieldName,
+      name,
       type: row.type ?? row.fieldType,
-      required: typeof row.required === 'boolean' ? row.required : row.required === '是',
+      required: normalizeScoreFieldRequired(name),
       statMethod: row.statMethod ?? row.statisticMethod ?? '',
       unit: row.unit ?? (row.name === '比赛结果' || row.fieldName === '比赛结果' ? '-' : row.unitOrOptions ?? '-'),
       options: row.options ?? '',
@@ -900,9 +989,9 @@ export function applyStructuredFieldsToItem(item) {
 
 export function formatRequiredDisplay(required) {
   if (typeof required === 'boolean') {
-    return required ? '是' : '否';
+    return required ? '必填' : '否';
   }
-  return required || '-';
+  return required === '否' || required === false ? '否' : '必填';
 }
 
 export function getScoreFieldConfigForDisplay(item, options = {}) {
@@ -914,7 +1003,7 @@ export function getScoreFieldConfigForDisplay(item, options = {}) {
   }
   if (!config.length && item?.scoreType) {
     const statMethod =
-      item.scoreType === '时长/用时类'
+      item.scoreType === '时长/用时类' || item.scoreType === SCORE_TYPE_MEASUREMENT
         ? item.durationCaliber
         : COUNT_STAT_LEGACY_MAP[item.countStatCaliber] ?? item.countStatCaliber;
     config = createDefaultScoreFieldConfig(item.scoreType, { statMethod });
@@ -990,15 +1079,16 @@ export function migrateLegacyItem(data) {
   applyStructuredFieldsToItem(item);
   if (!item.scoreType) {
     if (item.scoreForm === '篮球比赛结果提交表' || item.rankBasis === '胜负结果') {
-      item.scoreType = '胜负类';
+      item.scoreType = SCORE_TYPE_RESULT;
     } else if (item.scoreForm === '跑步计时成绩表' || item.sortType === '数值越小排名越靠前') {
-      item.scoreType = '时长/用时类';
+      item.scoreType = SCORE_TYPE_MEASUREMENT;
       item.durationCaliber = '完成用时';
     } else {
-      item.scoreType = '个数/距离类';
+      item.scoreType = SCORE_TYPE_MEASUREMENT;
       item.countStatCaliber = '固定时间内个数';
     }
   }
+  item.scoreType = normalizeScoreType(item.scoreType);
   if (!item.scoreSubmitters?.length) {
     delete item.scoreSubmitters;
   }
@@ -1006,14 +1096,25 @@ export function migrateLegacyItem(data) {
     applyScoreConfigToItem(item);
   } else if (!item.scoreFieldConfig?.length) {
     const statMethod =
-      item.scoreType === '时长/用时类'
+      item.scoreType === SCORE_TYPE_MEASUREMENT
         ? item.durationCaliber || '完成用时'
         : COUNT_STAT_LEGACY_MAP[item.countStatCaliber] ?? '固定时间计数';
     item.scoreFieldConfig = createDefaultScoreFieldConfig(item.scoreType, { statMethod });
   } else {
     item.scoreFieldConfig = normalizeScoreFieldConfig(item.scoreFieldConfig);
   }
+  item.scoreType = normalizeScoreType(item.scoreType);
   item.scoreFieldConfig = ensureRankFieldInConfig(item.scoreFieldConfig, item.scoreType);
+  if (item.scoreType === SCORE_TYPE_MEASUREMENT) {
+    const scoreRow = item.scoreFieldConfig.find((f) => f.name === '成绩数值');
+    if (scoreRow && (!scoreRow.unit || scoreRow.unit === '-')) {
+      scoreRow.unit = '秒';
+    }
+  }
+  item.scoreFieldConfig = item.scoreFieldConfig.map((row) => ({
+    ...row,
+    required: normalizeScoreFieldRequired(row.name)
+  }));
   item.rankingEnabled = false;
   item.rankBasis = '';
   item.sortType = '';
@@ -1051,6 +1152,12 @@ export function migrateLegacyItem(data) {
   delete item.itemRequirement;
   item.sports = normalizeSports(item);
   item.awardSettings = normalizeAwardSettings(item.awardSettings);
+  if (item.matchForm === '个人') {
+    item.awardSettings = item.awardSettings.map((award) => ({
+      ...award,
+      awardTarget: '个人'
+    }));
+  }
   item.awardRemark = item.awardRemark ?? '';
   delete item.registrationSetting;
   delete item.registrationMethods;
@@ -1243,8 +1350,8 @@ function baseItem() {
     ageEnd: void 0,
     qualification: '',
     dataSource: '表单提交',
-    scoreType: '个数/距离类',
-    scoreFieldConfig: createDefaultScoreFieldConfig('个数/距离类'),
+    scoreType: SCORE_TYPE_MEASUREMENT,
+    scoreFieldConfig: createDefaultScoreFieldConfig(SCORE_TYPE_MEASUREMENT),
     durationCaliber: '完成用时',
     countStatCaliber: '固定时间内个数',
     rankingEnabled: false,
@@ -1344,8 +1451,7 @@ export const eventItemStore = reactive({
       matchForm: '个人',
       gender: '不限',
       stages: ['小学'],
-      grades: ['三年级', '四年级'],
-      scoreType: '个数/距离类',
+      scoreType: SCORE_TYPE_MEASUREMENT,
       scoringEnabled: false,
       status: 1,
       isReferenced: true,
@@ -1399,8 +1505,7 @@ export const eventItemStore = reactive({
       matchForm: '个人',
       gender: '男',
       stages: ['初中', '高中'],
-      grades: ['初一', '初二', '初三', '高一', '高二', '高三'],
-      scoreType: '时长/用时类',
+      scoreType: SCORE_TYPE_MEASUREMENT,
       durationCaliber: '完成用时',
       scoringEnabled: false,
       status: 1,
@@ -1420,8 +1525,7 @@ export const eventItemStore = reactive({
       teamRule: '以班级为单位组队参赛。',
       gender: '不限',
       stages: ['小学'],
-      grades: ['四年级', '五年级', '六年级'],
-      scoreType: '个数/距离类',
+      scoreType: SCORE_TYPE_MEASUREMENT,
       scoringEnabled: true,
       scoringMethod: '手动录入比赛分',
       scoringDescription: '按班级累计跳绳个数折算比赛分，具体规则见竞赛规程。',
@@ -1442,7 +1546,7 @@ export const eventItemStore = reactive({
       matchForm: '个人',
       gender: '不限',
       stages: ['小学', '初中'],
-      scoreType: '时长/用时类',
+      scoreType: SCORE_TYPE_MEASUREMENT,
       durationCaliber: '完成用时',
       status: 1,
       isReferenced: false,
@@ -1456,7 +1560,7 @@ export const eventItemStore = reactive({
       matchForm: '个人',
       gender: '不限',
       stages: ['小学', '初中', '高中'],
-      scoreType: '时长/用时类',
+      scoreType: SCORE_TYPE_MEASUREMENT,
       durationCaliber: '坚持时长',
       status: 1,
       isReferenced: false,
@@ -1486,7 +1590,7 @@ export const eventItemStore = reactive({
       matchForm: '个人',
       gender: '不限',
       stages: ['小学', '初中', '高中'],
-      scoreType: '个数/距离类',
+      scoreType: SCORE_TYPE_MEASUREMENT,
       status: 1,
       isReferenced: false,
       description: '用于周期性运动达标挑战。'
@@ -1528,13 +1632,7 @@ export function formatSportsDisplay(sports = []) {
 }
 
 export function formatRequirement(row) {
-  return [
-    row.stages?.join('、'),
-    row.grades?.length ? gradeRangeText(row.grades) : '',
-    row.gender
-  ]
-    .filter(Boolean)
-    .join('｜');
+  return [row.stages?.join('、'), row.gender].filter(Boolean).join('｜');
 }
 
 export function formatNow() {

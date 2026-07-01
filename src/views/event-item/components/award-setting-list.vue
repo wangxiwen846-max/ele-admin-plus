@@ -28,7 +28,9 @@
         </el-table-column>
         <el-table-column label="获奖对象" width="120" align="center">
           <template #default="{ row }">
+            <span v-if="matchForm === '个人'" class="cell-text">个人</span>
             <el-select
+              v-else
               v-model="row.awardTarget"
               :disabled="disabled"
               placeholder="请选择"
@@ -78,6 +80,10 @@
       default: () => []
     },
     disabled: Boolean,
+    matchForm: {
+      type: String,
+      default: ''
+    },
     awardRulePlaceholder: {
       type: String,
       default: '如第1名、前10名、成绩达标'
@@ -135,5 +141,10 @@
   .award-empty-text {
     font-size: 13px;
     color: var(--el-text-color-secondary);
+  }
+
+  .cell-text {
+    color: var(--el-text-color-regular);
+    font-size: 13px;
   }
 </style>

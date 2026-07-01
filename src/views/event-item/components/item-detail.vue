@@ -90,26 +90,61 @@
 
         <div class="inner-card">
           <div class="inner-card-head">
-            <div class="inner-label">成绩提交字段配置表</div>
-            <div class="inner-desc">保存后的成绩提交字段配置</div>
+            <div class="inner-label">成绩字段配置表</div>
+            <div class="inner-desc">保存后的成绩字段配置</div>
           </div>
-          <el-table :data="scoreFieldsDisplay" border size="small" class="inner-table">
-            <el-table-column prop="name" label="字段名称" min-width="100" />
-            <el-table-column prop="type" label="字段类型" width="88" align="center" />
-            <el-table-column label="是否必填" width="88" align="center">
-              <template #default="{ row }">{{ formatRequiredDisplay(row.required) }}</template>
+          <el-table :data="scoreTemplateRows" border size="small" class="inner-table score-template-table">
+            <el-table-column label="基本信息" align="center">
+              <el-table-column prop="school" label="学校" min-width="110" align="center" />
+              <el-table-column prop="grade" label="年级" min-width="90" align="center" />
+              <el-table-column prop="className" label="班级" min-width="90" align="center" />
+              <el-table-column
+                v-if="data.matchForm === '个人'"
+                prop="studentName"
+                label="学生姓名"
+                min-width="110"
+                align="center"
+              />
+              <el-table-column
+                v-if="data.matchForm === '个人'"
+                prop="studentNo"
+                label="学号"
+                min-width="110"
+                align="center"
+              />
+              <el-table-column
+                v-else
+                prop="teamName"
+                label="团队名称"
+                min-width="120"
+                align="center"
+              />
             </el-table-column>
-            <el-table-column label="成绩统计方式" min-width="110" align="center">
-              <template #default="{ row }">{{ row.statMethod || '-' }}</template>
+            <el-table-column label="成绩" align="center">
+              <template v-if="data.scoreType === '胜负类'">
+                <el-table-column prop="matchResult" label="比赛结果" min-width="110" align="center" />
+                <el-table-column prop="scoreText" label="比分" min-width="110" align="center" />
+              </template>
+              <template v-else>
+                <el-table-column prop="scoreValue" label="成绩" min-width="110" align="center" />
+                <el-table-column label="单位" min-width="110" align="center">
+                  <template #default>{{ scoreUnit }}</template>
+                </el-table-column>
+              </template>
             </el-table-column>
-            <el-table-column label="单位/选项" min-width="100" align="center">
-              <template #default="{ row }">{{ formatUnitOrOptions(row) }}</template>
-            </el-table-column>
-            <el-table-column prop="description" label="说明" min-width="120" show-overflow-tooltip />
-            <template #empty>
-              <span class="table-empty-hint">暂无成绩字段</span>
-            </template>
           </el-table>
+          <div class="additional-fields">
+            <div class="additional-fields-options">
+              <el-checkbox
+                v-for="item in additionalFieldDisplay"
+                :key="item.value"
+                :model-value="item.checked"
+                disabled
+              >
+                {{ item.label }}
+              </el-checkbox>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -148,7 +183,11 @@
           <el-table-column type="index" label="序号" width="60" align="center" />
           <el-table-column prop="awardName" label="奖项名称" min-width="120" />
           <el-table-column prop="awardRule" label="奖项规则" min-width="140" show-overflow-tooltip />
-          <el-table-column prop="awardTarget" label="获奖对象" width="100" align="center" />
+          <el-table-column label="获奖对象" width="100" align="center">
+            <template #default="{ row }">
+              {{ data.matchForm === '个人' ? '个人' : row.awardTarget }}
+            </template>
+          </el-table-column>
         </el-table>
         <el-descriptions :column="1" size="small" class="desc-plain award-remark-desc">
           <el-descriptions-item label="奖项补充说明">
@@ -163,7 +202,6 @@
         <el-descriptions :column="2" size="small" class="desc-plain">
           <el-descriptions-item label="性别要求">{{ data.gender }}</el-descriptions-item>
           <el-descriptions-item label="适用学段">{{ joinText(data.stages) }}</el-descriptions-item>
-          <el-descriptions-item label="适用年级">{{ joinText(data.grades) }}</el-descriptions-item>
           <el-descriptions-item label="年龄范围">{{ formatAge(data) }}</el-descriptions-item>
           <el-descriptions-item label="其他参赛条件说明" :span="2">{{ data.qualification || '未填写' }}</el-descriptions-item>
         </el-descriptions>
@@ -244,8 +282,6 @@
     createReferenceRecords,
     findEventItem,
     formatAwardSettingSummary,
-    getScoreFieldConfigForDisplay,
-    formatRequiredDisplay,
     formatSportEntryDetailDisplay,
     getSportCatalogKey,
     formatApplicableRegionSummary
@@ -263,26 +299,37 @@
   const awardSummary = computed(() => formatAwardSettingSummary(data.value?.awardSettings));
   const applicableRegionSummary = computed(() => formatApplicableRegionSummary(data.value));
 
-  const scoreFieldsDisplay = computed(() => {
-    if (!data.value) {
-      return [];
+  const scoreTemplateRows = computed(() => [
+    {
+      school: '',
+      grade: '',
+      className: '',
+      studentName: '',
+      studentNo: '',
+      teamName: '',
+      scoreValue: '',
+      matchResult: '',
+      scoreText: ''
     }
-    const includeMatchScore =
-      data.value.matchForm === '团体' &&
-      data.value.scoringEnabled &&
-      data.value.scoringMethod === '手动录入比赛分';
-    return getScoreFieldConfigForDisplay(data.value, { includeMatchScore });
+  ]);
+
+  const scoreUnit = computed(() => {
+    const scoreValue = (data.value?.scoreFieldConfig ?? []).find(
+      (field) => field.name === '成绩数值'
+    );
+    return scoreValue?.unit && scoreValue.unit !== '-' ? scoreValue.unit : '秒';
   });
 
-  const formatUnitOrOptions = (row) => {
-    if (row.name === '比赛结果') {
-      return row.options || '胜、负、平';
-    }
-    if (row.unit && row.unit !== '-') {
-      return row.unit;
-    }
-    return '-';
-  };
+  const additionalFieldDisplay = computed(() => {
+    const fields = data.value?.scoreFieldConfig ?? [];
+    return [
+      { label: '上传成绩证明', value: '成绩证明' },
+      { label: '备注', value: '备注' }
+    ].map((item) => ({
+      ...item,
+      checked: fields.some((field) => field.name === item.value)
+    }));
+  });
 
   const emitAction = (action) => {
     visible.value = false;
@@ -417,6 +464,24 @@
     :deep(.el-table__cell) {
       padding: 6px 0;
     }
+  }
+
+  .score-template-table {
+    :deep(.el-table__body .cell) {
+      min-height: 24px;
+    }
+  }
+
+  .additional-fields {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--el-border-color-extra-light);
+  }
+
+  .additional-fields-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
   }
 
   .rule-disabled-hint {

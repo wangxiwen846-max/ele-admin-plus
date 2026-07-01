@@ -44,7 +44,6 @@
         <el-table-column prop="project" label="关联体育项目" min-width="130" />
         <el-table-column prop="matchForm" label="比赛形式" width="88" align="center" />
         <el-table-column prop="scoreType" label="成绩类型" width="96" align="center" />
-        <el-table-column prop="scoreRule" label="成绩规则" min-width="100" show-overflow-tooltip />
         <el-table-column prop="scoringRule" label="计分规则" min-width="100" show-overflow-tooltip />
         <el-table-column prop="awardSummary" label="奖项设置" min-width="100" show-overflow-tooltip />
         <el-table-column prop="qualification" label="参赛要求" min-width="120" show-overflow-tooltip />

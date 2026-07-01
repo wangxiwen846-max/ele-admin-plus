@@ -279,7 +279,6 @@ export function mapEventItemForActivity(item) {
     itemName: item.itemName,
     project: formatSportsDisplay(item.sports),
     scoreType: item.scoreType || '-',
-    scoreRule: formatScoreRuleSummary(item),
     scoringRule: formatScoringRuleSummary(item),
     registrationSetting: formatRegistrationSummary(item),
     qualification: formatQualificationSummary(item),

@@ -29,7 +29,6 @@
       <div class="section-block">
         <div class="section-title">默认配置</div>
         <el-descriptions :column="1" size="small" border>
-          <el-descriptions-item label="成绩规则">{{ innerMeta.scoreRule || '-' }}</el-descriptions-item>
           <el-descriptions-item label="计分规则">{{ innerMeta.scoringRule || '未启用' }}</el-descriptions-item>
           <el-descriptions-item label="默认奖项设置">{{ awardSummary }}</el-descriptions-item>
           <el-descriptions-item label="默认参赛要求">{{ innerMeta.qualification || '-' }}</el-descriptions-item>
@@ -65,7 +64,7 @@
   defineEmits(['closed']);
 
   const visible = ref(true);
-  const innerMeta = ref({ scoreRule: '', scoringRule: '', qualification: '' });
+  const innerMeta = ref({ scoringRule: '', qualification: '' });
   const innerAward = ref({ awards: [], awardRemark: '' });
   const awardSummary = computed(() => {
     const count = getAwardCount(innerAward.value.awards ?? []);

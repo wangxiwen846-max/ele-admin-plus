@@ -163,11 +163,6 @@
             <el-table-column prop="project" label="关联体育项目" min-width="130" show-overflow-tooltip />
             <el-table-column prop="matchForm" label="比赛形式" width="88" align="center" />
             <el-table-column prop="scoreType" label="成绩类型" width="96" align="center" />
-            <el-table-column label="成绩规则" min-width="110">
-              <template #default="{ row }">
-                <detail-text-cell :text="row.scoreRule || '-'" :max-length="20" />
-              </template>
-            </el-table-column>
             <el-table-column label="计分规则" min-width="100">
               <template #default="{ row }">
                 <detail-text-cell :text="row.scoringRule || '未启用'" :max-length="16" />

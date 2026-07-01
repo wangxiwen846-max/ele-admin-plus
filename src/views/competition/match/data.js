@@ -110,7 +110,7 @@ export const REGISTRATION_STATUS_OPTIONS = ['未开始', '报名中', '已截止
 export const MATCH_STATUS_OPTIONS = ['未开始', '进行中', '已结束'];
 export const INSURANCE_METHOD_OPTIONS = ['统一购买', '自行购买', '其他'];
 export { formatRegistrationMethods, normalizeRegistrationMethods, REGISTRATION_METHOD_OPTIONS, createDefaultInsuranceSetting } from '@/views/event-item/data.js';
-export const CLASS_SCORE_COLLECT_OPTIONS = ['表单提交', '人工录入'];
+export const CLASS_SCORE_COLLECT_OPTIONS = ['表单提交'];
 export const CLASS_SCORE_SUBMITTER_OPTIONS = ['教师', '赛事专员'];
 export const DAILY_SCORE_COLLECT_OPTIONS = ['表单提交', 'AI计数', '通讯设备'];
 export const DAILY_SUBMIT_ROLE_OPTIONS = ['教师', '赛事专员', '学生', '家长', '系统自动采集'];
@@ -171,7 +171,8 @@ const LEGACY_COLLECT_METHOD_MAP = {
     作业系统: '表单提交',
     AI识别: 'AI计数',
     设备采集: '通讯设备',
-    设备记录: '通讯设备'
+    设备记录: '通讯设备',
+    设备: '通讯设备'
   },
   校外培训: {
     人工录入: '表单提交'
@@ -183,9 +184,26 @@ const LEGACY_COLLECT_METHOD_MAP = {
     AI识别: 'AI计数',
     运动记录: 'AI计数',
     设备记录: 'AI计数',
-    设备采集: 'AI计数'
+    设备采集: 'AI计数',
+    设备: 'AI计数'
   }
 };
+
+const LEGACY_CLASS_COLLECT_METHOD_MAP = {
+  人工录入: '表单提交',
+  AI识别: 'AI计数',
+  设备采集: '通讯设备',
+  设备记录: '通讯设备',
+  设备: '通讯设备'
+};
+
+function normalizeClassCollectMethods(methods = []) {
+  const allowed = new Set(CLASS_SCORE_COLLECT_OPTIONS);
+  const migrated = [...new Set(
+    (methods ?? []).map((method) => LEGACY_CLASS_COLLECT_METHOD_MAP[method] ?? method).filter((method) => allowed.has(method))
+  )];
+  return migrated.length ? migrated : ['表单提交'];
+}
 
 const SOURCE_CALIBER_OPTIONS = {
   '体育课 / 大课间': ['每日运动总时长', '课堂记录'],
@@ -457,18 +475,13 @@ export { createDefaultItemScoreSetting };
 
 export function cloneItemMetaFromItem(item) {
   if (!item) {
-    return { scoreRule: '', scoringRule: '', qualification: '' };
-  }
-  let scoreRule = item.ruleDescription?.trim() || '';
-  if (!scoreRule && item.scoreType) {
-    scoreRule = `按${item.scoreType}提交成绩`;
+    return { scoringRule: '', qualification: '' };
   }
   let scoringRule = '未启用';
   if (item.matchForm !== '个人' && item.scoringEnabled) {
     scoringRule = item.scoringDescription?.trim() || item.scoringMethod || '已配置';
   }
   return {
-    scoreRule,
     scoringRule,
     qualification: buildParticipationRequirementText(item)
   };
@@ -1270,12 +1283,22 @@ function buildItemMetaConfig(itemIds = [], existing = {}) {
   return config;
 }
 
+function normalizeItemScoreSetting(setting = {}) {
+  return {
+    ...createDefaultItemScoreSetting(),
+    ...setting,
+    collectMethods: normalizeClassCollectMethods(setting.collectMethods)
+  };
+}
+
 function buildItemScoreConfig(itemIds = [], existing = {}, fallback = null) {
   const config = clone(existing ?? {});
   itemIds.forEach((id) => {
     const key = String(id);
     if (!config[key]) {
       config[key] = cloneItemScoreFromItem(findEventItem(id), fallback ?? undefined);
+    } else {
+      config[key] = normalizeItemScoreSetting(config[key]);
     }
   });
   Object.keys(config).forEach((key) => {
@@ -1338,7 +1361,7 @@ function buildItemAwardConfig(itemIds = [], existing = {}) {
 
 function migrateItemScoreConfig(match) {
   const config = {};
-  const base = match.classScoreSetting ?? createDefaultItemScoreSetting();
+  const base = normalizeItemScoreSetting(match.classScoreSetting ?? createDefaultItemScoreSetting());
   (match.itemIds ?? []).forEach((id) => {
     config[String(id)] = clone(base);
   });
@@ -1463,13 +1486,11 @@ function migrateItemAwards(match) {
 
 function migrateClassScoreSetting(match) {
   const legacy = match.scoreSetting ?? {};
-  const methods = (legacy.submitMethods ?? []).filter((d) =>
-    CLASS_SCORE_COLLECT_OPTIONS.includes(d)
-  );
+  const methods = normalizeClassCollectMethods(legacy.submitMethods ?? legacy.collectMethods);
   return {
     ...createDefaultClassScoreSetting(),
     submitters: legacy.submitters?.length ? legacy.submitters : ['教师'],
-    collectMethods: methods.length ? methods : ['表单提交'],
+    collectMethods: methods,
     submitStartTime: legacy.submitStartTime ?? '',
     submitEndTime: legacy.submitEndTime ?? '',
     remark: legacy.remark ?? ''
@@ -1573,7 +1594,6 @@ export function mapMatchItemRow(match, itemId) {
   return {
     ...mapped,
     matchForm: item?.matchForm ?? '个人',
-    scoreRule: meta.scoreRule || mapped.scoreRule,
     scoringRule: meta.scoringRule || mapped.scoringRule,
     qualification: meta.qualification || mapped.qualification,
     awardCount: awardCount || mapped.awardCount,
