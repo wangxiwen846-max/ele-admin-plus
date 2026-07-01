@@ -154,58 +154,30 @@
               <div class="config-title">成绩字段配置表</div>
             </div>
             <el-table :data="scoreTemplateRows" border size="small" class="config-table score-template-table">
-              <el-table-column label="基本信息" align="center">
-                <el-table-column prop="school" label="学校" min-width="110" align="center" />
-                <el-table-column prop="grade" label="年级" min-width="90" align="center" />
-                <el-table-column prop="className" label="班级" min-width="90" align="center" />
-                <el-table-column
-                  v-if="form.matchForm === '个人'"
-                  prop="studentName"
-                  label="学生姓名"
-                  min-width="110"
-                  align="center"
-                />
-                <el-table-column
-                  v-if="form.matchForm === '个人'"
-                  prop="studentNo"
-                  label="学号"
-                  min-width="110"
-                  align="center"
-                />
-                <el-table-column
-                  v-else
-                  prop="teamName"
-                  label="团队名称"
-                  min-width="120"
-                  align="center"
-                />
-              </el-table-column>
-              <el-table-column label="成绩" align="center">
-                <template v-if="form.scoreType === '胜负类'">
-                  <el-table-column prop="matchResult" label="比赛结果" min-width="110" align="center" />
-                  <el-table-column prop="scoreText" label="比分" min-width="110" align="center" />
-                </template>
-                <template v-else>
-                  <el-table-column prop="scoreValue" label="成绩" min-width="110" align="center" />
-                  <el-table-column label="单位" min-width="120" align="center">
-                    <template #default>
-                      <el-select
-                        v-model="scoreUnit"
-                        :disabled="coreDisabled"
-                        size="small"
-                        class="cell-select"
-                      >
-                        <el-option
-                          v-for="opt in MEASUREMENT_UNIT_OPTIONS"
-                          :key="opt"
-                          :label="opt"
-                          :value="opt"
-                        />
-                      </el-select>
-                    </template>
-                  </el-table-column>
-                </template>
-              </el-table-column>
+              <template v-if="form.scoreType === '胜负类'">
+                <el-table-column prop="matchResult" label="比赛结果" min-width="110" align="center" />
+                <el-table-column prop="scoreText" label="比分" min-width="110" align="center" />
+              </template>
+              <template v-else>
+                <el-table-column prop="scoreValue" label="成绩" min-width="110" align="center" />
+                <el-table-column label="单位" min-width="120" align="center">
+                  <template #default>
+                    <el-select
+                      v-model="scoreUnit"
+                      :disabled="coreDisabled"
+                      size="small"
+                      class="cell-select"
+                    >
+                      <el-option
+                        v-for="opt in MEASUREMENT_UNIT_OPTIONS"
+                        :key="opt"
+                        :label="opt"
+                        :value="opt"
+                      />
+                    </el-select>
+                  </template>
+                </el-table-column>
+              </template>
             </el-table>
             <div class="additional-fields">
               <el-checkbox-group
@@ -569,12 +541,6 @@
 
   const scoreTemplateRows = computed(() => [
     {
-      school: '',
-      grade: '',
-      className: '',
-      studentName: '',
-      studentNo: '',
-      teamName: '',
       scoreValue: '',
       matchResult: '',
       scoreText: ''
