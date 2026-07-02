@@ -3,6 +3,22 @@
  */
 import { reactive } from 'vue';
 import { SCHOOL_OPTIONS } from '@/views/competition/activity/scope-utils.js';
+import {
+  formatMatchTypeLabel,
+  formatMatchTypesList,
+  isCampusLeafType,
+  normalizeMatchTypeLeaf,
+  normalizeMatchTypeLeaves,
+  MATCH_TYPE_DAILY,
+  MATCH_TYPE_CLASS,
+  MATCH_TYPE_FINAL,
+  MATCH_TYPE_REGION
+} from '@/views/competition/match-type.js';
+
+export {
+  MATCH_TYPE_LEAF_OPTIONS,
+  formatMatchTypesList
+} from '@/views/competition/match-type.js';
 
 export const INSURANCE_TYPE_SEMESTER = '学期保险';
 export const INSURANCE_TYPE_MATCH = '单场比赛保险';
@@ -43,30 +59,30 @@ export const insuranceStore = reactive({
       planName: '校园行学期基础保障方案',
       company: '平安保险',
       stages: ['校园行'],
-      matchTypes: ['每日积分赛', '校内赛/班班赛'],
+      matchTypes: [MATCH_TYPE_DAILY, MATCH_TYPE_CLASS],
       chargeMethod: CHARGE_METHOD_SEMESTER,
       schoolYear: '2026-2027',
       semester: '第一学期',
       startDate: '2026-09-01',
       endDate: '2027-01-31',
-      coverageTypes: ['每日积分赛', '校内赛/班班赛'],
+      coverageTypes: [MATCH_TYPE_DAILY, MATCH_TYPE_CLASS],
       premium: 12,
       insuredAmount: 100000,
-      description: '覆盖校园行赛段学期内赛事与日常积分活动。',
+      description: '覆盖校园行赛段学期内校园赛相关赛事与日常积分活动。',
       attachmentName: '校园行学期保障条款.pdf',
       status: '启用',
       updateTime: '2026-06-26 10:12'
     },
     {
       planId: 'plan_match_1',
-      planName: '区域晋级赛单场保障方案',
+      planName: '区域赛单场保障方案',
       company: '太平洋保险',
       stages: ['校园行'],
-      matchTypes: ['区域晋级赛'],
+      matchTypes: [MATCH_TYPE_REGION],
       chargeMethod: CHARGE_METHOD_MATCH,
       premium: 8,
       insuredAmount: 80000,
-      description: '按比赛为区域晋级赛参赛学生生成保险记录。',
+      description: '按比赛为区域赛参赛学生生成保险记录。',
       attachmentName: '区域赛保障条款.pdf',
       status: '启用',
       updateTime: '2026-06-25 16:40'
@@ -76,7 +92,7 @@ export const insuranceStore = reactive({
       planName: '全国总决赛综合保障方案',
       company: '人保财险',
       stages: ['全国总决赛'],
-      matchTypes: ['全国总决赛'],
+      matchTypes: [MATCH_TYPE_FINAL],
       chargeMethod: CHARGE_METHOD_MATCH,
       premium: 18,
       insuredAmount: 200000,
@@ -149,24 +165,26 @@ export function clone(value) {
 }
 
 export function normalizeMatchTypeLabel(type = '') {
-  if (type === '区域赛') {
-    return '区域晋级赛';
-  }
-  if (type === '校内赛') {
-    return '校内赛/班班赛';
-  }
-  return type;
+  return formatMatchTypeLabel(type);
 }
 
 export function getInsuranceTypeByMatchType(matchType = '') {
-  const normalized = normalizeMatchTypeLabel(matchType);
-  if (['每日积分赛', '校内赛/班班赛'].includes(normalized)) {
+  const leaf = normalizeMatchTypeLeaf(matchType);
+  if (isCampusLeafType(leaf)) {
     return INSURANCE_TYPE_SEMESTER;
   }
-  if (['区域晋级赛', '全国总决赛'].includes(normalized)) {
+  if ([MATCH_TYPE_REGION, MATCH_TYPE_FINAL].includes(leaf)) {
     return INSURANCE_TYPE_MATCH;
   }
   return '';
+}
+
+export function planMatchesMatchType(plan, matchType = '') {
+  if (!plan?.matchTypes?.length) {
+    return false;
+  }
+  const leaf = normalizeMatchTypeLeaf(matchType);
+  return normalizeMatchTypeLeaves(plan.matchTypes).includes(leaf);
 }
 
 export function getChargeMethodByInsuranceType(insuranceType = '') {
@@ -276,15 +294,18 @@ export function getSchoolFilterOptions() {
 
 export function saveInsurancePlan(data) {
   const next = clone(data);
+  next.matchTypes = normalizeMatchTypeLeaves(next.matchTypes ?? []);
   if (next.chargeMethod === CHARGE_METHOD_MATCH) {
     delete next.schoolYear;
     delete next.semester;
     delete next.startDate;
     delete next.endDate;
     delete next.coverageTypes;
-  }
-  if (next.chargeMethod === CHARGE_METHOD_SEMESTER && !next.coverageTypes?.length) {
-    next.coverageTypes = ['每日积分赛', '校内赛/班班赛'];
+  } else {
+    next.coverageTypes = normalizeMatchTypeLeaves(next.coverageTypes ?? []);
+    if (!next.coverageTypes.length) {
+      next.coverageTypes = [MATCH_TYPE_DAILY, MATCH_TYPE_CLASS];
+    }
   }
   if (!next.planId) {
     next.planId = `plan_${Date.now()}`;

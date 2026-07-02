@@ -24,9 +24,7 @@
           </el-col>
           <el-col :lg="8" :md="12" :xs="24">
             <el-form-item label="比赛类型">
-              <el-select v-model="query.matchType" clearable placeholder="请选择" class="ele-fluid">
-                <el-option v-for="opt in matchTypeOptions" :key="opt" :label="opt" :value="opt" />
-              </el-select>
+              <match-type-cascader v-model="query.matchType" class="ele-fluid" />
             </el-form-item>
           </el-col>
           <el-col :lg="8" :md="12" :xs="24">
@@ -71,7 +69,7 @@
           </el-button>
         </template>
         <template #stages="{ row }">{{ row.stages.join('、') }}</template>
-        <template #matchTypes="{ row }">{{ row.matchTypes.join('、') }}</template>
+        <template #matchTypes="{ row }">{{ formatMatchTypesList(row.matchTypes, '、') }}</template>
         <template #schoolYearSemester="{ row }">{{ formatPlanSchoolYearSemester(row) }}</template>
         <template #premium="{ row }">¥{{ row.premium }}</template>
         <template #insuredAmount="{ row }">¥{{ row.insuredAmount }}</template>
@@ -117,9 +115,7 @@
           </el-col>
           <el-col :sm="12" :xs="24">
             <el-form-item label="适用比赛类型" required>
-              <el-select v-model="editForm.matchTypes" multiple class="ele-fluid">
-                <el-option v-for="opt in matchTypeOptions" :key="opt" :label="opt" :value="opt" />
-              </el-select>
+              <match-type-cascader v-model="editForm.matchTypes" multiple class="ele-fluid" />
             </el-form-item>
           </el-col>
           <el-col :sm="12" :xs="24">
@@ -184,10 +180,7 @@
             </el-col>
             <el-col :xs="24">
               <el-form-item label="覆盖比赛类型">
-                <el-select v-model="editForm.coverageTypes" multiple class="ele-fluid">
-                  <el-option label="每日积分赛" value="每日积分赛" />
-                  <el-option label="校内赛/班班赛" value="校内赛/班班赛" />
-                </el-select>
+                <match-type-cascader v-model="editForm.coverageTypes" multiple class="ele-fluid" />
               </el-form-item>
             </el-col>
           </template>
@@ -220,7 +213,9 @@
         <el-descriptions-item label="方案名称">{{ current.planName }}</el-descriptions-item>
         <el-descriptions-item label="保险公司">{{ current.company }}</el-descriptions-item>
         <el-descriptions-item label="适用赛段">{{ current.stages.join('、') }}</el-descriptions-item>
-        <el-descriptions-item label="比赛类型">{{ current.matchTypes.join('、') }}</el-descriptions-item>
+        <el-descriptions-item label="比赛类型">
+          {{ formatMatchTypesList(current.matchTypes, '、') }}
+        </el-descriptions-item>
         <el-descriptions-item label="收费方式">{{ current.chargeMethod }}</el-descriptions-item>
         <el-descriptions-item label="状态">{{ current.status }}</el-descriptions-item>
         <el-descriptions-item v-if="current.chargeMethod === '按学期'" label="学年学期">
@@ -230,7 +225,7 @@
           {{ current.startDate }} 至 {{ current.endDate }}
         </el-descriptions-item>
         <el-descriptions-item v-if="current.chargeMethod === '按学期'" label="覆盖比赛类型" :span="2">
-          {{ (current.coverageTypes || []).join('、') }}
+          {{ formatMatchTypesList(current.coverageTypes, '、') }}
         </el-descriptions-item>
         <el-descriptions-item label="保费">¥{{ current.premium }}</el-descriptions-item>
         <el-descriptions-item label="保额">¥{{ current.insuredAmount }}</el-descriptions-item>
@@ -246,11 +241,21 @@
   import { EleMessage } from 'ele-admin-plus';
   import { PlusOutlined } from '@/components/icons';
   import AttachmentTable from '@/views/event-item/components/attachment-table.vue';
-  import { clone, formatPlanSchoolYearSemester, insuranceStore, saveInsurancePlan } from '../data.js';
+  import MatchTypeCascader from '@/views/competition/components/match-type-cascader.vue';
+  import {
+    clone,
+    formatMatchTypesList,
+    formatPlanSchoolYearSemester,
+    insuranceStore,
+    saveInsurancePlan
+  } from '../data.js';
+  import {
+    MATCH_TYPE_CLASS,
+    MATCH_TYPE_DAILY,
+    normalizeMatchTypeLeaves
+  } from '@/views/competition/match-type.js';
 
   defineOptions({ name: 'CompetitionInsurancePlan' });
-
-  const matchTypeOptions = ['每日积分赛', '校内赛/班班赛', '区域晋级赛', '全国总决赛'];
   const tableRef = ref(null);
   const editVisible = ref(false);
   const detailVisible = ref(false);
@@ -290,7 +295,7 @@
       semester: '第一学期',
       startDate: '',
       endDate: '',
-      coverageTypes: ['每日积分赛', '校内赛/班班赛'],
+      coverageTypes: [MATCH_TYPE_DAILY, MATCH_TYPE_CLASS],
       premium: 0,
       insuredAmount: 0,
       description: '',
@@ -344,7 +349,11 @@
     if (query.planName) list = list.filter((row) => row.planName.includes(query.planName));
     if (query.company) list = list.filter((row) => row.company.includes(query.company));
     if (query.stage) list = list.filter((row) => row.stages.includes(query.stage));
-    if (query.matchType) list = list.filter((row) => row.matchTypes.includes(query.matchType));
+    if (query.matchType) {
+      list = list.filter((row) =>
+        normalizeMatchTypeLeaves(row.matchTypes).includes(query.matchType)
+      );
+    }
     if (query.chargeMethod) list = list.filter((row) => row.chargeMethod === query.chargeMethod);
     if (query.status) list = list.filter((row) => row.status === query.status);
     const { page = 1, limit = 10 } = pages || {};
@@ -359,7 +368,7 @@
 
   const handleChargeMethodChange = (value) => {
     if (value === '按学期') {
-      editForm.coverageTypes = ['每日积分赛', '校内赛/班班赛'];
+      editForm.coverageTypes = [MATCH_TYPE_DAILY, MATCH_TYPE_CLASS];
     } else {
       editForm.schoolYear = '';
       editForm.semester = '第一学期';
@@ -371,6 +380,8 @@
 
   const openEdit = (row) => {
     Object.assign(editForm, row ? clone(row) : createEmptyForm());
+    editForm.matchTypes = normalizeMatchTypeLeaves(editForm.matchTypes ?? []);
+    editForm.coverageTypes = normalizeMatchTypeLeaves(editForm.coverageTypes ?? []);
     editForm.attachments = row ? buildPlanAttachments(row) : [];
     editVisible.value = true;
   };

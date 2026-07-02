@@ -14,7 +14,7 @@
           <div>
             <ele-text type="heading" size="lg">{{ data.matchName }}</ele-text>
             <div class="overview-meta">
-              <el-tag size="small" effect="plain">{{ data.matchType }}</el-tag>
+              <el-tag size="small" effect="plain">{{ matchTypeLabel }}</el-tag>
               <span>{{ formatMatchTime(data) }}</span>
             </div>
           </div>
@@ -104,7 +104,7 @@
         <el-descriptions :column="2" size="small" class="desc-plain">
           <el-descriptions-item label="所属活动">{{ activity?.activityName || '-' }}</el-descriptions-item>
           <el-descriptions-item label="所属赛段">{{ data.stageName || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="比赛类型">{{ data.matchType }}</el-descriptions-item>
+          <el-descriptions-item label="比赛类型">{{ matchTypeDetailText }}</el-descriptions-item>
           <el-descriptions-item label="比赛名称">{{ data.matchName }}</el-descriptions-item>
           <el-descriptions-item label="开展形式">{{ data.deliveryForm || '未填写' }}</el-descriptions-item>
           <el-descriptions-item label="比赛说明" :span="2">
@@ -154,7 +154,7 @@
         </div>
       </div>
 
-      <!-- 传统赛（校内赛 / 区域赛 / 全国总决赛） -->
+      <!-- 传统赛（校园赛 / 区域赛 / 全国总决赛） -->
       <template v-if="isClass">
         <div class="detail-block">
           <div class="block-title">比赛设项</div>
@@ -448,6 +448,7 @@
     formatMatchItemInsuranceSummary,
     formatMatchItemRegistrationSummary,
     formatMatchTime,
+    formatMatchTypeLabel,
     formatRegistrationOverview,
     formatRegistrationMethods,
     formatSourceWeight,
@@ -482,6 +483,10 @@
   );
   const isClass = computed(() => isClassMatch(data.value));
   const isDaily = computed(() => isDailyMatch(data.value));
+  const matchTypeLabel = computed(() =>
+    formatMatchTypeLabel(data.value?.matchType, data.value?.stageName)
+  );
+  const matchTypeDetailText = computed(() => matchTypeLabel.value);
   const itemStats = computed(() => getMatchItemStats(data.value ?? {}));
   const linkedItems = computed(() => getMatchLinkedItems(data.value));
   const registrationRows = computed(() => getItemRegistrationRows(data.value));

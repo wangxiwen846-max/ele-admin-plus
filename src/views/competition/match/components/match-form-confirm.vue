@@ -14,7 +14,7 @@
       <el-descriptions :column="2" size="small" border>
         <el-descriptions-item label="所属活动">{{ activityName }}</el-descriptions-item>
         <el-descriptions-item label="所属赛段">{{ stageName }}</el-descriptions-item>
-        <el-descriptions-item label="比赛类型">{{ form.matchType || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="比赛类型">{{ matchTypeText }}</el-descriptions-item>
         <el-descriptions-item label="比赛名称">{{ form.matchName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="开展形式">{{ form.deliveryForm || '未填写' }}</el-descriptions-item>
         <el-descriptions-item label="比赛说明" :span="2">{{ form.description || '未填写' }}</el-descriptions-item>
@@ -114,6 +114,7 @@
   import {
     formatMatchInsuranceSummary,
     formatMatchScopeSummary,
+    formatMatchTypePublishLabel,
     formatWeightTotalHint,
     getMatchLinkedItems,
     isClassMatch,
@@ -139,6 +140,9 @@
 
   const activityName = computed(() => activity.value?.activityName || '-');
   const stageName = computed(() => stage.value?.stageName || '-');
+  const matchTypeText = computed(() =>
+    formatMatchTypePublishLabel(props.form.matchType, stage.value?.stageName)
+  );
 
   const matchTimeText = computed(() => {
     if (!props.form.startTime || !props.form.endTime) {

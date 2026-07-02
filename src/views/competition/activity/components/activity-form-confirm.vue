@@ -34,19 +34,14 @@
     </div>
 
     <div class="confirm-block">
-      <div class="block-title">参赛范围</div>
-      <div class="summary-text">{{ coverageSummary }}</div>
-    </div>
-
-    <div class="confirm-block">
       <div class="block-title">赛段信息</div>
       <el-table v-if="form.stages?.length" :data="form.stages" border size="small">
         <el-table-column prop="stageName" label="赛段名称" min-width="120" />
         <el-table-column label="赛段时间" min-width="180">
           <template #default="{ row }">{{ formatStageDateRange(row) }}</template>
         </el-table-column>
-        <el-table-column label="参赛范围" width="100" align="center">
-          <template #default>全国范围</template>
+        <el-table-column label="比赛类型" min-width="220">
+          <template #default="{ row }">{{ formatStagePublishMatchTypes(row) }}</template>
         </el-table-column>
         <el-table-column label="启用状态" width="90" align="center">
           <template #default="{ row }">{{ row.enabled ? '启用' : '禁用' }}</template>
@@ -89,6 +84,7 @@
   import {
     formatActivityTime,
     formatStageDateRange,
+    formatStagePublishMatchTypes,
     formatUnits,
     getActivityLinkedItems,
     getActivityStatus
@@ -119,7 +115,6 @@
       .filter(Boolean)
       .join('、');
   });
-  const coverageSummary = computed(() => '全国范围');
   const linkedItems = computed(() => getActivityLinkedItems(props.form.itemIds ?? []));
   const regulationSummary = computed(() => {
     const raw = props.form.regulationText?.trim();

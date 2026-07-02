@@ -31,12 +31,8 @@
             <span>{{ formatStageDateRange(stage) }}</span>
           </div>
           <div class="summary-row">
-            <span class="summary-label">参赛范围：</span>
-            <span>{{ fixedNationalScope ? '全国范围' : formatScopeDisplaySummary(stage.scope, { isStage: true, parentScope }) }}</span>
-          </div>
-          <div v-if="!simplified" class="summary-row">
-            <span class="summary-label">赛段裁判长：</span>
-            <span>{{ stage.chiefReferee || '未填写' }}</span>
+            <span class="summary-label">比赛类型：</span>
+            <span class="summary-value">{{ formatStagePublishMatchTypes(stage) }}</span>
           </div>
         </div>
         <div class="stage-card-actions" @click.stop>
@@ -96,42 +92,24 @@
               />
             </el-form-item>
           </el-col>
-          <el-col v-if="fixedNationalScope || !simplified" :xs="24">
-            <el-form-item label="参赛范围" :label-width="labelWidth">
-              <span class="scope-status">{{ fixedNationalScope ? '全国范围' : formatScopeDisplaySummary(stage.scope, { isStage: true, parentScope }) }}</span>
-              <el-button
-                v-if="!fixedNationalScope && !simplified"
-                type="primary"
-                link
-                :disabled="disabled"
-                @click="openStageScope(index, stage)"
-              >
-                配置
-              </el-button>
+          <el-col :xs="24">
+            <el-form-item
+              label="比赛类型"
+              :label-width="labelWidth"
+              required
+              class="match-type-form-item"
+            >
+              <div class="match-type-field">
+                <match-type-cascader
+                  :model-value="stage.publishMatchTypes"
+                  multiple
+                  :disabled="disabled"
+                  cascader-class="match-type-cascader"
+                  @update:model-value="(value) => handleStageMatchTypesChange(stage, value)"
+                />
+              </div>
             </el-form-item>
           </el-col>
-          <template v-if="!simplified">
-            <el-col :xs="24">
-              <el-form-item label="参赛门槛" :label-width="labelWidth">
-                <el-input
-                  v-model="stage.threshold"
-                  type="textarea"
-                  :rows="3"
-                  :disabled="disabled"
-                  placeholder="进入该赛段的条件"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :sm="12" :xs="24">
-              <el-form-item label="赛段裁判长" :label-width="labelWidth">
-                <el-input
-                  v-model.trim="stage.chiefReferee"
-                  :disabled="disabled"
-                  placeholder="填写赛段裁判长"
-                />
-              </el-form-item>
-            </el-col>
-          </template>
           <el-col :xs="24">
             <el-form-item label="赛段说明" :label-width="labelWidth">
               <el-input
@@ -146,15 +124,6 @@
         </el-row>
       </div>
     </div>
-
-    <stage-scope-dialog
-      v-if="!fixedNationalScope && !simplified && stageScopeVisible"
-      v-model="stageScopeVisible"
-      :scope="editingStageScope"
-      :parent-scope="parentScope"
-      :stage-match-count="editingStageMatchCount"
-      @confirm="handleStageScopeConfirm"
-    />
   </div>
 </template>
 
@@ -162,13 +131,12 @@
   import { ref, watch } from 'vue';
   import { ElMessageBox } from 'element-plus';
   import { EleMessage } from 'ele-admin-plus';
-  import StageScopeDialog from './stage-scope-dialog.vue';
+  import MatchTypeCascader from '@/views/competition/components/match-type-cascader.vue';
   import {
-    clone,
     createDefaultStage,
-    createDefaultStageScope,
-    formatScopeDisplaySummary,
-    formatStageDateRange
+    formatStageDateRange,
+    formatStagePublishMatchTypes,
+    resolveStagePublishMatchTypes
   } from '../data.js';
 
   const props = defineProps({
@@ -176,10 +144,7 @@
       type: Array,
       default: () => []
     },
-    parentScope: Object,
     disabled: Boolean,
-    simplified: Boolean,
-    fixedNationalScope: Boolean,
     activityStartTime: String,
     activityEndTime: String,
     labelWidth: {
@@ -191,10 +156,6 @@
   const emit = defineEmits(['update:stages']);
 
   const expandedIds = ref(new Set());
-  const stageScopeVisible = ref(false);
-  const editingStageIndex = ref(-1);
-  const editingStageScope = ref(createDefaultStageScope());
-  const editingStageMatchCount = ref(0);
 
   const isExpanded = (stageId) => expandedIds.value.has(stageId);
 
@@ -206,6 +167,22 @@
       next.add(stageId);
     }
     expandedIds.value = next;
+  };
+
+  const ensurePublishTypes = (stage) => {
+    if (!Array.isArray(stage.publishMatchTypes)) {
+      stage.publishMatchTypes = resolveStagePublishMatchTypes(stage);
+    }
+  };
+
+  const syncStages = () => {
+    emit('update:stages', [...props.stages]);
+  };
+
+  const handleStageMatchTypesChange = (stage, types) => {
+    ensurePublishTypes(stage);
+    stage.publishMatchTypes = [...(types ?? [])];
+    syncStages();
   };
 
   const addStage = () => {
@@ -238,24 +215,6 @@
     nextExpanded.delete(row.stageId);
     expandedIds.value = nextExpanded;
     emit('update:stages', next);
-  };
-
-  const openStageScope = (index, row) => {
-    editingStageIndex.value = index;
-    editingStageScope.value = clone(row.scope ?? createDefaultStageScope());
-    editingStageMatchCount.value = row.matchCount ?? 0;
-    stageScopeVisible.value = true;
-  };
-
-  const handleStageScopeConfirm = (scope) => {
-    if (editingStageIndex.value > -1) {
-      const next = [...props.stages];
-      next[editingStageIndex.value] = {
-        ...next[editingStageIndex.value],
-        scope
-      };
-      emit('update:stages', next);
-    }
   };
 
   const disabledStageStartDate = (date, stage) => {
@@ -313,6 +272,7 @@
   watch(
     () => props.stages,
     (list) => {
+      list?.forEach((stage) => ensurePublishTypes(stage));
       if (list?.length && expandedIds.value.size === 0) {
         expandAll();
       }
@@ -404,17 +364,43 @@
   .stage-card-body {
     padding: 16px 20px 6px;
     border-top: 1px solid var(--el-border-color-extra-light);
+    overflow: hidden;
+
+    :deep(.el-col) {
+      min-width: 0;
+    }
+
+    :deep(.el-date-editor) {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
   }
 
-  .scope-config-row {
+  .summary-value {
+    min-width: 0;
+    word-break: break-all;
+  }
+
+  .match-type-form-item {
+    margin-bottom: 18px;
+
+    :deep(.el-form-item__content) {
+      min-width: 0;
+      line-height: normal;
+    }
+  }
+
+  .match-type-field {
     display: flex;
-    align-items: center;
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
     width: 100%;
+    min-width: 0;
   }
 
-  .scope-status {
-    font-size: 13px;
-    color: var(--el-text-color-secondary);
+  .match-type-cascader {
+    width: 100%;
+    max-width: 420px;
   }
 </style>

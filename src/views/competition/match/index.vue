@@ -170,7 +170,7 @@
       slot: 'matchName',
       fixed: 'left'
     },
-    { prop: 'matchType', label: '比赛类型', width: 110, align: 'center' },
+    { prop: 'matchTypeLabel', label: '比赛类型', minWidth: 160, align: 'center' },
     { columnKey: 'matchTime', label: '比赛时间', minWidth: 170, slot: 'matchTime' },
     {
       columnKey: 'registrationInfo',

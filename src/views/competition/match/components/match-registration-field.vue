@@ -30,7 +30,7 @@
       </el-form-item>
     </el-col>
     <el-col v-if="config.limitEnabled" :sm="12" :xs="24">
-      <el-form-item label="报名数量上限">
+      <el-form-item label="报名数量上限" required>
         <el-input-number
           :model-value="config.limitCount"
           :min="1"

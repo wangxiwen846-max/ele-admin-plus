@@ -41,6 +41,27 @@ import {
   validateCoverageAgainstStages,
   validateStageScopeWithinCoverage
 } from './scope-utils.js';
+import {
+  CAMPUS_PUBLISH_MATCH_TYPES,
+  PUBLISH_MATCH_TYPE_CLASS,
+  PUBLISH_MATCH_TYPE_DAILY,
+  PUBLISH_MATCH_TYPE_FINAL,
+  PUBLISH_MATCH_TYPE_REGION,
+  formatStagePublishMatchTypes,
+  getDefaultPublishMatchTypesForStageName,
+  resolveStagePublishMatchTypes
+} from '@/views/competition/match-type.js';
+
+export {
+  CAMPUS_PUBLISH_MATCH_TYPES,
+  PUBLISH_MATCH_TYPE_CLASS,
+  PUBLISH_MATCH_TYPE_DAILY,
+  PUBLISH_MATCH_TYPE_FINAL,
+  PUBLISH_MATCH_TYPE_REGION,
+  formatStagePublishMatchTypes,
+  getDefaultPublishMatchTypesForStageName,
+  resolveStagePublishMatchTypes
+};
 
 export { clone };
 export {
@@ -92,6 +113,9 @@ export function createDefaultStage(partial = {}) {
     description: '',
     enabled: true,
     matchCount: 0,
+    publishMatchTypes:
+      partial.publishMatchTypes ??
+      getDefaultPublishMatchTypesForStageName(partial.stageName ?? ''),
     ...partial
   };
 }
@@ -99,10 +123,16 @@ export function createDefaultStage(partial = {}) {
 export function createDefaultStages() {
   return [
     createDefaultStage({
-      stageName: '校园行'
+      stageName: '校园行',
+      publishMatchTypes: [
+        PUBLISH_MATCH_TYPE_DAILY,
+        PUBLISH_MATCH_TYPE_CLASS,
+        PUBLISH_MATCH_TYPE_REGION
+      ]
     }),
     createDefaultStage({
-      stageName: '全国总决赛'
+      stageName: '全国总决赛',
+      publishMatchTypes: [PUBLISH_MATCH_TYPE_FINAL]
     })
   ];
 }
@@ -462,6 +492,9 @@ export function validateActivityForm(form, context = {}, options = {}) {
     if (isStageTimeOutOfActivityRange(stage, form.startTime, form.endTime)) {
       step2Errors.push(`${label}：赛段时间必须在活动时间范围内`);
     }
+    if (!resolveStagePublishMatchTypes(stage).length) {
+      step2Errors.push(`${label}：请至少配置一个比赛类型`);
+    }
     if (!simplified) {
       step2Errors.push(...validateStageScopeWithinCoverage(stage.scope, form.coverage));
       if (!stage.scope?.inherit) {
@@ -515,13 +548,15 @@ export function validateActivityItemScope(form, context = {}) {
 }
 
 function makeStages(stages) {
-  return (stages ?? createDefaultStages()).map((stage) =>
-    createDefaultStage({
+  return (stages ?? createDefaultStages()).map((stage) => {
+    const next = createDefaultStage({
       ...stage,
       stageId: stage.stageId || createStageId(),
       scope: migrateLegacyScope(stage.scope, { isStage: true })
-    })
-  );
+    });
+    next.publishMatchTypes = resolveStagePublishMatchTypes(next);
+    return next;
+  });
 }
 
 function makeMatches(matches) {
@@ -558,7 +593,7 @@ export const activityStore = reactive({
       introduction:
         '面向全国中小学生开展的健康促进系列赛事活动，涵盖校园积分、区域晋级和全国总决赛三个阶段，旨在推动学生体质健康水平全面提升。',
       regulationText:
-        '本规程适用于学体联全国学生健康第一大赛。赛事分为校园积分赛、区域晋级赛和全国总决赛三个阶段，各阶段比赛时间、参赛范围及晋级规则以本规程及补充通知为准。',
+        '本规程适用于学体联全国学生健康第一大赛。赛事分为校园赛、区域赛和全国总决赛三个阶段，各阶段比赛时间、参赛范围及晋级规则以本规程及补充通知为准。',
       regulationAttachments: [
         {
           id: 'reg_1',
@@ -598,11 +633,14 @@ export const activityStore = reactive({
           startTime: '2026-08-01',
           endTime: '2027-06-30',
           scope: createDefaultStageScope(),
-          threshold: '全校学生均可参与校园行赛事。',
-          chiefReferee: '刘志强',
           description: '校园内开展的基础积分与晋级赛事。',
           enabled: true,
-          matchCount: 6
+          matchCount: 6,
+          publishMatchTypes: [
+            PUBLISH_MATCH_TYPE_DAILY,
+            PUBLISH_MATCH_TYPE_CLASS,
+            PUBLISH_MATCH_TYPE_REGION
+          ]
         },
         {
           stageId: 'stage_3',
@@ -610,11 +648,10 @@ export const activityStore = reactive({
           startTime: '2027-07-01',
           endTime: '2027-09-30',
           scope: createDefaultStageScope(),
-          threshold: '校园行与区域赛优胜代表队。',
-          chiefReferee: '陈刚',
           description: '全国范围最终决赛阶段。',
           enabled: true,
-          matchCount: 1
+          matchCount: 1,
+          publishMatchTypes: [PUBLISH_MATCH_TYPE_FINAL]
         }
       ],
       itemIds: [1, 2, 7],
@@ -632,7 +669,7 @@ export const activityStore = reactive({
           matchName: '海淀区校园跳绳积分赛',
           stageId: 'stage_1',
           stageName: '校园行',
-          matchType: '校内赛',
+          matchType: '班班赛',
           startTime: '2026-08-15',
           endTime: '2026-12-30',
           regStartTime: '2026-08-01 00:00',
@@ -658,7 +695,7 @@ export const activityStore = reactive({
           matchName: '3v3篮球班级对抗赛',
           stageId: 'stage_1',
           stageName: '校园行',
-          matchType: '校内赛',
+          matchType: '班班赛',
           startTime: '2026-09-01',
           endTime: '2027-03-31',
           regStartTime: '2026-08-20 09:00',
@@ -674,7 +711,7 @@ export const activityStore = reactive({
           matchName: '朝阳区校园积分赛',
           stageId: 'stage_1',
           stageName: '校园行',
-          matchType: '校内赛',
+          matchType: '班班赛',
           startTime: '2026-08-01',
           endTime: '2027-06-30',
           regStartTime: '2026-07-01 00:00',

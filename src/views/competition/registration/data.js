@@ -17,9 +17,9 @@ import {
   formatPlanSchoolYearSemester,
   getInsurancePlanName,
   getInsurancePlanOptions,
-  getInsuranceTypeByMatchType,
-  normalizeMatchTypeLabel
+  getInsuranceTypeByMatchType
 } from '@/views/competition/insurance/data.js';
+import { formatMatchTypeLabel } from '@/views/competition/match-type.js';
 
 export const SCORE_STATUS_OPTIONS = ['未上传', '已上传', '异常'];
 export const INSURANCE_METHOD_OPTIONS = ['统一购买', '自行购买'];
@@ -181,7 +181,7 @@ export function buildMatchRegistrationRow(match) {
   const planId = resolvePlanId(match);
   return {
     ...match,
-    matchTypeLabel: normalizeMatchTypeLabel(match.matchType),
+    matchTypeLabel: formatMatchTypeLabel(match.matchType, match.stageName),
     itemCount: isDailyMatch(match) ? 0 : (match.itemIds ?? []).length,
     participantCount: isDailyMatch(match) ? match.personCount || 0 : studentIds.size,
     teamCount: isDailyMatch(match) ? 0 : teams.length,
@@ -733,7 +733,7 @@ export function getDailyRecordDetail(matchId) {
     matchId: match.matchId,
     activityName: match.activityName,
     stageName: match.stageName,
-    matchTypeLabel: '每日积分赛',
+    matchTypeLabel: formatMatchTypeLabel(match.matchType, match.stageName),
     matchName: match.matchName,
     period: `${match.startTime || ''} 至 ${match.endTime || ''}`,
     insuranceType,

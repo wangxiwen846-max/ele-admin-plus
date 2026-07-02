@@ -362,6 +362,7 @@
     validateMatchForm,
     resolveMatchErrorStep,
     mapMatchItemRow,
+    buildMatchTypeCascaderOptions,
     getMatchTypeOptionsForStage,
     getMatchTypeStageHint,
     DELIVERY_FORM_OPTIONS,
@@ -369,16 +370,18 @@
     CLASS_SCORE_SUBMITTER_OPTIONS,
     isClassMatch,
     isDailyMatch,
-    MATCH_TYPE_CAMPUS,
+    MATCH_TYPE_CLASS,
     MATCH_TYPE_DAILY,
     MATCH_TYPE_FINAL,
     MATCH_TYPE_REGION,
+    normalizeMatchTypeLeaf,
     normalizePointsRules
   } from '../data.js';
-
-  const MATCH_PHASE_CAMPUS = '校园赛';
-  const MATCH_PHASE_REGION = '区域晋级赛';
-  const MATCH_PHASE_FINAL = '全国总决赛';
+  import {
+    MATCH_TYPE_CAMPUS_TOP,
+    MATCH_TYPE_FINAL as FINAL_TOP,
+    MATCH_TYPE_REGION as REGION_TOP
+  } from '@/views/competition/match-type.js';
 
   const props = defineProps({
     data: Object,
@@ -411,67 +414,37 @@
   const currentStage = computed(() =>
     stageOptions.value.find((d) => d.stageId === form.value.stageId)
   );
-  const matchTypeOptions = computed(() => getMatchTypeOptionsForStage(currentStage.value?.stageName ?? ''));
-  const matchPhaseOptions = computed(() => {
-    const options = [];
-    if (matchTypeOptions.value.some((type) => [MATCH_TYPE_DAILY, MATCH_TYPE_CAMPUS].includes(type))) {
-      options.push(MATCH_PHASE_CAMPUS);
-    }
-    if (matchTypeOptions.value.includes(MATCH_TYPE_REGION)) {
-      options.push(MATCH_PHASE_REGION);
-    }
-    if (matchTypeOptions.value.includes(MATCH_TYPE_FINAL)) {
-      options.push(MATCH_PHASE_FINAL);
-    }
-    return options;
-  });
-  const campusSubtypeOptions = computed(() =>
-    [
-      { label: '每日积分赛', value: MATCH_TYPE_DAILY },
-      { label: '班班赛', value: MATCH_TYPE_CAMPUS }
-    ].filter((item) => matchTypeOptions.value.includes(item.value))
-  );
+  const matchTypeOptions = computed(() => getMatchTypeOptionsForStage(currentStage.value ?? {}));
   const matchTypeCascaderOptions = computed(() =>
-    matchPhaseOptions.value.map((phase) => {
-      if (phase === MATCH_PHASE_CAMPUS) {
-        return {
-          label: MATCH_PHASE_CAMPUS,
-          value: MATCH_PHASE_CAMPUS,
-          children: campusSubtypeOptions.value
-        };
-      }
-      return { label: phase, value: phase };
-    })
+    buildMatchTypeCascaderOptions(matchTypeOptions.value)
   );
   const matchTypeCascaderValue = computed({
     get() {
-      const type = form.value.matchType;
-      if ([MATCH_TYPE_DAILY, MATCH_TYPE_CAMPUS].includes(type)) {
-        return [MATCH_PHASE_CAMPUS, type];
+      const type = normalizeMatchTypeLeaf(form.value.matchType);
+      if ([MATCH_TYPE_DAILY, MATCH_TYPE_CLASS].includes(type)) {
+        return [MATCH_TYPE_CAMPUS_TOP, type];
       }
       if (type === MATCH_TYPE_REGION) {
-        return [MATCH_PHASE_REGION];
+        return [MATCH_TYPE_REGION];
       }
       if (type === MATCH_TYPE_FINAL) {
-        return [MATCH_PHASE_FINAL];
+        return [MATCH_TYPE_FINAL];
       }
       return [];
     },
     set(value) {
       const selected = value?.[value.length - 1] ?? '';
       const type =
-        selected === MATCH_PHASE_REGION
+        selected === REGION_TOP
           ? MATCH_TYPE_REGION
-          : selected === MATCH_PHASE_FINAL
+          : selected === FINAL_TOP
             ? MATCH_TYPE_FINAL
             : selected;
       form.value.matchType = type;
       handleMatchTypeChange(type);
     }
   });
-  const matchTypeHint = computed(() =>
-    getMatchTypeStageHint(currentStage.value?.stageName ?? '')
-  );
+  const matchTypeHint = computed(() => getMatchTypeStageHint(currentStage.value ?? {}));
 
   const formatStageOptionLabel = (stage) => {
     if (!stage?.startTime || !stage?.endTime) {
@@ -545,7 +518,7 @@
   const handleStageChange = () => {
     const previousType = form.value.matchType;
     form.value.scope = createDefaultMatchScope();
-    const allowed = getMatchTypeOptionsForStage(currentStage.value?.stageName ?? '');
+    const allowed = getMatchTypeOptionsForStage(currentStage.value ?? {});
     if (previousType && !allowed.includes(previousType)) {
       form.value.matchType = '';
       EleMessage.warning({

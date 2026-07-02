@@ -14,7 +14,6 @@ import {
   buildParticipationRequirementText
 } from '@/views/event-item/data.js';
 import {
-  activityStore,
   findActivity,
   getActivityLinkedItems,
   getActivityStatus,
@@ -22,8 +21,27 @@ import {
   mapEventItemForActivity,
   cloneAwardConfigForMatch,
   formatAwardSummaryForDisplay,
-  MOCK_OPERATOR
+  MOCK_OPERATOR,
+  resolveStagePublishMatchTypes,
+  formatStagePublishMatchTypes
 } from '@/views/competition/activity/data.js';
+import {
+  MATCH_TYPE_CAMPUS,
+  MATCH_TYPE_CLASS,
+  MATCH_TYPE_CLASS_TYPES,
+  MATCH_TYPE_DAILY,
+  MATCH_TYPE_FINAL,
+  MATCH_TYPE_LEAF_OPTIONS,
+  MATCH_TYPE_REGION,
+  buildMatchTypeCascaderOptions,
+  formatMatchTypeLabel,
+  formatMatchTypePublishLabel,
+  getMatchTypeStageHint,
+  isClassMatchType,
+  isDailyMatchType,
+  normalizeMatchType,
+  normalizeMatchTypeLeaf
+} from '@/views/competition/match-type.js';
 import {
   createDefaultScope,
   formatRegionDisplayLabel,
@@ -43,21 +61,30 @@ import {
   getInsurancePlanOptions,
   isPlanCoveringDate
 } from '@/views/competition/insurance/data.js';
+import { activityStore } from '@/views/competition/activity/data.js';
+
+export {
+  MATCH_TYPE_CAMPUS,
+  MATCH_TYPE_CLASS,
+  MATCH_TYPE_CLASS_TYPES,
+  MATCH_TYPE_DAILY,
+  MATCH_TYPE_FINAL,
+  MATCH_TYPE_LEAF_OPTIONS,
+  MATCH_TYPE_REGION,
+  MATCH_TYPE_TOP_LEVEL_OPTIONS,
+  formatMatchTypeLabel,
+  formatMatchTypePublishLabel,
+  formatMatchTypesList,
+  getMatchTypeStageHint,
+  normalizeMatchType,
+  normalizeMatchTypeLeaf,
+  matchTypeMatchesLeaf
+} from '@/views/competition/match-type.js';
 
 export { getStatusTagType, clone };
 
-export const MATCH_TYPE_DAILY = '每日积分赛';
-export const MATCH_TYPE_CAMPUS = '校内赛';
-export const MATCH_TYPE_REGION = '区域晋级赛';
-export const MATCH_TYPE_FINAL = '全国总决赛';
-export const MATCH_TYPE_CLASS_TYPES = [
-  MATCH_TYPE_CAMPUS,
-  MATCH_TYPE_REGION,
-  MATCH_TYPE_FINAL
-];
-export const MATCH_TYPE_OPTIONS = [MATCH_TYPE_DAILY, ...MATCH_TYPE_CLASS_TYPES];
-/** @deprecated 使用 MATCH_TYPE_CAMPUS / MATCH_TYPE_REGION / MATCH_TYPE_FINAL */
-export const MATCH_TYPE_CLASS = '班班赛';
+export const MATCH_TYPE_OPTIONS = MATCH_TYPE_LEAF_OPTIONS;
+export const DELIVERY_FORM_OPTIONS = ['线上', '线下', '线上线下相结合'];
 export const STAGE_CAMPUS_NAME = '校园行';
 export const STAGE_FINAL_NAME = '全国总决赛';
 
@@ -66,53 +93,12 @@ const STAGE_NAME_LEGACY_MAP = {
   区域晋级赛: STAGE_CAMPUS_NAME
 };
 
-export function getMatchTypeOptionsForStage(stageName = '') {
-  if (stageName === STAGE_FINAL_NAME) {
-    return [MATCH_TYPE_FINAL];
-  }
-  if (stageName === STAGE_CAMPUS_NAME) {
-    return [MATCH_TYPE_DAILY, MATCH_TYPE_CAMPUS, MATCH_TYPE_REGION];
-  }
-  return MATCH_TYPE_OPTIONS;
+export function getMatchTypeOptionsForStage(stage) {
+  const stageObj = typeof stage === 'string' ? { stageName: stage } : stage ?? {};
+  return resolveStagePublishMatchTypes(stageObj);
 }
 
-export function getMatchTypeStageHint(stageName = '') {
-  if (stageName === STAGE_FINAL_NAME) {
-    return '全国总决赛赛段仅支持发布全国总决赛类型比赛。';
-  }
-  if (stageName === STAGE_CAMPUS_NAME) {
-    return '校园行赛段支持校园赛（每日积分赛、班班赛）和区域晋级赛。';
-  }
-  return '';
-}
-
-export function normalizeMatchType(type = '', stageName = '') {
-  if (!type) {
-    return '';
-  }
-  if (type === '区域赛' || type === '区域晋级赛') {
-    return MATCH_TYPE_REGION;
-  }
-  if (
-    type === MATCH_TYPE_DAILY ||
-    type === MATCH_TYPE_CAMPUS ||
-    type === MATCH_TYPE_REGION ||
-    type === MATCH_TYPE_FINAL
-  ) {
-    return type;
-  }
-  if (type === MATCH_TYPE_CLASS || type === '班班赛') {
-    if (stageName === STAGE_FINAL_NAME) {
-      return MATCH_TYPE_FINAL;
-    }
-    if (stageName === '区域晋级赛') {
-      return MATCH_TYPE_REGION;
-    }
-    return MATCH_TYPE_CAMPUS;
-  }
-  return type;
-}
-export const DELIVERY_FORM_OPTIONS = ['线上', '线下', '线上线下相结合'];
+export { buildMatchTypeCascaderOptions };
 export const REGISTRATION_STATUS_OPTIONS = ['未开始', '报名中', '已截止', '待配置', '自动参与'];
 export const MATCH_STATUS_OPTIONS = ['未开始', '进行中', '已结束'];
 export const INSURANCE_METHOD_OPTIONS = ['统一购买', '自行购买', '其他'];
@@ -783,11 +769,11 @@ export function createDefaultMatch(partial = {}) {
 }
 
 export function isClassMatch(match) {
-  return MATCH_TYPE_CLASS_TYPES.includes(match?.matchType);
+  return isClassMatchType(match?.matchType);
 }
 
 export function isDailyMatch(match) {
-  return match?.matchType === MATCH_TYPE_DAILY;
+  return isDailyMatchType(match?.matchType);
 }
 
 export function getStageEffectiveScope(stage, activity) {
@@ -1415,7 +1401,7 @@ function migrateLegacyMatch(match, activity) {
   const hasTeamOnly =
     itemStats.some((d) => d.matchForm === '团体') &&
     !itemStats.some((d) => d.matchForm === '个人');
-  const matchType = normalizeMatchType(match.matchType, stageName);
+  const matchType = normalizeMatchTypeLeaf(match.matchType, stageName);
 
   const firstItemKey = itemIds.length ? String(itemIds[0]) : null;
   let matchRegistration = match.matchRegistration;
@@ -1526,6 +1512,7 @@ export function getAllMatches() {
         ...normalized,
         activityName: activity.activityName,
         stageName: stage?.stageName ?? normalized.stageName ?? '',
+        matchTypeLabel: formatMatchTypeLabel(normalized.matchType, stage?.stageName),
         registrationStatus: computeRegistrationStatus(normalized),
         matchStatus: computeMatchStatus(normalized)
       });
@@ -1571,7 +1558,8 @@ export function getStageOptions(activityId) {
       startTime: stage.startTime,
       endTime: stage.endTime,
       scope: stage.scope,
-      matchCount: stage.matchCount ?? 0
+      matchCount: stage.matchCount ?? 0,
+      publishMatchTypes: resolveStagePublishMatchTypes(stage)
     }));
 }
 
@@ -1806,10 +1794,10 @@ export function validateMatchScopeWithinStage(matchScope = {}, stageScope = {}, 
 
 export function validateMatchTypeForStage(form, stage) {
   const errors = [];
-  if (!form.matchType || !stage?.stageName) {
+  if (!form.matchType || !stage) {
     return errors;
   }
-  const allowed = getMatchTypeOptionsForStage(stage.stageName);
+  const allowed = getMatchTypeOptionsForStage(stage);
   if (!allowed.includes(form.matchType)) {
     errors.push('当前比赛类型不适用于所选赛段，请重新选择比赛类型。');
   }
@@ -1841,6 +1829,18 @@ function validateClassMatch(form) {
 
   const insurance = form.matchInsurance ?? createDefaultInsuranceSetting();
   const insuranceType = insurance.insuranceType || getInsuranceTypeByMatchType(form.matchType);
+  const registration = normalizeMatchRegistration(form.matchRegistration ?? {});
+  if (registration.limitEnabled) {
+    const count = registration.limitCount;
+    if (
+      count == null ||
+      count === '' ||
+      Number(count) <= 0 ||
+      !Number.isInteger(Number(count))
+    ) {
+      errors.push('请填写有效的报名数量上限（正整数）');
+    }
+  }
   if (!insurance.planId) {
     errors.push('请选择保险方案');
   }

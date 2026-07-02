@@ -23,12 +23,7 @@
           </el-col>
           <el-col :lg="8" :md="12" :sm="12" :xs="24">
             <el-form-item label="比赛类型">
-              <el-select v-model="query.matchType" clearable placeholder="请选择" class="ele-fluid">
-                <el-option label="每日积分赛" value="每日积分赛" />
-                <el-option label="校内赛/班班赛" value="校内赛/班班赛" />
-                <el-option label="区域晋级赛" value="区域晋级赛" />
-                <el-option label="全国总决赛" value="全国总决赛" />
-              </el-select>
+              <match-type-cascader v-model="query.matchType" class="ele-fluid" />
             </el-form-item>
           </el-col>
           <el-col :lg="8" :md="12" :sm="12" :xs="24">
@@ -146,6 +141,9 @@
   import { EleMessage } from 'ele-admin-plus';
   import { PlusOutlined } from '@/components/icons';
   import { INSURANCE_STATUS_OPTIONS } from '@/views/competition/insurance/data.js';
+  import { isDailyMatch } from '@/views/competition/match/data.js';
+  import { matchTypeMatchesLeaf } from '@/views/competition/match-type.js';
+  import MatchTypeCascader from '@/views/competition/components/match-type-cascader.vue';
   import RegistrationAddModal from './components/registration-add-modal.vue';
   import RegistrationImportModal from './components/registration-import-modal.vue';
   import RegistrationDetailModal from './components/registration-detail-modal.vue';
@@ -180,7 +178,7 @@
   const columns = ref([
     { prop: 'activityName', label: '赛事活动', minWidth: 150 },
     { prop: 'stageName', label: '赛段', minWidth: 110 },
-    { prop: 'matchTypeLabel', label: '比赛类型', width: 130, align: 'center' },
+    { prop: 'matchTypeLabel', label: '比赛类型', minWidth: 160, align: 'center' },
     { prop: 'matchName', label: '比赛名称', minWidth: 190, slot: 'matchName', fixed: 'left' },
     { prop: 'itemCount', label: '设项数量', width: 90, align: 'center' },
     { prop: 'participantCount', label: '参赛人数', width: 90, align: 'center' },
@@ -204,7 +202,7 @@
       list = list.filter((row) => row.stageName.includes(query.stageName));
     }
     if (query.matchType) {
-      list = list.filter((row) => row.matchTypeLabel === query.matchType);
+      list = list.filter((row) => matchTypeMatchesLeaf(row.matchType, query.matchType, row.stageName));
     }
     if (query.matchName) {
       list = list.filter((row) => row.matchName.includes(query.matchName));
@@ -228,7 +226,7 @@
     return map[status] || 'info';
   };
 
-  const isDailyRow = (row) => row.matchTypeLabel === '每日积分赛';
+  const isDailyRow = (row) => isDailyMatch(row);
 
   const handleSearch = () => {
     tableRef.value?.reload?.({ page: 1 });

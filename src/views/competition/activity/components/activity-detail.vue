@@ -157,27 +157,15 @@
       </div>
 
       <div class="detail-block">
-        <div class="block-title">参赛范围</div>
-        <el-descriptions :column="1" size="small" class="desc-plain">
-          <el-descriptions-item label="参赛范围">全国范围</el-descriptions-item>
-        </el-descriptions>
-      </div>
-
-      <div class="detail-block">
         <div class="block-title">赛段信息</div>
         <el-table :data="data.stages" border size="small">
           <el-table-column prop="stageName" label="赛段名称" min-width="120" />
-          <el-table-column prop="startTime" label="比赛开始日期" width="120" />
-          <el-table-column prop="endTime" label="比赛结束日期" width="120" />
-          <el-table-column label="参赛范围" min-width="120" align="center">
-            <template #default>全国范围</template>
+          <el-table-column label="赛段时间" min-width="180">
+            <template #default="{ row }">{{ formatStageDateRange(row) }}</template>
           </el-table-column>
-          <el-table-column label="参赛门槛" min-width="120">
-            <template #default="{ row }">
-              <detail-text-cell :text="row.threshold" :max-length="20" />
-            </template>
+          <el-table-column label="比赛类型" min-width="220">
+            <template #default="{ row }">{{ formatStagePublishMatchTypes(row) }}</template>
           </el-table-column>
-          <el-table-column prop="chiefReferee" label="赛段裁判长" width="100" />
           <el-table-column label="赛段说明" min-width="120">
             <template #default="{ row }">
               <detail-text-cell :text="row.description" :max-length="20" />
@@ -324,6 +312,8 @@
     enrichMatchesWithStatus,
     findActivity,
     formatActivityTime,
+    formatStageDateRange,
+    formatStagePublishMatchTypes,
     formatUnits,
     getActivityLinkedItems,
     getActivityStatus,

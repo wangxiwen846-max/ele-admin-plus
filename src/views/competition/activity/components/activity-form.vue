@@ -192,28 +192,12 @@
 
     <div v-show="showStep2" class="form-section step-section-card">
       <div class="section-head">
-        <div class="section-title">参赛范围</div>
-      </div>
-      <div class="section-body">
-        <scope-summary-field
-          v-model="form.coverage"
-          :stages="form.stages"
-          disabled
-          fixed-national
-        />
-      </div>
-    </div>
-
-    <div v-show="showStep2" class="form-section step-section-card">
-      <div class="section-head">
         <div class="section-title">赛段管理</div>
       </div>
       <div class="section-body">
         <stage-card-list
           v-model:stages="form.stages"
-          :parent-scope="form.coverage"
           :disabled="stageDisabled"
-          fixed-national-scope
           :activity-start-time="form.startTime"
           :activity-end-time="form.endTime"
         />
@@ -263,7 +247,6 @@
   import UnitTagSelect from './unit-tag-select.vue';
   import CommitteeMemberList from './committee-member-list.vue';
   import ActivityItemPicker from './activity-item-picker.vue';
-  import ScopeSummaryField from './scope-summary-field.vue';
   import StageCardList from './stage-card-list.vue';
   import {
     clone,
