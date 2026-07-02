@@ -716,11 +716,36 @@ export function buildScoringPlanSnapshot(form) {
   };
 }
 
-function createDefaultDailyAwards() {
+function createDefaultDailyAwardItem(partial = {}) {
+  const base = normalizeAwardSettings([partial])[0] ?? {};
   return {
-    awards: normalizeAwardSettings([]),
-    awardRemark: ''
+    ...base,
+    awardTarget: '个人',
+    awardQuantity: partial.awardQuantity ?? '',
+    remark: partial.remark ?? ''
   };
+}
+
+function createDefaultDailyAwards() {
+  return normalizeDailyAwards({
+    awards: [],
+    awardRemark: ''
+  });
+}
+
+export function normalizeDailyAwards(dailyAwards = {}) {
+  return {
+    awards: (dailyAwards.awards ?? []).map((item) => createDefaultDailyAwardItem(item)),
+    awardRemark: dailyAwards.awardRemark?.trim?.() ?? ''
+  };
+}
+
+export function formatDailyAwardSummary(dailyAwards = {}) {
+  const count = getAwardCount(dailyAwards.awards ?? []);
+  if (!count) {
+    return '未配置';
+  }
+  return `已配置 ${count} 个奖项`;
 }
 
 function baseMatch() {
@@ -1451,7 +1476,7 @@ function migrateLegacyMatch(match, activity) {
     pointsRules: normalizePointsRules(match.pointsRules),
     rankingRules: normalizeRankingRules(match.rankingRules),
     dailyInsurance: match.dailyInsurance ?? migrateDailyInsurance(match),
-    dailyAwards: match.dailyAwards ?? createDefaultDailyAwards(),
+    dailyAwards: normalizeDailyAwards(match.dailyAwards ?? createDefaultDailyAwards()),
     attachments: clone(match.attachments ?? []),
     personCount: hasTeamOnly ? 0 : regCount,
     teamCount: hasTeamOnly ? regCount : match.teamCount ?? 0,
@@ -1722,6 +1747,7 @@ export function saveMatch(form, matchId) {
     pointsRules: isDailyMatch(form) ? normalizePointsRules(form.pointsRules) : form.pointsRules,
     rankingRules: isDailyMatch(form) ? normalizeRankingRules(form.rankingRules) : form.rankingRules,
     scoringPlanSnapshot: isDailyMatch(form) ? buildScoringPlanSnapshot(form) : form.scoringPlanSnapshot,
+    dailyAwards: isDailyMatch(form) ? normalizeDailyAwards(form.dailyAwards ?? {}) : form.dailyAwards,
     itemAwardConfig: buildItemAwardConfig(form.itemIds ?? [], form.itemAwardConfig ?? {}),
     itemRegistrationConfig: {},
     itemInsuranceConfig: {},

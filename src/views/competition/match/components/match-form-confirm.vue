@@ -89,6 +89,11 @@
     </div>
 
     <div v-if="isDaily" class="confirm-block">
+      <div class="block-title">奖项配置</div>
+      <div class="summary-text">奖项配置：{{ dailyAwardSummary }}</div>
+    </div>
+
+    <div v-if="isDaily" class="confirm-block">
       <div class="block-title">评分规则</div>
       <div class="summary-text">{{ scoringPlanText }}</div>
     </div>
@@ -116,6 +121,7 @@
     formatMatchScopeSummary,
     formatMatchTypePublishLabel,
     formatWeightTotalHint,
+    formatDailyAwardSummary,
     getMatchLinkedItems,
     isClassMatch,
     isDailyMatch,
@@ -195,6 +201,8 @@
   });
 
   const weightHint = computed(() => formatWeightTotalHint(props.form.dataSources ?? []));
+
+  const dailyAwardSummary = computed(() => formatDailyAwardSummary(props.form.dailyAwards ?? {}));
 
   const scoringPlanText = computed(() => {
     const plan = props.form.scoringPlan;

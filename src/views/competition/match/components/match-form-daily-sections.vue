@@ -104,6 +104,10 @@
 
     <!-- 默认折叠 -->
     <el-collapse v-model="collapsedActive" class="daily-collapse">
+      <el-collapse-item title="奖项配置" name="awards">
+        <match-daily-award-field v-model="dailyAwards" />
+      </el-collapse-item>
+
       <el-collapse-item title="保险设置" name="insurance">
         <match-insurance-field
           v-model="dailyInsurance"
@@ -252,6 +256,7 @@
   import { EleMessage } from 'ele-admin-plus';
   import AttachmentTable from '@/views/event-item/components/attachment-table.vue';
   import MatchInsuranceField from './match-insurance-field.vue';
+  import MatchDailyAwardField from './match-daily-award-field.vue';
   import {
     averageEnabledSourceWeights,
     clone,
@@ -264,6 +269,7 @@
     getSourceRoleOptions,
     normalizeDataSources,
     normalizePointsRules,
+    normalizeDailyAwards,
     restoreDefaultSourceWeights,
     SCORING_PLAN_NAME,
     SCORING_PLAN_UPDATED_AT,
@@ -287,6 +293,7 @@
   const dataSources = defineModel('dataSources', { type: Array, default: () => [] });
   const pointsRules = defineModel('pointsRules', { type: Object, default: () => ({}) });
   const dailyInsurance = defineModel('dailyInsurance', { type: Object, default: () => ({}) });
+  const dailyAwards = defineModel('dailyAwards', { type: Object, default: () => ({ awards: [], awardRemark: '' }) });
 
   const collapsedActive = ref([]);
   const sourceConfigVisible = ref(false);
@@ -311,6 +318,17 @@
       const normalized = normalizeDataSources(value ?? []);
       if (JSON.stringify(normalized) !== JSON.stringify(value)) {
         dataSources.value = normalized;
+      }
+    },
+    { immediate: true, deep: true }
+  );
+
+  watch(
+    dailyAwards,
+    (value) => {
+      const normalized = normalizeDailyAwards(value ?? {});
+      if (JSON.stringify(normalized) !== JSON.stringify(value)) {
+        dailyAwards.value = normalized;
       }
     },
     { immediate: true, deep: true }

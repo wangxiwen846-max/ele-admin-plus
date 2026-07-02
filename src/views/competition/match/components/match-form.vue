@@ -314,6 +314,7 @@
           v-model:data-sources="form.dataSources"
           v-model:points-rules="form.pointsRules"
           v-model:daily-insurance="form.dailyInsurance"
+          v-model:daily-awards="form.dailyAwards"
           :match-start-time="form.startTime"
           :attachments="form.attachments"
           @update:attachments="(val) => (form.attachments = val)"
