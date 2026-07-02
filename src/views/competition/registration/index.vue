@@ -79,6 +79,8 @@
           <el-button type="primary" :icon="PlusOutlined" class="ele-btn-icon" @click="openAdd()">
             新增报名
           </el-button>
+          <el-button @click="openImport()">导入名单</el-button>
+          <el-button @click="exportAll">导出名单</el-button>
         </template>
         <template #matchName="{ row }">
           <el-link type="primary" underline="never" @click="openDetail(row)">{{ row.matchName }}</el-link>
@@ -92,17 +94,15 @@
         <template #action="{ row }">
           <template v-if="isDailyRow(row)">
             <el-link type="primary" underline="never" @click="openDailyRecord(row)">查看参与记录</el-link>
+            <el-divider direction="vertical" />
+            <el-link type="primary" underline="never" @click="openInsurance(row)">查看保险</el-link>
           </template>
           <template v-else>
             <el-link type="primary" underline="never" @click="openDetail(row)">查看详情</el-link>
             <el-divider direction="vertical" />
-            <el-link type="primary" underline="never" @click="openAdd(row)">新增报名</el-link>
-            <el-divider direction="vertical" />
-            <el-link type="primary" underline="never" @click="openImport(row)">导入名单</el-link>
-            <el-divider direction="vertical" />
-            <el-link type="primary" underline="never" @click="exportList(row)">导出名单</el-link>
-            <el-divider direction="vertical" />
             <el-link type="primary" underline="never" @click="openInsurance(row)">查看保险</el-link>
+            <el-divider direction="vertical" />
+            <el-link type="primary" underline="never" @click="exportList(row)">导出</el-link>
           </template>
         </template>
       </ele-pro-table>
@@ -113,11 +113,7 @@
       :match-id="addMatchId"
       @done="reloadTable"
     />
-    <registration-import-modal
-      v-model:visible="importVisible"
-      :match-id="importMatchId"
-      @done="reloadTable"
-    />
+    <registration-import-modal v-model:visible="importVisible" @done="reloadTable" />
     <registration-detail-modal
       v-model:visible="detailVisible"
       :match-id="detailMatchId"
@@ -160,7 +156,6 @@
   const dailyVisible = ref(false);
   const insuranceVisible = ref(false);
   const addMatchId = ref('');
-  const importMatchId = ref('');
   const detailMatchId = ref('');
   const dailyMatchId = ref('');
   const insuranceContext = ref({});
@@ -176,7 +171,6 @@
   });
 
   const columns = ref([
-    { prop: 'activityName', label: '赛事活动', minWidth: 150 },
     { prop: 'stageName', label: '赛段', minWidth: 110 },
     { prop: 'matchTypeLabel', label: '比赛类型', minWidth: 160, align: 'center' },
     { prop: 'matchName', label: '比赛名称', minWidth: 190, slot: 'matchName', fixed: 'left' },
@@ -188,7 +182,7 @@
     { prop: 'insuranceMethod', label: '保险方式', width: 100, align: 'center' },
     { prop: 'insuranceStatus', label: '保险状态', width: 100, align: 'center', slot: 'insuranceStatus' },
     { prop: 'updateTime', label: '更新时间', width: 150, align: 'center' },
-    { columnKey: 'action', label: '操作', width: 340, align: 'center', slot: 'action', fixed: 'right' }
+    { columnKey: 'action', label: '操作', width: 220, align: 'center', slot: 'action', fixed: 'right' }
   ]);
 
   const activityOptions = computed(() => getActivityFilterOptions());
@@ -263,8 +257,7 @@
     addVisible.value = true;
   };
 
-  const openImport = (row) => {
-    importMatchId.value = row?.matchId || '';
+  const openImport = () => {
     importVisible.value = true;
   };
 
@@ -274,7 +267,9 @@
   };
 
   const openInsurance = (row) => {
-    insuranceContext.value = { matchId: row.matchId, scope: 'match' };
+    insuranceContext.value = isDailyRow(row)
+      ? { matchId: row.matchId, scope: 'daily' }
+      : { matchId: row.matchId, scope: 'match' };
     insuranceVisible.value = true;
   };
 
@@ -284,7 +279,11 @@
   };
 
   const exportList = (row) => {
-    EleMessage.success({ message: `${row.matchName}名单已生成导出任务。`, plain: true });
+    EleMessage.success({ message: `${row.matchName} 名单已生成导出任务。`, plain: true });
+  };
+
+  const exportAll = () => {
+    EleMessage.success({ message: '当前筛选结果参赛名单已生成导出任务。', plain: true });
   };
 </script>
 

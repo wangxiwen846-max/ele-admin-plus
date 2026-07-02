@@ -3,25 +3,26 @@
   <el-dialog
     :model-value="visible"
     title="导入名单"
-    width="880px"
+    width="920px"
     append-to-body
     destroy-on-close
     @update:model-value="emit('update:visible', $event)"
   >
     <el-steps :active="activeStep" simple class="import-steps">
       <el-step title="选择比赛设项" />
-      <el-step title="上传 Excel" />
-      <el-step title="数据校验" />
+      <el-step title="下载模板 / 上传" />
+      <el-step title="在线校验" />
       <el-step title="确认导入" />
     </el-steps>
 
     <el-form :model="form" label-width="100px">
       <el-row :gutter="16">
         <el-col :sm="12" :xs="24">
-          <el-form-item label="比赛名称" required>
+          <el-form-item label="比赛" required>
             <el-select
               v-model="form.matchId"
               filterable
+              placeholder="请选择比赛"
               class="ele-fluid"
               :disabled="!!lockedMatchId"
               @change="handleMatchChange"
@@ -36,12 +37,13 @@
           </el-form-item>
         </el-col>
         <el-col :sm="12" :xs="24">
-          <el-form-item label="设项名称" required>
+          <el-form-item label="设项" required>
             <el-select
               v-model="form.itemId"
+              placeholder="请选择设项"
               class="ele-fluid"
               :disabled="!form.matchId || !!lockedItemId"
-              @change="resetProgress"
+              @change="resetValidation"
             >
               <el-option
                 v-for="item in itemOptions"
@@ -53,62 +55,71 @@
           </el-form-item>
         </el-col>
       </el-row>
-      <el-form-item label="模板类型">
-        <span class="readonly-text">
-          {{ selectedItem?.matchForm ? `${selectedItem.matchForm}报名模板` : '选择设项后自动匹配' }}
-        </span>
+      <el-form-item label="比赛形式">
+        <span class="readonly-text">{{ selectedItem?.matchForm || '选择设项后自动带出' }}</span>
       </el-form-item>
-      <el-form-item label="模板字段">
-        <template v-if="templateFields.length">
-          <el-tag v-for="field in templateFields" :key="field" class="template-tag" effect="plain">
-            {{ field }}
-          </el-tag>
-        </template>
-        <span v-else class="readonly-text">选择设项后自动匹配模板字段</span>
+      <el-form-item label="导入模板">
+        <el-button :disabled="!canDownloadTemplate" @click="handleDownloadTemplate">
+          {{ downloadTemplateText }}
+        </el-button>
+        <span v-if="templateFields.length" class="field-tip">
+          模板字段：{{ templateFields.join('、') }}
+        </span>
       </el-form-item>
       <el-form-item label="上传文件">
         <el-upload
           action=""
           :auto-upload="false"
           :limit="1"
+          accept=".xlsx,.xls"
           drag
           class="ele-fluid"
-          @change="handleFileChange"
+          :disabled="!canUpload"
+          :on-change="handleFileChange"
+          :on-remove="handleFileRemove"
         >
           <div class="upload-placeholder">
-            {{ form.fileName ? `已选择：${form.fileName}` : '点击或拖拽 Excel 文件到此处' }}
+            {{ uploadHint }}
           </div>
         </el-upload>
       </el-form-item>
     </el-form>
 
     <el-alert
-      v-if="validated"
-      :type="errorCount ? 'warning' : 'success'"
-      show-icon
-      :closable="false"
-      :title="
-        errorCount
-          ? `校验完成：成功 ${successCount} 条，异常 ${errorCount} 条，可下载错误数据后修正重传。`
-          : `校验通过：${successCount} 条数据可导入。`
-      "
-    />
-    <el-alert
-      v-else
+      v-if="!validated"
       type="info"
       show-icon
       :closable="false"
-      title="导入模板不包含比赛名称和设项名称；上传后请先校验数据，校验通过后确认导入。"
+      title="导入前请选择比赛和设项；模板不包含比赛名称和设项名称。上传后请点击「校验数据」，如有错误请修改 Excel 后重新上传。"
     />
+
+    <template v-if="validated">
+      <div class="validate-summary">
+        <span>总数据量：{{ summary.totalCount }}</span>
+        <span>校验通过：{{ summary.successCount }}</span>
+        <span :class="{ danger: summary.errorCount > 0 }">校验失败：{{ summary.errorCount }}</span>
+      </div>
+      <el-alert
+        :type="summary.errorCount ? 'warning' : 'success'"
+        show-icon
+        :closable="false"
+        :title="validateMessage"
+        class="validate-alert"
+      />
+      <div v-if="summary.errors.length" class="error-table-wrap">
+        <div class="error-table-title">错误明细</div>
+        <el-table :data="summary.errors" border size="small" max-height="240">
+          <el-table-column prop="rowNo" label="行号" width="80" align="center" />
+          <el-table-column prop="fieldName" label="字段名称" width="120" />
+          <el-table-column prop="reason" label="错误原因" min-width="220" show-overflow-tooltip />
+        </el-table>
+      </div>
+    </template>
 
     <template #footer>
       <el-button @click="emit('update:visible', false)">取消</el-button>
-      <el-button @click="downloadTemplate">下载模板</el-button>
-      <el-button @click="validateData">校验数据</el-button>
-      <el-button v-if="errorCount" type="warning" @click="downloadErrorData">下载错误数据</el-button>
-      <el-button type="primary" :disabled="!validated || !successCount" @click="confirmImport">
-        确认导入
-      </el-button>
+      <el-button :disabled="!uploadFile" @click="handleValidate">校验数据</el-button>
+      <el-button type="primary" :disabled="!canConfirm" @click="handleConfirmImport">确认导入</el-button>
     </template>
   </el-dialog>
 </template>
@@ -117,11 +128,14 @@
   import { computed, reactive, ref, watch } from 'vue';
   import { EleMessage } from 'ele-admin-plus';
   import {
-    PERSONAL_IMPORT_FIELDS,
-    TEAM_IMPORT_FIELDS,
-    getItemOptionsByMatch,
-    getRegisterableMatches
-  } from '../data.js';
+    appendImportLog,
+    confirmImportRows,
+    downloadImportTemplate,
+    getTemplateFields,
+    parseImportFile,
+    validateImportRows
+  } from '../registration-import.js';
+  import { getItemOptionsByMatch, getRegisterableMatches } from '../data.js';
 
   const props = defineProps({
     visible: Boolean,
@@ -134,34 +148,66 @@
   const lockedMatchId = computed(() => props.matchId || '');
   const lockedItemId = computed(() => props.itemId || '');
   const registerableMatches = computed(() => getRegisterableMatches());
-  const form = reactive({ matchId: '', itemId: '', fileName: '' });
+  const form = reactive({ matchId: '', itemId: '' });
+  const uploadFile = ref(null);
   const validated = ref(false);
-  const successCount = ref(0);
-  const errorCount = ref(0);
+  const parsedRows = ref([]);
+  const summary = reactive({
+    totalCount: 0,
+    successCount: 0,
+    errorCount: 0,
+    errors: [],
+    validRows: []
+  });
 
   const itemOptions = computed(() => (form.matchId ? getItemOptionsByMatch(form.matchId) : []));
-  const selectedItem = computed(() => itemOptions.value.find((item) => item.itemId === form.itemId));
-  const templateFields = computed(() => {
-    if (selectedItem.value?.matchForm === '团体') {
-      return TEAM_IMPORT_FIELDS;
+  const selectedItem = computed(() =>
+    itemOptions.value.find((item) => String(item.itemId) === String(form.itemId))
+  );
+  const templateFields = computed(() =>
+    selectedItem.value?.matchForm ? getTemplateFields(selectedItem.value.matchForm) : []
+  );
+  const canDownloadTemplate = computed(() => !!(form.matchId && form.itemId && selectedItem.value));
+  const canUpload = computed(() => canDownloadTemplate.value);
+  const canConfirm = computed(
+    () => validated.value && summary.errorCount === 0 && summary.validRows.length > 0
+  );
+
+  const downloadTemplateText = computed(() => {
+    if (!selectedItem.value?.matchForm) {
+      return '下载导入模板';
     }
-    if (selectedItem.value?.matchForm === '个人') {
-      return PERSONAL_IMPORT_FIELDS;
+    return selectedItem.value.matchForm === '团体' ? '下载团体赛导入模板' : '下载个人赛导入模板';
+  });
+
+  const uploadHint = computed(() => {
+    if (!canUpload.value) {
+      return '请先选择比赛和设项';
     }
-    return [];
+    if (uploadFile.value?.name) {
+      return `已选择：${uploadFile.value.name}`;
+    }
+    return '点击或拖拽 Excel 文件到此处';
   });
 
   const activeStep = computed(() => {
     if (validated.value) {
-      return errorCount.value ? 2 : 3;
+      return summary.errorCount ? 2 : 3;
     }
-    if (form.fileName) {
+    if (uploadFile.value) {
       return 2;
     }
     if (form.matchId && form.itemId) {
       return 1;
     }
     return 0;
+  });
+
+  const validateMessage = computed(() => {
+    if (!summary.errorCount) {
+      return `校验通过，共 ${summary.successCount} 条数据可导入。`;
+    }
+    return `校验完成：通过 ${summary.successCount} 条，失败 ${summary.errorCount} 条。请修改 Excel 后重新上传并校验。`;
   });
 
   watch(
@@ -172,65 +218,121 @@
       }
       form.matchId = props.matchId || '';
       form.itemId = props.itemId || '';
-      resetProgress();
+      resetValidation();
     }
   );
 
-  const resetProgress = () => {
-    form.fileName = '';
+  const resetValidation = () => {
+    uploadFile.value = null;
+    parsedRows.value = [];
     validated.value = false;
-    successCount.value = 0;
-    errorCount.value = 0;
+    Object.assign(summary, {
+      totalCount: 0,
+      successCount: 0,
+      errorCount: 0,
+      errors: [],
+      validRows: []
+    });
   };
 
   const handleMatchChange = () => {
     form.itemId = '';
-    resetProgress();
+    resetValidation();
   };
 
-  const handleFileChange = (file) => {
-    form.fileName = file?.name || '';
+  const handleFileChange = (upload) => {
+    uploadFile.value = upload?.raw || null;
     validated.value = false;
-    successCount.value = 0;
-    errorCount.value = 0;
+    parsedRows.value = [];
+    Object.assign(summary, {
+      totalCount: 0,
+      successCount: 0,
+      errorCount: 0,
+      errors: [],
+      validRows: []
+    });
   };
 
-  const downloadTemplate = () => {
-    if (!form.itemId) {
+  const handleFileRemove = () => {
+    uploadFile.value = null;
+    validated.value = false;
+    parsedRows.value = [];
+    Object.assign(summary, {
+      totalCount: 0,
+      successCount: 0,
+      errorCount: 0,
+      errors: [],
+      validRows: []
+    });
+  };
+
+  const handleDownloadTemplate = async () => {
+    if (!selectedItem.value?.matchForm) {
       EleMessage.error({ message: '请先选择比赛和设项', plain: true });
       return;
     }
-    EleMessage.success({ message: `${selectedItem.value?.matchForm || ''}报名模板已下载。`, plain: true });
+    try {
+      const fileName = await downloadImportTemplate(selectedItem.value.matchForm);
+      EleMessage.success({ message: `${fileName} 已开始下载。`, plain: true });
+    } catch (error) {
+      EleMessage.error({ message: error?.message || '模板下载失败', plain: true });
+    }
   };
 
-  const validateData = () => {
+  const handleValidate = async () => {
     if (!form.matchId || !form.itemId) {
       EleMessage.error({ message: '请选择比赛和设项', plain: true });
       return;
     }
-    if (!form.fileName) {
+    if (!uploadFile.value) {
       EleMessage.error({ message: '请先上传 Excel 文件', plain: true });
       return;
     }
-    // 原型：模拟校验结果
-    successCount.value = 18;
-    errorCount.value = 2;
-    validated.value = true;
-    EleMessage.info({ message: '数据校验完成，请查看校验结果。', plain: true });
+    try {
+      parsedRows.value = await parseImportFile(uploadFile.value, selectedItem.value.matchForm);
+      const result = validateImportRows(
+        parsedRows.value,
+        selectedItem.value.matchForm,
+        form.matchId,
+        form.itemId
+      );
+      Object.assign(summary, result);
+      validated.value = true;
+      EleMessage.info({ message: '数据校验完成，请查看校验结果。', plain: true });
+    } catch (error) {
+      validated.value = true;
+      Object.assign(summary, {
+        totalCount: 0,
+        successCount: 0,
+        errorCount: 1,
+        errors: [{ rowNo: 0, fieldName: '-', reason: error?.message || '文件解析失败' }],
+        validRows: []
+      });
+      EleMessage.error({ message: error?.message || '文件解析失败', plain: true });
+    }
   };
 
-  const downloadErrorData = () => {
-    EleMessage.success({ message: `已下载 ${errorCount.value} 条错误数据，请修正后重新上传。`, plain: true });
-  };
-
-  const confirmImport = () => {
-    if (!validated.value || !successCount.value) {
-      EleMessage.error({ message: '请先完成数据校验', plain: true });
+  const handleConfirmImport = () => {
+    if (!canConfirm.value) {
+      EleMessage.error({ message: '请先完成数据校验并确保全部通过', plain: true });
       return;
     }
+    const count = confirmImportRows(
+      summary.validRows,
+      selectedItem.value.matchForm,
+      form.matchId,
+      form.itemId
+    );
+    appendImportLog({
+      itemName: selectedItem.value.itemName,
+      importType: selectedItem.value.matchForm === '团体' ? '团体报名' : '个人报名',
+      totalCount: summary.totalCount,
+      successCount: count,
+      errorCount: 0
+    });
     emit('update:visible', false);
     emit('done');
-    EleMessage.success({ message: `导入完成，${successCount.value} 条数据已写入参赛名单。`, plain: true });
+    EleMessage.success({ message: `导入完成，${count} 条数据已写入参赛名单。`, plain: true });
   };
 </script>
 
@@ -238,17 +340,47 @@
   .import-steps {
     margin-bottom: 16px;
   }
-  .readonly-text {
+
+  .readonly-text,
+  .field-tip {
     font-size: 13px;
     color: var(--el-text-color-secondary);
   }
-  .template-tag {
-    margin-right: 6px;
-    margin-bottom: 6px;
+
+  .field-tip {
+    margin-left: 12px;
   }
+
   .upload-placeholder {
     padding: 20px 0;
     font-size: 13px;
     color: var(--el-text-color-secondary);
+  }
+
+  .validate-summary {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--el-text-color-regular);
+  }
+
+  .validate-summary .danger {
+    color: var(--el-color-danger);
+  }
+
+  .validate-alert {
+    margin-bottom: 12px;
+  }
+
+  .error-table-wrap {
+    margin-top: 8px;
+  }
+
+  .error-table-title {
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-primary);
   }
 </style>

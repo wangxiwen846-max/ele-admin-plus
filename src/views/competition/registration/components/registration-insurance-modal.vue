@@ -48,9 +48,15 @@
 
     <el-table :data="detail.students" border size="small" max-height="420">
       <el-table-column prop="studentName" label="学生姓名" width="100" fixed="left" />
-      <el-table-column prop="idNo" label="证件号" min-width="160" show-overflow-tooltip />
       <el-table-column prop="school" label="学校" min-width="130" show-overflow-tooltip />
-      <el-table-column prop="gradeClass" label="年级班级" width="120" />
+      <template v-if="isDailyView">
+        <el-table-column prop="grade" label="年级" width="100" align="center" />
+        <el-table-column prop="className" label="班级" width="100" align="center" />
+      </template>
+      <template v-else>
+        <el-table-column prop="idNo" label="证件号" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="gradeClass" label="年级班级" width="120" />
+      </template>
       <el-table-column prop="insuranceType" label="保险类型" width="120" align="center" />
       <el-table-column prop="insurancePlan" label="保险方案" min-width="160" show-overflow-tooltip />
       <el-table-column prop="insuranceMethod" label="保险方式" width="100" align="center" />
@@ -83,6 +89,10 @@
   });
 
   const emit = defineEmits(['update:visible']);
+
+  const isDailyView = computed(
+    () => props.context?.scope === 'daily' || props.context?.fromDaily === true
+  );
 
   const detail = computed(() => {
     if (!props.visible || !props.context?.matchId) {

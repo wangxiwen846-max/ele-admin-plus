@@ -31,7 +31,6 @@
         <div class="block-title-row">
           <div class="block-title">学生积分汇总</div>
           <div>
-            <el-button size="small" @click="openInsurance({ scope: 'daily' })">查看保险</el-button>
             <el-button size="small" @click="exportRecord">导出记录</el-button>
           </div>
         </div>
@@ -41,8 +40,37 @@
             <el-input v-model.trim="filters.name" clearable placeholder="模糊搜索" style="width: 130px" />
           </el-form-item>
           <el-form-item label="学校">
-            <el-select v-model="filters.school" clearable placeholder="全部" style="width: 140px">
+            <el-select
+              v-model="filters.school"
+              clearable
+              placeholder="全部"
+              style="width: 140px"
+              @change="handleSchoolChange"
+            >
               <el-option v-for="item in schoolOptions" :key="item" :label="item" :value="item" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="年级">
+            <el-select
+              v-model="filters.grade"
+              clearable
+              placeholder="全部"
+              style="width: 120px"
+              :disabled="!filters.school"
+              @change="handleGradeChange"
+            >
+              <el-option v-for="item in gradeOptions" :key="item" :label="item" :value="item" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="班级">
+            <el-select
+              v-model="filters.className"
+              clearable
+              placeholder="全部"
+              style="width: 120px"
+              :disabled="!filters.school || !filters.grade"
+            >
+              <el-option v-for="item in classOptions" :key="item" :label="item" :value="item" />
             </el-select>
           </el-form-item>
           <el-form-item label="积分来源">
@@ -76,7 +104,7 @@
               <template #default="{ row }">
                 <el-link type="primary" underline="never" @click="viewPointDetail(row)">查看积分明细</el-link>
                 <el-divider direction="vertical" />
-                <el-link type="primary" underline="never" @click="openInsurance({ scope: 'student', student: row })">
+                <el-link type="primary" underline="never" @click="openInsurance({ scope: 'student', student: row, fromDaily: true })">
                   查看保险
                 </el-link>
               </template>
@@ -117,8 +145,10 @@
   import ContentModal from './content-modal.vue';
   import {
     DAILY_POINT_SOURCES,
+    getDailyRecordClassOptions,
     getDailyRecordDetail,
-    getStudentSchoolOptions
+    getDailyRecordGradeOptions,
+    getDailyRecordSchoolOptions
   } from '../data.js';
 
   const props = defineProps({
@@ -132,8 +162,13 @@
   const view = ref('summary');
   const currentStudent = ref(null);
   const statusOptions = ['待参保', '部分参保', '已参保', '异常'];
-  const schoolOptions = getStudentSchoolOptions();
-  const filters = reactive({ name: '', school: '', source: '', insuranceStatus: '' });
+  const filters = reactive({ name: '', school: '', grade: '', className: '', source: '', insuranceStatus: '' });
+
+  const schoolOptions = computed(() => getDailyRecordSchoolOptions(props.matchId));
+  const gradeOptions = computed(() => getDailyRecordGradeOptions(props.matchId, filters.school));
+  const classOptions = computed(() =>
+    getDailyRecordClassOptions(props.matchId, filters.school, filters.grade)
+  );
 
   const modalTitle = computed(() =>
     detail.value?.matchName ? `参与记录 - ${detail.value.matchName}` : '每日积分赛参与记录'
@@ -160,6 +195,12 @@
     if (filters.school) {
       list = list.filter((row) => row.school === filters.school);
     }
+    if (filters.grade) {
+      list = list.filter((row) => row.grade === filters.grade);
+    }
+    if (filters.className) {
+      list = list.filter((row) => row.className === filters.className);
+    }
     if (filters.insuranceStatus) {
       list = list.filter((row) => row.insuranceStatus === filters.insuranceStatus);
     }
@@ -175,11 +216,27 @@
       if (value && props.matchId) {
         view.value = 'summary';
         currentStudent.value = null;
-        Object.assign(filters, { name: '', school: '', source: '', insuranceStatus: '' });
+        Object.assign(filters, {
+          name: '',
+          school: '',
+          grade: '',
+          className: '',
+          source: '',
+          insuranceStatus: ''
+        });
         detail.value = getDailyRecordDetail(props.matchId);
       }
     }
   );
+
+  const handleSchoolChange = () => {
+    filters.grade = '';
+    filters.className = '';
+  };
+
+  const handleGradeChange = () => {
+    filters.className = '';
+  };
 
   const statusTag = (status) => {
     const map = { 已参保: 'success', 部分参保: 'warning', 待参保: 'info', 异常: 'danger' };

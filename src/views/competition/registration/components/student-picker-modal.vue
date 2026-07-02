@@ -3,7 +3,7 @@
   <el-dialog
     :model-value="visible"
     title="选择学生"
-    width="820px"
+    width="860px"
     append-to-body
     destroy-on-close
     @update:model-value="emit('update:visible', $event)"
@@ -17,6 +17,11 @@
       <el-form-item label="年级">
         <el-select v-model="filters.grade" clearable placeholder="全部" style="width: 120px">
           <el-option v-for="item in gradeOptions" :key="item" :label="item" :value="item" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="班级">
+        <el-select v-model="filters.className" clearable placeholder="全部" style="width: 120px">
+          <el-option v-for="item in classOptions" :key="item" :label="item" :value="item" />
         </el-select>
       </el-form-item>
       <el-form-item label="姓名">
@@ -60,9 +65,13 @@
 
   const tableRef = ref(null);
   const selection = ref([]);
-  const filters = reactive({ school: '', grade: '', name: '' });
+  const filters = reactive({ school: '', grade: '', className: '', name: '' });
   const schoolOptions = getStudentSchoolOptions();
   const gradeOptions = getStudentGradeOptions();
+  const classOptions = computed(() => {
+    const list = getStudentOptions({ school: filters.school, grade: filters.grade });
+    return [...new Set(list.map((item) => item.className))];
+  });
 
   const rows = computed(() => getStudentOptions(filters));
 
@@ -77,7 +86,7 @@
     (value) => {
       if (value) {
         selection.value = [];
-        Object.assign(filters, { school: '', grade: '', name: '' });
+        Object.assign(filters, { school: '', grade: '', className: '', name: '' });
       }
     }
   );

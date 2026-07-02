@@ -26,14 +26,14 @@ export const INSURANCE_METHOD_OPTIONS = ['统一购买', '自行购买'];
 export const DAILY_POINT_SOURCES = ['体育课', '大课间', '体育作业', '校外培训', '赛事', 'AI运动', '设备采集'];
 
 export const STUDENT_OPTIONS = [
-  { studentId: 'stu_001', name: '王小明', gender: '男', idNo: '110101********1234', school: '第一实验小学', grade: '五年级', className: '3 班', gradeClass: '五年级 3 班', phone: '138****1234' },
-  { studentId: 'stu_002', name: '李思雨', gender: '女', idNo: '110101********2356', school: '第一实验小学', grade: '五年级', className: '3 班', gradeClass: '五年级 3 班', phone: '138****2356' },
-  { studentId: 'stu_003', name: '赵一诺', gender: '女', idNo: '110101********7788', school: '第二实验小学', grade: '四年级', className: '1 班', gradeClass: '四年级 1 班', phone: '138****7788' },
-  { studentId: 'stu_004', name: '陈子涵', gender: '男', idNo: '110101********8899', school: '第二实验小学', grade: '四年级', className: '2 班', gradeClass: '四年级 2 班', phone: '138****8899' },
-  { studentId: 'stu_005', name: '周可欣', gender: '女', idNo: '110101********6677', school: '第三实验小学', grade: '六年级', className: '1 班', gradeClass: '六年级 1 班', phone: '138****6677' },
-  { studentId: 'stu_006', name: '孙浩然', gender: '男', idNo: '110101********3311', school: '第一实验小学', grade: '五年级', className: '1 班', gradeClass: '五年级 1 班', phone: '138****3311' },
-  { studentId: 'stu_007', name: '吴雅静', gender: '女', idNo: '110101********4422', school: '第三实验小学', grade: '六年级', className: '1 班', gradeClass: '六年级 1 班', phone: '138****4422' },
-  { studentId: 'stu_008', name: '郑明轩', gender: '男', idNo: '110101********5533', school: '第二实验小学', grade: '四年级', className: '1 班', gradeClass: '四年级 1 班', phone: '138****5533' }
+  { studentId: 'stu_001', studentNo: '20250001', name: '王小明', gender: '男', idNo: '110101********1234', school: '第一实验小学', grade: '五年级', className: '3 班', gradeClass: '五年级 3 班', phone: '138****1234' },
+  { studentId: 'stu_002', studentNo: '20250002', name: '李思雨', gender: '女', idNo: '110101********2356', school: '第一实验小学', grade: '五年级', className: '3 班', gradeClass: '五年级 3 班', phone: '138****2356' },
+  { studentId: 'stu_003', studentNo: '20250003', name: '赵一诺', gender: '女', idNo: '110101********7788', school: '第二实验小学', grade: '四年级', className: '1 班', gradeClass: '四年级 1 班', phone: '138****7788' },
+  { studentId: 'stu_004', studentNo: '20250004', name: '陈子涵', gender: '男', idNo: '110101********8899', school: '第二实验小学', grade: '四年级', className: '2 班', gradeClass: '四年级 2 班', phone: '138****8899' },
+  { studentId: 'stu_005', studentNo: '20250005', name: '周可欣', gender: '女', idNo: '110101********6677', school: '第三实验小学', grade: '六年级', className: '1 班', gradeClass: '六年级 1 班', phone: '138****6677' },
+  { studentId: 'stu_006', studentNo: '20250006', name: '孙浩然', gender: '男', idNo: '110101********3311', school: '第一实验小学', grade: '五年级', className: '1 班', gradeClass: '五年级 1 班', phone: '138****3311' },
+  { studentId: 'stu_007', studentNo: '20250007', name: '吴雅静', gender: '女', idNo: '110101********4422', school: '第三实验小学', grade: '六年级', className: '1 班', gradeClass: '六年级 1 班', phone: '138****4422' },
+  { studentId: 'stu_008', studentNo: '20250008', name: '郑明轩', gender: '男', idNo: '110101********5533', school: '第二实验小学', grade: '四年级', className: '1 班', gradeClass: '四年级 1 班', phone: '138****5533' }
 ];
 
 export function getStudentOptions(filters = {}) {
@@ -348,6 +348,20 @@ export function isStudentRegistered(matchId, itemId, studentId) {
   );
 }
 
+/** 学生是否已在该比赛设项报名（含个人与团体成员） */
+export function isStudentRegisteredInItem(matchId, itemId, studentId) {
+  seedEntries();
+  if (isStudentRegistered(matchId, itemId, studentId)) {
+    return true;
+  }
+  return registrationStore.teamEntries.some(
+    (team) =>
+      team.matchId === matchId &&
+      String(team.itemId) === String(itemId) &&
+      team.members.some((member) => member.studentId === studentId)
+  );
+}
+
 /**
  * 批量为个人设项报名，返回 { added, duplicated }
  */
@@ -599,12 +613,16 @@ function resolveRelationScope(match, insuranceType) {
 }
 
 function buildInsuranceStudentRow(match, participant, insuranceType, planName, method) {
+  const grade = participant.grade || '-';
+  const className = participant.className || '-';
   return {
     studentId: participant.studentId,
     studentName: participant.studentName || participant.name,
     idNo: participant.idNo,
     school: participant.school,
-    gradeClass: participant.gradeClass,
+    grade,
+    className,
+    gradeClass: participant.gradeClass || (grade !== '-' && className !== '-' ? `${grade} ${className}` : '-'),
     insuranceType,
     insurancePlan: planName,
     insuranceMethod: method,
@@ -676,12 +694,71 @@ export function getInsuranceDetail(context = {}) {
     const itemTeams = teams.filter((e) => String(e.itemId) === String(context.itemId));
     participants = [...itemPersonal, ...itemTeams.flatMap((t) => t.members)];
     title = '保险详情 - 设项';
+  } else if (context.scope === 'daily' || (isDailyMatch(match) && context.scope === 'match')) {
+    const dailyDetail = getDailyRecordDetail(match.matchId);
+    participants = dailyDetail?.students || [];
+    title = `保险详情 - ${match.matchName}`;
   } else {
     participants = [...personal, ...teams.flatMap((t) => t.members)];
     title = `保险详情 - ${match.matchName}`;
   }
-  const dedupe = context.scope === 'match' || context.scope === 'daily' || !context.scope;
+  const dedupe =
+    context.scope === 'match' ||
+    context.scope === 'daily' ||
+    (isDailyMatch(match) && context.scope === 'match') ||
+    !context.scope;
   return { title, ...summarizeInsuranceDetail(match, participants, { dedupe }) };
+}
+
+/** 每日积分赛参与记录 - 数据权限范围（原型 Mock） */
+export const DAILY_RECORD_ACCOUNT_SCOPE = {
+  type: 'education',
+  school: '第一实验小学',
+  grade: '五年级',
+  classNames: ['3 班', '1 班']
+};
+
+function getDailyParticipatingStudents(matchId) {
+  const detail = getDailyRecordDetail(matchId);
+  return detail?.students || [];
+}
+
+export function getDailyRecordSchoolOptions(matchId) {
+  const scope = DAILY_RECORD_ACCOUNT_SCOPE;
+  let schools = [...new Set(getDailyParticipatingStudents(matchId).map((item) => item.school))];
+  if (scope.type === 'school' || scope.type === 'teacher') {
+    schools = schools.filter((item) => item === scope.school);
+  }
+  return schools;
+}
+
+export function getDailyRecordGradeOptions(matchId, school = '') {
+  const scope = DAILY_RECORD_ACCOUNT_SCOPE;
+  let students = getDailyParticipatingStudents(matchId);
+  if (school) {
+    students = students.filter((item) => item.school === school);
+  }
+  let grades = [...new Set(students.map((item) => item.grade))];
+  if (scope.type === 'teacher' && (!school || school === scope.school)) {
+    grades = grades.filter((item) => item === scope.grade);
+  }
+  return grades;
+}
+
+export function getDailyRecordClassOptions(matchId, school = '', grade = '') {
+  const scope = DAILY_RECORD_ACCOUNT_SCOPE;
+  let students = getDailyParticipatingStudents(matchId);
+  if (school) {
+    students = students.filter((item) => item.school === school);
+  }
+  if (grade) {
+    students = students.filter((item) => item.grade === grade);
+  }
+  let classes = [...new Set(students.map((item) => item.className))];
+  if (scope.type === 'teacher' && (!school || school === scope.school) && (!grade || grade === scope.grade)) {
+    classes = classes.filter((item) => scope.classNames.includes(item));
+  }
+  return classes;
 }
 
 /* ---------------- 每日积分赛参与记录 ---------------- */
@@ -717,6 +794,8 @@ export function getDailyRecordDetail(matchId) {
       studentId: student.studentId,
       studentName: student.name,
       school: student.school,
+      grade: student.grade,
+      className: student.className,
       gradeClass: student.gradeClass,
       idNo: student.idNo,
       totalPoints: total,
@@ -753,24 +832,23 @@ export function getDailyRecordDetail(matchId) {
 }
 
 export const PERSONAL_IMPORT_FIELDS = [
-  '学生姓名',
-  '证件号',
   '学校',
   '年级',
   '班级',
+  '学生姓名',
+  '学号',
   '性别',
   '联系电话',
   '备注'
 ];
 
 export const TEAM_IMPORT_FIELDS = [
-  '团队名称',
-  '所属学校',
-  '学生姓名',
-  '证件号',
-  '性别',
+  '学校',
   '年级',
   '班级',
+  '团队名称',
+  '成员姓名',
+  '成员学号',
   '联系电话',
   '备注'
 ];

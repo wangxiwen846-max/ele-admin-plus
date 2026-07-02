@@ -32,14 +32,7 @@
           </div>
         </div>
 
-        <div class="block-title-row">
-          <div class="block-title">设项报名统计</div>
-          <div>
-            <el-button size="small" :icon="PlusOutlined" @click="openAdd()">新增报名</el-button>
-            <el-button size="small" @click="openImport()">导入名单</el-button>
-            <el-button size="small" @click="openInsurance({ scope: 'match' })">查看保险</el-button>
-          </div>
-        </div>
+        <div class="block-title">设项报名统计</div>
         <div class="table-wrap">
           <el-table :data="detail.itemStats" border size="small">
             <el-table-column prop="itemName" label="设项名称" min-width="120" fixed="left" />
@@ -69,12 +62,8 @@
               </template>
             </el-table-column>
             <el-table-column prop="scoreStatus" label="成绩状态" width="90" align="center" />
-            <el-table-column label="操作" width="240" align="center" fixed="right">
+            <el-table-column label="操作" width="160" align="center" fixed="right">
               <template #default="{ row }">
-                <el-link type="primary" underline="never" @click="openAdd(row)">新增报名</el-link>
-                <el-divider direction="vertical" />
-                <el-link type="primary" underline="never" @click="openImport(row)">导入名单</el-link>
-                <el-divider direction="vertical" />
                 <el-link type="primary" underline="never" @click="openRoster(row)">查看名单</el-link>
                 <el-divider direction="vertical" />
                 <el-link type="primary" underline="never" @click="openInsurance({ scope: 'item', itemId: row.itemId })">
@@ -220,18 +209,6 @@
       </el-descriptions>
     </el-dialog>
 
-    <registration-add-modal
-      v-model:visible="addVisible"
-      :match-id="matchId"
-      :item-id="addItemId"
-      @done="reloadDetail"
-    />
-    <registration-import-modal
-      v-model:visible="importVisible"
-      :match-id="matchId"
-      :item-id="importItemId"
-      @done="reloadDetail"
-    />
     <student-picker-modal
       v-model:visible="editMemberVisible"
       :exclude-ids="[]"
@@ -244,10 +221,7 @@
   import { computed, ref, watch } from 'vue';
   import { EleMessage } from 'ele-admin-plus';
   import { ElMessageBox } from 'element-plus';
-  import { PlusOutlined } from '@/components/icons';
   import ContentModal from './content-modal.vue';
-  import RegistrationAddModal from './registration-add-modal.vue';
-  import RegistrationImportModal from './registration-import-modal.vue';
   import StudentPickerModal from './student-picker-modal.vue';
   import {
     getPersonalEntriesByItem,
@@ -272,10 +246,6 @@
   const currentTeam = ref(null);
   const currentStudent = ref(null);
   const studentVisible = ref(false);
-  const addVisible = ref(false);
-  const importVisible = ref(false);
-  const addItemId = ref('');
-  const importItemId = ref('');
   const editMemberVisible = ref(false);
   const editingTeamId = ref('');
   const rosterVersion = ref(0);
@@ -355,16 +325,6 @@
   const backToMain = () => {
     view.value = 'main';
     currentItem.value = null;
-  };
-
-  const openAdd = (row) => {
-    addItemId.value = row?.itemId || currentItem.value?.itemId || '';
-    addVisible.value = true;
-  };
-
-  const openImport = (row) => {
-    importItemId.value = row?.itemId || currentItem.value?.itemId || '';
-    importVisible.value = true;
   };
 
   const openRoster = (row) => {
