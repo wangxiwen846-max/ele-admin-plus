@@ -36,12 +36,19 @@ import {
   validateScopeConfig,
   validateScopeWithinParent
 } from '@/views/competition/activity/scope-utils.js';
+import {
+  findSemesterPlanByDate,
+  findInsurancePlan,
+  getInsuranceTypeByMatchType,
+  getInsurancePlanOptions,
+  isPlanCoveringDate
+} from '@/views/competition/insurance/data.js';
 
 export { getStatusTagType, clone };
 
 export const MATCH_TYPE_DAILY = '每日积分赛';
 export const MATCH_TYPE_CAMPUS = '校内赛';
-export const MATCH_TYPE_REGION = '区域赛';
+export const MATCH_TYPE_REGION = '区域晋级赛';
 export const MATCH_TYPE_FINAL = '全国总决赛';
 export const MATCH_TYPE_CLASS_TYPES = [
   MATCH_TYPE_CAMPUS,
@@ -74,7 +81,7 @@ export function getMatchTypeStageHint(stageName = '') {
     return '全国总决赛赛段仅支持发布全国总决赛类型比赛。';
   }
   if (stageName === STAGE_CAMPUS_NAME) {
-    return '校园行赛段支持校园赛（每日积分赛、班班赛）和区域赛。';
+    return '校园行赛段支持校园赛（每日积分赛、班班赛）和区域晋级赛。';
   }
   return '';
 }
@@ -83,7 +90,7 @@ export function normalizeMatchType(type = '', stageName = '') {
   if (!type) {
     return '';
   }
-  if (type === '区域晋级赛') {
+  if (type === '区域赛' || type === '区域晋级赛') {
     return MATCH_TYPE_REGION;
   }
   if (
@@ -412,8 +419,8 @@ export function formatMatchRegistrationSummary(match) {
   const config = normalizeMatchRegistration(match?.matchRegistration ?? {});
   const methods = formatRegistrationMethods(config.methods);
   const limit = config.limitEnabled
-    ? `数量上限 ${config.limitCount}${config.limitRemark ? `（${config.limitRemark}）` : ''}`
-    : '不限制数量';
+    ? `数量上限 ${config.limitCount ?? '-'}${config.limitRemark ? `；${config.limitRemark}` : ''}`
+    : '不限制报名数量';
   return `${methods}；${limit}`;
 }
 
@@ -1832,23 +1839,21 @@ function validateClassMatch(form) {
     });
   });
 
-  const registration = normalizeMatchRegistration(form.matchRegistration ?? {});
-  if (!normalizeRegistrationMethods(registration.methods).length) {
-    errors.push('请至少选择一种报名方式');
-  }
-  if (registration.limitEnabled) {
-    if (
-      registration.limitCount == null ||
-      registration.limitCount <= 0 ||
-      !Number.isInteger(Number(registration.limitCount))
-    ) {
-      errors.push('请填写有效的报名数量上限');
-    }
-  }
-
   const insurance = form.matchInsurance ?? createDefaultInsuranceSetting();
-  if (insurance.required && !insurance.method) {
-    errors.push('请选择保险方式');
+  const insuranceType = insurance.insuranceType || getInsuranceTypeByMatchType(form.matchType);
+  if (!insurance.planId) {
+    errors.push('请选择保险方案');
+  }
+  if (insurance.planId && !getInsurancePlanOptions(insuranceType).some((plan) => plan.planId === insurance.planId)) {
+    errors.push('保险方案与保险类型不匹配');
+  }
+  if (insuranceType === '学期保险') {
+    const plan = insurance.planId ? findInsurancePlan(insurance.planId) : null;
+    if (!findSemesterPlanByDate(form.startTime)) {
+      errors.push('当前比赛时间未匹配到有效学期保险方案，请先维护按学期收费的保险方案。');
+    } else if (plan && !isPlanCoveringDate(plan, form.startTime)) {
+      errors.push('所选保险方案的保障周期未覆盖当前比赛时间。');
+    }
   }
 
   (form.itemIds ?? []).forEach((id) => {
@@ -1937,8 +1942,21 @@ function validateDailyMatch(form) {
   if (!pointsRules.dataCutoffTime?.trim()) {
     errors.push('请填写数据截止时间');
   }
-  if (form.dailyInsurance?.required && !form.dailyInsurance?.method) {
-    errors.push('请选择保险方式');
+  const insurance = form.dailyInsurance ?? createDefaultInsuranceSetting();
+  const insuranceType = insurance.insuranceType || getInsuranceTypeByMatchType(form.matchType);
+  if (!insurance.planId) {
+    errors.push('请选择保险方案');
+  }
+  if (insurance.planId && !getInsurancePlanOptions(insuranceType).some((plan) => plan.planId === insurance.planId)) {
+    errors.push('保险方案与保险类型不匹配');
+  }
+  if (insuranceType === '学期保险') {
+    const plan = insurance.planId ? findInsurancePlan(insurance.planId) : null;
+    if (!findSemesterPlanByDate(form.startTime)) {
+      errors.push('当前比赛时间未匹配到有效学期保险方案，请先维护按学期收费的保险方案。');
+    } else if (plan && !isPlanCoveringDate(plan, form.startTime)) {
+      errors.push('所选保险方案的保障周期未覆盖当前比赛时间。');
+    }
   }
   return errors;
 }

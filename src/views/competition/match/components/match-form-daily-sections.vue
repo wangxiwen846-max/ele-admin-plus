@@ -105,36 +105,11 @@
     <!-- 默认折叠 -->
     <el-collapse v-model="collapsedActive" class="daily-collapse">
       <el-collapse-item title="保险设置" name="insurance">
-        <el-row :gutter="16">
-          <el-col :sm="12" :xs="24">
-            <el-form-item label="是否需要保险">
-              <el-switch v-model="dailyInsurance.required" />
-            </el-form-item>
-          </el-col>
-          <el-col v-if="dailyInsurance.required" :sm="12" :xs="24">
-            <el-form-item label="保险方式">
-              <el-radio-group v-model="dailyInsurance.method">
-                <el-radio v-for="opt in INSURANCE_METHOD_OPTIONS" :key="opt" :value="opt">{{ opt }}</el-radio>
-              </el-radio-group>
-            </el-form-item>
-          </el-col>
-          <el-col v-if="dailyInsurance.required" :xs="24">
-            <el-form-item label="保险方案说明">
-              <el-input v-model="dailyInsurance.description" type="textarea" :rows="3" />
-            </el-form-item>
-          </el-col>
-          <el-col v-if="dailyInsurance.required" :xs="24">
-            <el-form-item label="保险附件">
-              <attachment-table
-                title="保险材料"
-                :list="dailyInsurance.attachments"
-                compact
-                @add="(f) => dailyInsurance.attachments.push(f)"
-                @remove="(r) => (dailyInsurance.attachments = dailyInsurance.attachments.filter((d) => d.id !== r.id))"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <match-insurance-field
+          v-model="dailyInsurance"
+          match-type="每日积分赛"
+          :start-time="matchStartTime"
+        />
       </el-collapse-item>
 
       <el-collapse-item title="附件" name="attachments">
@@ -276,6 +251,7 @@
   import { computed, ref, watch } from 'vue';
   import { EleMessage } from 'ele-admin-plus';
   import AttachmentTable from '@/views/event-item/components/attachment-table.vue';
+  import MatchInsuranceField from './match-insurance-field.vue';
   import {
     averageEnabledSourceWeights,
     clone,
@@ -286,7 +262,6 @@
     getSourceCaliberOptions,
     getSourceCollectMethodOptions,
     getSourceRoleOptions,
-    INSURANCE_METHOD_OPTIONS,
     normalizeDataSources,
     normalizePointsRules,
     restoreDefaultSourceWeights,
@@ -300,6 +275,10 @@
     attachments: {
       type: Array,
       default: () => []
+    },
+    matchStartTime: {
+      type: String,
+      default: ''
     }
   });
 

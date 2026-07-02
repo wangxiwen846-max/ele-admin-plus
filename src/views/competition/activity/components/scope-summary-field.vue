@@ -2,7 +2,7 @@
 <template>
   <div class="scope-summary-field">
     <div class="summary-row">
-      <span class="summary-label">活动覆盖范围：</span>
+      <span class="summary-label">参赛范围：</span>
       <span class="summary-text">{{ displayText }}</span>
       <el-button
         v-if="!fixedNational && !disabled"

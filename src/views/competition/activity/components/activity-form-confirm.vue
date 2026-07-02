@@ -34,7 +34,7 @@
     </div>
 
     <div class="confirm-block">
-      <div class="block-title">活动覆盖范围</div>
+      <div class="block-title">参赛范围</div>
       <div class="summary-text">{{ coverageSummary }}</div>
     </div>
 
@@ -44,6 +44,9 @@
         <el-table-column prop="stageName" label="赛段名称" min-width="120" />
         <el-table-column label="赛段时间" min-width="180">
           <template #default="{ row }">{{ formatStageDateRange(row) }}</template>
+        </el-table-column>
+        <el-table-column label="参赛范围" width="100" align="center">
+          <template #default>全国范围</template>
         </el-table-column>
         <el-table-column label="启用状态" width="90" align="center">
           <template #default="{ row }">{{ row.enabled ? '启用' : '禁用' }}</template>

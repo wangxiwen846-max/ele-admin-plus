@@ -1,6 +1,6 @@
 <!-- 比赛管理列表页 -->
 <template>
-  <ele-page>
+  <ele-page class="match-page">
     <match-search @search="handleSearch" />
     <ele-card :body-style="{ paddingBottom: '4px' }">
       <ele-pro-table
@@ -89,7 +89,12 @@
           <el-divider direction="vertical" />
           <el-link type="primary" underline="never" @click="copyMatch(row)">复制</el-link>
           <el-divider direction="vertical" />
-          <el-link type="primary" underline="never" @click="viewRegistration(row)">查看参赛名单</el-link>
+          <template v-if="isDailyMatch(row)">
+            <el-link type="primary" underline="never" @click="viewDailyRecord(row)">查看参与记录</el-link>
+          </template>
+          <template v-else>
+            <el-link type="primary" underline="never" @click="viewRegistration(row)">查看参赛名单</el-link>
+          </template>
         </template>
       </ele-pro-table>
     </ele-card>
@@ -108,6 +113,11 @@
       :match="participantMatch"
       @closed="participantVisible = false"
     />
+
+    <registration-roster-list-modal
+      v-model:visible="rosterVisible"
+      :match-id="rosterMatchId"
+    />
   </ele-page>
 </template>
 
@@ -120,6 +130,7 @@
   import MatchSearch from './components/match-search.vue';
   import MatchDetail from './components/match-detail.vue';
   import DailyParticipantListModal from './components/daily-participant-list-modal.vue';
+  import RegistrationRosterListModal from '@/views/competition/registration/components/registration-roster-list-modal.vue';
   import {
     copyMatchData,
     formatListDateTime,
@@ -148,6 +159,8 @@
   const detailMatchId = ref('');
   const participantVisible = ref(false);
   const participantMatch = ref(null);
+  const rosterVisible = ref(false);
+  const rosterMatchId = ref('');
 
   const columns = ref([
     {
@@ -179,7 +192,7 @@
     {
       columnKey: 'action',
       label: '操作',
-      width: 300,
+      width: 360,
       align: 'center',
       slot: 'action',
       fixed: 'right'
@@ -268,14 +281,16 @@
 
   const viewRegistration = (row) => {
     if (isDailyMatch(row)) {
-      participantMatch.value = row;
-      participantVisible.value = true;
+      viewDailyRecord(row);
       return;
     }
-    EleMessage.info({
-      message: `参赛名单模块开发中。当前比赛「${row.matchName}」报名概况：${formatRegistrationOverview(row)}`,
-      plain: true
-    });
+    rosterMatchId.value = row.matchId;
+    rosterVisible.value = true;
+  };
+
+  const viewDailyRecord = (row) => {
+    participantMatch.value = row;
+    participantVisible.value = true;
   };
 
   onMounted(() => {
@@ -295,6 +310,11 @@
 </script>
 
 <style scoped lang="scss">
+  .match-page {
+    position: relative;
+    min-height: calc(100vh - 160px);
+  }
+
   .match-name-link {
     display: -webkit-box;
     -webkit-box-orient: vertical;

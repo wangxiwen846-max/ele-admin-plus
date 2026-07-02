@@ -213,7 +213,11 @@
         <div class="section-title">保险设置</div>
       </div>
       <div class="section-body">
-        <match-insurance-field v-model="form.matchInsurance" />
+        <match-insurance-field
+          v-model="form.matchInsurance"
+          :match-type="form.matchType"
+          :start-time="form.startTime"
+        />
       </div>
     </div>
 
@@ -310,6 +314,7 @@
           v-model:data-sources="form.dataSources"
           v-model:points-rules="form.pointsRules"
           v-model:daily-insurance="form.dailyInsurance"
+          :match-start-time="form.startTime"
           :attachments="form.attachments"
           @update:attachments="(val) => (form.attachments = val)"
         />
@@ -372,7 +377,7 @@
   } from '../data.js';
 
   const MATCH_PHASE_CAMPUS = '校园赛';
-  const MATCH_PHASE_REGION = '区域赛';
+  const MATCH_PHASE_REGION = '区域晋级赛';
   const MATCH_PHASE_FINAL = '全国总决赛';
 
   const props = defineProps({

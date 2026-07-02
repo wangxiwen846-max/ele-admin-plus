@@ -157,26 +157,10 @@
       </div>
 
       <div class="detail-block">
-        <div class="block-title">活动覆盖范围</div>
-        <div class="coverage-summary">
-          <div class="coverage-summary-main">
-            覆盖范围：{{ formatScopeDisplaySummary(data.coverage) }}
-          </div>
-          <el-table
-            v-if="coverageDetailRows.length"
-            :data="coverageDetailRows"
-            border
-            size="small"
-            class="coverage-detail-table"
-          >
-            <el-table-column prop="level" label="范围层级" width="120" />
-            <el-table-column prop="content" label="内容" min-width="280">
-              <template #default="{ row }">
-                <detail-text-cell :text="row.content" :max-length="80" />
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
+        <div class="block-title">参赛范围</div>
+        <el-descriptions :column="1" size="small" class="desc-plain">
+          <el-descriptions-item label="参赛范围">全国范围</el-descriptions-item>
+        </el-descriptions>
       </div>
 
       <div class="detail-block">
@@ -185,18 +169,8 @@
           <el-table-column prop="stageName" label="赛段名称" min-width="120" />
           <el-table-column prop="startTime" label="比赛开始日期" width="120" />
           <el-table-column prop="endTime" label="比赛结束日期" width="120" />
-          <el-table-column label="参赛范围" min-width="160">
-            <template #default="{ row }">
-              <detail-text-cell
-                :text="
-                  formatScopeDisplaySummary(row.scope, {
-                    isStage: true,
-                    parentScope: data.coverage
-                  })
-                "
-                :max-length="28"
-              />
-            </template>
+          <el-table-column label="参赛范围" min-width="120" align="center">
+            <template #default>全国范围</template>
           </el-table-column>
           <el-table-column label="参赛门槛" min-width="120">
             <template #default="{ row }">
@@ -350,13 +324,11 @@
     enrichMatchesWithStatus,
     findActivity,
     formatActivityTime,
-    formatScopeDisplaySummary,
     formatUnits,
     getActivityLinkedItems,
     getActivityStatus,
     getEditMode,
     getMatchStats,
-    getScopeEffectiveDetailRows,
     getStatusTagType
   } from '../data.js';
 
@@ -375,9 +347,6 @@
   const matchStats = computed(() => getMatchStats(data.value?.matches ?? [], data.value));
   const linkedItems = computed(() => getActivityLinkedItems(data.value?.itemIds ?? []));
   const canEdit = computed(() => data.value && getEditMode(data.value) !== 'readonly');
-  const coverageDetailRows = computed(() =>
-    getScopeEffectiveDetailRows(data.value?.coverage ?? {}, { labelPrefix: '覆盖' })
-  );
   const displayMatches = computed(() => enrichedMatches.value.slice(0, 5));
   const hasMoreMatches = computed(() => enrichedMatches.value.length > 5);
 

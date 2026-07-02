@@ -52,11 +52,6 @@
     </div>
 
     <div v-if="isClass" class="confirm-block">
-      <div class="block-title">报名设置</div>
-      <div class="summary-text">{{ registrationSummary }}</div>
-    </div>
-
-    <div v-if="isClass" class="confirm-block">
       <div class="block-title">保险设置</div>
       <div class="summary-text">{{ insuranceSummary }}</div>
     </div>
@@ -118,7 +113,6 @@
   import { findActivity } from '@/views/competition/activity/data.js';
   import {
     formatMatchInsuranceSummary,
-    formatMatchRegistrationSummary,
     formatMatchScopeSummary,
     formatWeightTotalHint,
     getMatchLinkedItems,
@@ -164,7 +158,6 @@
     formatMatchScopeSummary(props.form, activity.value, stage.value)
   );
 
-  const registrationSummary = computed(() => formatMatchRegistrationSummary(props.form));
   const insuranceSummary = computed(() => formatMatchInsuranceSummary(props.form));
 
   const classItems = computed(() => {

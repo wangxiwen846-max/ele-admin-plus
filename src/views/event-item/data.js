@@ -2,6 +2,7 @@
  * 设项管理 - 前端原型本地 Mock 数据
  */
 import { reactive } from 'vue';
+import { getInsurancePlanName } from '@/views/competition/insurance/data.js';
 
 export const SOURCE_OPTIONS = ['标准设项', '自定义设项'];
 export const MATCH_FORM_OPTIONS = ['个人', '团体'];
@@ -769,6 +770,8 @@ export function createDefaultInsuranceSetting(partial = {}) {
   return {
     required: true,
     method: '统一购买',
+    insuranceType: '',
+    planId: '',
     description: '',
     attachments: [],
     ...partial
@@ -804,6 +807,11 @@ export function cloneInsuranceFromItem(item) {
 export function formatInsuranceSettingSummary(setting) {
   if (!setting?.required) {
     return '无需保险';
+  }
+  if (setting?.insuranceType || setting?.planId) {
+    const typeText = setting.insuranceType || setting.method || '保险';
+    const planText = setting.planId ? getInsurancePlanName(setting.planId) : '未选择保险方案';
+    return `${typeText}；${planText}`;
   }
   return `${setting.method || '统一购买'}${setting.description ? `；${setting.description}` : ''}`;
 }

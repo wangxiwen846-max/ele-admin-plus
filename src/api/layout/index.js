@@ -158,6 +158,45 @@ const FITNESS_AUTHORITIES = [
     path: '/competition/match/detail/:id',
     component: '/competition/match/detail',
     authority: 'competition:match:detail'
+  },
+  {
+    menuId: 409,
+    parentId: 400,
+    menuType: 0,
+    title: '参赛名单',
+    icon: 'TeamOutlined',
+    path: '/competition/registration',
+    component: '/competition/registration',
+    authority: 'competition:registration'
+  },
+  {
+    menuId: 410,
+    parentId: 400,
+    menuType: 0,
+    title: '保险管理',
+    icon: 'SafetyCertificateOutlined',
+    path: '/competition/insurance',
+    authority: 'competition:insurance'
+  },
+  {
+    menuId: 411,
+    parentId: 410,
+    menuType: 0,
+    title: '保险方案管理',
+    icon: 'SolutionOutlined',
+    path: '/competition/insurance/plan',
+    component: '/competition/insurance/plan',
+    authority: 'competition:insurance:plan'
+  },
+  {
+    menuId: 413,
+    parentId: 410,
+    menuType: 0,
+    title: '参保记录',
+    icon: 'ProfileOutlined',
+    path: '/competition/insurance/record',
+    component: '/competition/insurance/record',
+    authority: 'competition:insurance:record'
   }
 ];
 

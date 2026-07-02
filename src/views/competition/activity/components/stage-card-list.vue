@@ -30,16 +30,14 @@
             <span class="summary-label">赛段时间：</span>
             <span>{{ formatStageDateRange(stage) }}</span>
           </div>
-          <template v-if="!simplified">
-            <div class="summary-row">
-              <span class="summary-label">参赛范围：</span>
-              <span>{{ formatScopeDisplaySummary(stage.scope, { isStage: true, parentScope }) }}</span>
-            </div>
-            <div class="summary-row">
-              <span class="summary-label">赛段裁判长：</span>
-              <span>{{ stage.chiefReferee || '未填写' }}</span>
-            </div>
-          </template>
+          <div class="summary-row">
+            <span class="summary-label">参赛范围：</span>
+            <span>{{ fixedNationalScope ? '全国范围' : formatScopeDisplaySummary(stage.scope, { isStage: true, parentScope }) }}</span>
+          </div>
+          <div v-if="!simplified" class="summary-row">
+            <span class="summary-label">赛段裁判长：</span>
+            <span>{{ stage.chiefReferee || '未填写' }}</span>
+          </div>
         </div>
         <div class="stage-card-actions" @click.stop>
           <el-button link type="primary" @click="toggleExpand(stage.stageId)">
@@ -98,24 +96,21 @@
               />
             </el-form-item>
           </el-col>
+          <el-col v-if="fixedNationalScope || !simplified" :xs="24">
+            <el-form-item label="参赛范围" :label-width="labelWidth">
+              <span class="scope-status">{{ fixedNationalScope ? '全国范围' : formatScopeDisplaySummary(stage.scope, { isStage: true, parentScope }) }}</span>
+              <el-button
+                v-if="!fixedNationalScope && !simplified"
+                type="primary"
+                link
+                :disabled="disabled"
+                @click="openStageScope(index, stage)"
+              >
+                配置
+              </el-button>
+            </el-form-item>
+          </el-col>
           <template v-if="!simplified">
-            <el-col :xs="24">
-              <el-form-item label="参赛范围" :label-width="labelWidth">
-                <div class="scope-config-row">
-                  <span class="scope-status">{{
-                    formatScopeDisplaySummary(stage.scope, { isStage: true, parentScope })
-                  }}</span>
-                  <el-button
-                    type="primary"
-                    link
-                    :disabled="disabled"
-                    @click="openStageScope(index, stage)"
-                  >
-                    配置
-                  </el-button>
-                </div>
-              </el-form-item>
-            </el-col>
             <el-col :xs="24">
               <el-form-item label="参赛门槛" :label-width="labelWidth">
                 <el-input
@@ -153,7 +148,7 @@
     </div>
 
     <stage-scope-dialog
-      v-if="!simplified"
+      v-if="!fixedNationalScope && !simplified && stageScopeVisible"
       v-model="stageScopeVisible"
       :scope="editingStageScope"
       :parent-scope="parentScope"
@@ -184,6 +179,7 @@
     parentScope: Object,
     disabled: Boolean,
     simplified: Boolean,
+    fixedNationalScope: Boolean,
     activityStartTime: String,
     activityEndTime: String,
     labelWidth: {

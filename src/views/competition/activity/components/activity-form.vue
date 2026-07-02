@@ -192,14 +192,14 @@
 
     <div v-show="showStep2" class="form-section step-section-card">
       <div class="section-head">
-        <div class="section-title">活动覆盖范围</div>
+        <div class="section-title">参赛范围</div>
       </div>
       <div class="section-body">
         <scope-summary-field
           v-model="form.coverage"
           :stages="form.stages"
-          :disabled="scopeDisabled"
-          :fixed-national="useSimplifiedLayout"
+          disabled
+          fixed-national
         />
       </div>
     </div>
@@ -213,7 +213,7 @@
           v-model:stages="form.stages"
           :parent-scope="form.coverage"
           :disabled="stageDisabled"
-          :simplified="useSimplifiedLayout"
+          fixed-national-scope
           :activity-start-time="form.startTime"
           :activity-end-time="form.endTime"
         />
@@ -230,7 +230,7 @@
           :coverage="form.coverage"
           :locked-item-ids="lockedItemIds"
           :disabled="itemDisabled"
-          :ignore-coverage="useSimplifiedLayout"
+          :ignore-coverage="true"
         />
       </div>
     </div>
@@ -328,7 +328,6 @@
   const stageDisabled = computed(
     () => !isEditPage.value && !['full', 'cautious'].includes(editMode.value)
   );
-  const scopeDisabled = computed(() => useSimplifiedLayout.value);
   const itemDisabled = computed(
     () => !isEditPage.value && !['full', 'cautious'].includes(editMode.value)
   );

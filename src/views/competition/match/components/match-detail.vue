@@ -200,7 +200,7 @@
             <el-descriptions-item v-if="data.matchRegistration?.limitEnabled" label="报名数量上限">
               {{ data.matchRegistration?.limitCount ?? '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="报名数量说明">
+            <el-descriptions-item v-if="data.matchRegistration?.limitEnabled" label="报名说明">
               {{ data.matchRegistration?.limitRemark || '-' }}
             </el-descriptions-item>
           </el-descriptions>
@@ -209,15 +209,13 @@
         <div class="detail-block">
           <div class="block-title">保险设置</div>
           <el-descriptions :column="1" size="small" class="desc-plain">
-            <el-descriptions-item label="是否需要保险">
-              {{ data.matchInsurance?.required ? '是' : '否' }}
+            <el-descriptions-item label="保险类型">
+              {{ getInsuranceTypeByMatchType(data.matchType) || '-' }}
             </el-descriptions-item>
-            <template v-if="data.matchInsurance?.required">
-              <el-descriptions-item label="保险方式">{{ data.matchInsurance?.method || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="保险方案说明">
-                <detail-text-cell :text="data.matchInsurance?.description || '-'" :max-length="80" />
-              </el-descriptions-item>
-            </template>
+            <el-descriptions-item label="保险方案">
+              {{ getInsurancePlanName(data.matchInsurance?.planId) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="保险方式">{{ data.matchInsurance?.method || '-' }}</el-descriptions-item>
           </el-descriptions>
         </div>
 
@@ -367,19 +365,13 @@
         <div class="detail-block">
           <div class="block-title">保险设置</div>
           <el-descriptions :column="2" size="small" class="desc-plain">
-            <el-descriptions-item label="是否需要保险">
-              {{ data.dailyInsurance?.required ? '是' : '否' }}
+            <el-descriptions-item label="保险类型">
+              {{ getInsuranceTypeByMatchType(data.matchType) || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item v-if="data.dailyInsurance?.required" label="保险方式">
-              {{ data.dailyInsurance?.method }}
+            <el-descriptions-item label="保险方案">
+              {{ getInsurancePlanName(data.dailyInsurance?.planId) }}
             </el-descriptions-item>
-            <el-descriptions-item
-              v-if="data.dailyInsurance?.required"
-              label="保险方案说明"
-              :span="2"
-            >
-              <detail-text-cell :text="data.dailyInsurance?.description || '-'" :max-length="60" />
-            </el-descriptions-item>
+            <el-descriptions-item label="保险方式">{{ data.dailyInsurance?.method || '-' }}</el-descriptions-item>
           </el-descriptions>
         </div>
 
@@ -424,7 +416,8 @@
       <div class="detail-footer-bar">
         <el-button type="primary" @click="emitAction('edit')">编辑比赛</el-button>
         <el-button @click="emitAction('copy')">复制比赛</el-button>
-        <el-button @click="emitAction('view-registration')">查看参赛名单</el-button>
+        <el-button v-if="isDaily" @click="emitAction('view-registration')">查看参与记录</el-button>
+        <el-button v-else @click="emitAction('view-registration')">查看参赛名单</el-button>
         <el-button @click="visible = false">关闭</el-button>
       </div>
     </template>
@@ -443,6 +436,10 @@
   import DetailTextCell from '@/views/competition/activity/components/detail-text-cell.vue';
   import { findActivity } from '@/views/competition/activity/data.js';
   import { getAwardCount } from '@/views/event-item/data.js';
+  import {
+    getInsurancePlanName,
+    getInsuranceTypeByMatchType
+  } from '@/views/competition/insurance/data.js';
   import MatchAttachmentReadonly from './match-attachment-readonly.vue';
   import MatchItemSnapshotDialog from './match-item-snapshot-dialog.vue';
   import {
@@ -463,6 +460,7 @@
     getRegistrationStatusTagType,
     getStatusTagType,
     isClassMatch,
+    isDailyMatch,
     normalizeDataSources,
     normalizePointsRules,
     RANKING_BASIS_FIXED,
@@ -483,6 +481,7 @@
     activity.value?.stages?.find((d) => d.stageId === data.value?.stageId)
   );
   const isClass = computed(() => isClassMatch(data.value));
+  const isDaily = computed(() => isDailyMatch(data.value));
   const itemStats = computed(() => getMatchItemStats(data.value ?? {}));
   const linkedItems = computed(() => getMatchLinkedItems(data.value));
   const registrationRows = computed(() => getItemRegistrationRows(data.value));
