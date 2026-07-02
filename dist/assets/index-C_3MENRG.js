@@ -1,0 +1,1 @@
+import{u as t,o,d as a,a as n}from"./index-DISUPjv-.js";const m=Object.assign({name:"CompetitionMatchDetail"},{__name:"index",setup(c){const e=t();return o(()=>{e.replace("/competition/match")}),(r,s)=>(n(),a("div"))}});export{m as default};

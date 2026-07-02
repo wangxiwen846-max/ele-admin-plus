@@ -1,1 +1,0 @@
-import{u as t,o,d as a,a as n}from"./index-ChMReCEJ.js";const p=Object.assign({name:"CompetitionActivityDetail"},{__name:"index",setup(c){const e=t();return o(()=>{e.replace("/competition/activity")}),(i,r)=>(n(),a("div"))}});export{p as default};
