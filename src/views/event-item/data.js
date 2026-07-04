@@ -348,6 +348,35 @@ export const COUNT_STAT_METHOD_OPTIONS = ['固定时间计数', '规定次数命
 export const COUNT_UNIT_OPTIONS = MEASUREMENT_UNIT_OPTIONS;
 export const MATCH_RESULT_OPTIONS = ['胜', '负', '平'];
 
+/** 成绩单位选项（按成绩类型联动） */
+export function getScoreUnitOptions(scoreType) {
+  if (scoreType === SCORE_TYPE_RESULT) {
+    return ['分', '胜负'];
+  }
+  return MEASUREMENT_UNIT_OPTIONS;
+}
+
+export function normalizeItemSource(source) {
+  return source === '自定义设项' ? '标准设项' : source || '标准设项';
+}
+
+export function getItemScoreUnit(item) {
+  const config = normalizeScoreFieldConfig(item?.scoreFieldConfig ?? []);
+  if (isMeasurementScoreType(item?.scoreType)) {
+    const row = config.find((field) => field.name === '成绩数值');
+    return row?.unit && row.unit !== '-' ? row.unit : '秒';
+  }
+  const row = config.find((field) => field.name === '比分');
+  if (row?.unit && row.unit !== '-') {
+    return row.unit;
+  }
+  return '分';
+}
+
+export function hasScoreFieldInItem(item, fieldName) {
+  return (item?.scoreFieldConfig ?? []).some((field) => field.name === fieldName);
+}
+
 /** @deprecated 仅用于旧数据迁移 */
 export const DURATION_CALIBER_OPTIONS = ['坚持时长', '完成用时'];
 /** @deprecated 仅用于旧数据迁移 */
@@ -456,7 +485,7 @@ export function createDefaultScoreFieldConfig(scoreType, options = {}) {
         type: '文本',
         required: false,
         statMethod: '',
-        unit: '-',
+        unit: options.unit ?? '分',
         options: '',
         description: '填写比分'
       },
@@ -1157,6 +1186,7 @@ export function migrateLegacyItem(data) {
       ? item.qualification
       : item.itemRequirement.trim();
   }
+  item.source = normalizeItemSource(item.source);
   delete item.itemRequirement;
   item.sports = normalizeSports(item);
   item.awardSettings = normalizeAwardSettings(item.awardSettings);

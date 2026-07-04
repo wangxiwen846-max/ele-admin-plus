@@ -63,7 +63,7 @@
     </div>
 
     <div class="confirm-block">
-      <div class="block-title">活动规程摘要</div>
+      <div class="block-title">活动规程</div>
       <div class="summary-text pre-line">{{ regulationSummary }}</div>
     </div>
 

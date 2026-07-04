@@ -36,7 +36,14 @@
         <el-col :sm="12" :xs="24">
           <el-form-item label="设项来源" prop="source">
             <el-radio-group v-model="form.source" :disabled="coreDisabled">
-              <el-radio v-for="opt in SOURCE_OPTIONS" :key="opt" :value="opt">{{ opt }}</el-radio>
+              <el-radio
+                v-for="opt in SOURCE_OPTIONS"
+                :key="opt"
+                :value="opt"
+                :disabled="opt === '自定义设项'"
+              >
+                {{ opt }}
+              </el-radio>
             </el-radio-group>
           </el-form-item>
         </el-col>
@@ -148,53 +155,33 @@
             </el-radio-group>
           </el-form-item>
         </el-col>
-        <el-col :xs="24">
-          <div class="config-block">
-            <div class="config-toolbar">
-              <div class="config-title">成绩字段配置表</div>
-            </div>
-            <el-table :data="scoreTemplateRows" border size="small" class="config-table score-template-table">
-              <template v-if="form.scoreType === '胜负类'">
-                <el-table-column prop="matchResult" label="比赛结果" min-width="110" align="center" />
-                <el-table-column prop="scoreText" label="比分" min-width="110" align="center" />
-              </template>
-              <template v-else>
-                <el-table-column prop="scoreValue" label="成绩" min-width="110" align="center" />
-                <el-table-column label="单位" min-width="120" align="center">
-                  <template #default>
-                    <el-select
-                      v-model="scoreUnit"
-                      :disabled="coreDisabled"
-                      size="small"
-                      class="cell-select"
-                    >
-                      <el-option
-                        v-for="opt in MEASUREMENT_UNIT_OPTIONS"
-                        :key="opt"
-                        :label="opt"
-                        :value="opt"
-                      />
-                    </el-select>
-                  </template>
-                </el-table-column>
-              </template>
-            </el-table>
-            <div class="additional-fields">
-              <el-checkbox-group
-                v-model="additionalFieldSelection"
-                :disabled="coreDisabled"
-                class="additional-fields-options"
-              >
-                <el-checkbox
-                  v-for="item in ADDITIONAL_FIELD_OPTIONS"
-                  :key="item.value"
-                  :value="item.value"
-                >
-                  {{ item.label }}
-                </el-checkbox>
-              </el-checkbox-group>
-            </div>
-          </div>
+        <el-col :sm="12" :xs="24">
+          <el-form-item label="成绩单位" prop="scoreUnit">
+            <el-select
+              v-model="scoreUnit"
+              :disabled="coreDisabled"
+              placeholder="请选择"
+              class="ele-fluid"
+            >
+              <el-option v-for="opt in scoreUnitOptions" :key="opt" :label="opt" :value="opt" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :sm="12" :xs="24">
+          <el-form-item label="是否上传成绩证明">
+            <el-radio-group v-model="uploadProofEnabled" :disabled="coreDisabled">
+              <el-radio :value="true">是</el-radio>
+              <el-radio :value="false">否</el-radio>
+            </el-radio-group>
+          </el-form-item>
+        </el-col>
+        <el-col :sm="12" :xs="24">
+          <el-form-item label="是否添加备注">
+            <el-radio-group v-model="remarkEnabled" :disabled="coreDisabled">
+              <el-radio :value="true">是</el-radio>
+              <el-radio :value="false">否</el-radio>
+            </el-radio-group>
+          </el-form-item>
         </el-col>
       </el-row>
       </div>
@@ -389,7 +376,9 @@
     STAGE_OPTIONS,
     SCORE_TYPE_OPTIONS,
     REGION_OPTIONS,
-    MEASUREMENT_UNIT_OPTIONS,
+    getScoreUnitOptions,
+    isMeasurementScoreType,
+    normalizeItemSource,
     applyScoreTypeDefaults,
     syncScoreMetaFromFieldConfig,
     syncScoreConfigFromForm,
@@ -424,6 +413,7 @@
     Object.assign(form, createDefaultItem());
     if (props.data) {
       Object.assign(form, migrateLegacyItem(clone(props.data)));
+      form.source = normalizeItemSource(form.source);
       form.sports = (form.sports ?? []).map((s) => normalizeSportEntry(s));
       if (props.mode === 'copy') {
         form.itemId = void 0;
@@ -437,9 +427,10 @@
       syncMatchScoreField();
     } else {
       applyScoreTypeDefaults(form);
+      ensureDefaultScoreExtras();
     }
+    syncScoreUnitForType();
   };
-  initForm();
 
   const rules = reactive({
     itemName: [{ required: true, message: '请输入设项名称', trigger: 'blur' }],
@@ -459,6 +450,18 @@
     matchForm: [{ required: true, message: '请选择比赛形式', trigger: 'change' }],
     gender: [{ required: true, message: '请选择性别要求', trigger: 'change' }],
     scoreType: [{ required: true, message: '请选择成绩类型', trigger: 'change' }],
+    scoreUnit: [
+      {
+        validator: (_, __, callback) => {
+          if (!scoreUnit.value) {
+            callback(new Error('请选择成绩单位'));
+          } else {
+            callback();
+          }
+        },
+        trigger: 'change'
+      }
+    ],
     regions: [
       {
         validator: (_, value, callback) => {
@@ -513,74 +516,92 @@
     children: 'children'
   };
 
-  const ADDITIONAL_FIELD_OPTIONS = [
-    { label: '上传成绩证明', value: '成绩证明' },
-    { label: '备注', value: '备注' }
-  ];
-
-  const ADDITIONAL_FIELD_ROWS = {
-    成绩证明: {
-      name: '成绩证明',
-      type: '上传',
-      required: false,
-      statMethod: '',
-      unit: '-',
-      options: '',
-      description: '上传成绩证明材料'
-    },
-    备注: {
-      name: '备注',
-      type: '文本',
-      required: false,
-      statMethod: '',
-      unit: '-',
-      options: '',
-      description: '补充说明'
-    }
+  const PROOF_FIELD_ROW = {
+    name: '成绩证明',
+    type: '上传',
+    required: false,
+    statMethod: '',
+    unit: '-',
+    options: '',
+    description: '上传成绩证明材料'
   };
 
-  const scoreTemplateRows = computed(() => [
-    {
-      scoreValue: '',
-      matchResult: '',
-      scoreText: ''
-    }
-  ]);
+  const REMARK_FIELD_ROW = {
+    name: '备注',
+    type: '文本',
+    required: false,
+    statMethod: '',
+    unit: '-',
+    options: '',
+    description: '补充说明'
+  };
+
+  const scoreUnitOptions = computed(() => getScoreUnitOptions(form.scoreType));
 
   const scoreValueField = computed(() =>
     (form.scoreFieldConfig ?? []).find((field) => field.name === '成绩数值')
   );
 
+  const scoreTextField = computed(() =>
+    (form.scoreFieldConfig ?? []).find((field) => field.name === '比分')
+  );
+
   const scoreUnit = computed({
-    get: () => scoreValueField.value?.unit || '秒',
+    get: () => {
+      if (isMeasurementScoreType(form.scoreType)) {
+        return scoreValueField.value?.unit || scoreUnitOptions.value[0] || '秒';
+      }
+      const unit = scoreTextField.value?.unit;
+      return unit && unit !== '-' ? unit : scoreUnitOptions.value[0] || '分';
+    },
     set: (value) => {
-      if (scoreValueField.value) {
-        scoreValueField.value.unit = value;
+      if (isMeasurementScoreType(form.scoreType)) {
+        if (scoreValueField.value) {
+          scoreValueField.value.unit = value;
+        }
+      } else if (scoreTextField.value) {
+        scoreTextField.value.unit = value;
       }
       syncScoreMetaFromFieldConfig(form);
       syncScoreConfigFromForm(form);
     }
   });
 
-  const additionalFieldSelection = computed({
-    get: () =>
-      ADDITIONAL_FIELD_OPTIONS.filter((item) =>
-        (form.scoreFieldConfig ?? []).some((field) => field.name === item.value)
-      ).map((item) => item.value),
-    set: (values) => {
-      const selected = new Set(values);
-      ADDITIONAL_FIELD_OPTIONS.forEach((item) => {
-        const exists = (form.scoreFieldConfig ?? []).some((field) => field.name === item.value);
-        if (selected.has(item.value) && !exists) {
-          form.scoreFieldConfig.push({ ...ADDITIONAL_FIELD_ROWS[item.value] });
-        }
-        if (!selected.has(item.value) && exists) {
-          form.scoreFieldConfig = form.scoreFieldConfig.filter((field) => field.name !== item.value);
-        }
-      });
-      syncScoreConfigFromForm(form);
+  const setAdditionalFieldEnabled = (fieldName, rowTemplate, enabled) => {
+    const exists = (form.scoreFieldConfig ?? []).some((field) => field.name === fieldName);
+    if (enabled && !exists) {
+      form.scoreFieldConfig.push({ ...rowTemplate });
     }
+    if (!enabled && exists) {
+      form.scoreFieldConfig = form.scoreFieldConfig.filter((field) => field.name !== fieldName);
+    }
+    syncScoreConfigFromForm(form);
+  };
+
+  const uploadProofEnabled = computed({
+    get: () => (form.scoreFieldConfig ?? []).some((field) => field.name === '成绩证明'),
+    set: (value) => setAdditionalFieldEnabled('成绩证明', PROOF_FIELD_ROW, value)
   });
+
+  const remarkEnabled = computed({
+    get: () => (form.scoreFieldConfig ?? []).some((field) => field.name === '备注'),
+    set: (value) => setAdditionalFieldEnabled('备注', REMARK_FIELD_ROW, value)
+  });
+
+  const ensureDefaultScoreExtras = () => {
+    if (!uploadProofEnabled.value) {
+      setAdditionalFieldEnabled('成绩证明', PROOF_FIELD_ROW, true);
+    }
+    if (!remarkEnabled.value) {
+      setAdditionalFieldEnabled('备注', REMARK_FIELD_ROW, true);
+    }
+  };
+
+  const syncScoreUnitForType = () => {
+    const options = scoreUnitOptions.value;
+    const nextUnit = options.includes(scoreUnit.value) ? scoreUnit.value : options[0];
+    scoreUnit.value = nextUnit;
+  };
 
   const syncMatchScoreField = () => {
     if (
@@ -593,6 +614,8 @@
       form.scoreFieldConfig = removeMatchScoreField(form.scoreFieldConfig ?? []);
     }
   };
+
+  initForm();
 
   const handleSportsChange = () => {
     formRef.value?.validateField?.('sports');
@@ -634,6 +657,8 @@
 
   const handleScoreTypeChange = () => {
     applyScoreTypeDefaults(form);
+    ensureDefaultScoreExtras();
+    syncScoreUnitForType();
     syncMatchScoreField();
   };
 

@@ -14,7 +14,7 @@
         <div class="block-title">基本信息</div>
         <el-descriptions :column="2" size="small" class="desc-plain">
           <el-descriptions-item label="设项名称">{{ data.itemName }}</el-descriptions-item>
-          <el-descriptions-item label="设项来源">{{ data.source }}</el-descriptions-item>
+          <el-descriptions-item label="设项来源">{{ normalizedSource }}</el-descriptions-item>
           <el-descriptions-item label="启用状态">
             <el-tag
               :type="data.status === 1 ? 'success' : 'info'"
@@ -82,69 +82,13 @@
         <div class="block-title">成绩配置</div>
         <el-descriptions :column="2" size="small" class="desc-plain">
           <el-descriptions-item label="数据来源">表单提交</el-descriptions-item>
-          <el-descriptions-item label="成绩类型" :span="2">{{ data.scoreType || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="成绩类型">{{ data.scoreType || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="成绩单位">{{ displayScoreUnit }}</el-descriptions-item>
+          <el-descriptions-item label="是否上传成绩证明">{{ uploadProofText }}</el-descriptions-item>
+          <el-descriptions-item label="是否添加备注">{{ remarkText }}</el-descriptions-item>
         </el-descriptions>
         <div class="score-config-hint">
           成绩提交人、提交时间等比赛执行配置请在发布比赛时设置；设项管理不配置自动排名规则。
-        </div>
-
-        <div class="inner-card">
-          <div class="inner-card-head">
-            <div class="inner-label">成绩字段配置表</div>
-            <div class="inner-desc">保存后的成绩字段配置</div>
-          </div>
-          <el-table :data="scoreTemplateRows" border size="small" class="inner-table score-template-table">
-            <el-table-column label="基本信息" align="center">
-              <el-table-column prop="school" label="学校" min-width="110" align="center" />
-              <el-table-column prop="grade" label="年级" min-width="90" align="center" />
-              <el-table-column prop="className" label="班级" min-width="90" align="center" />
-              <el-table-column
-                v-if="data.matchForm === '个人'"
-                prop="studentName"
-                label="学生姓名"
-                min-width="110"
-                align="center"
-              />
-              <el-table-column
-                v-if="data.matchForm === '个人'"
-                prop="studentNo"
-                label="学号"
-                min-width="110"
-                align="center"
-              />
-              <el-table-column
-                v-else
-                prop="teamName"
-                label="团队名称"
-                min-width="120"
-                align="center"
-              />
-            </el-table-column>
-            <el-table-column label="成绩" align="center">
-              <template v-if="data.scoreType === '胜负类'">
-                <el-table-column prop="matchResult" label="比赛结果" min-width="110" align="center" />
-                <el-table-column prop="scoreText" label="比分" min-width="110" align="center" />
-              </template>
-              <template v-else>
-                <el-table-column prop="scoreValue" label="成绩" min-width="110" align="center" />
-                <el-table-column label="单位" min-width="110" align="center">
-                  <template #default>{{ scoreUnit }}</template>
-                </el-table-column>
-              </template>
-            </el-table-column>
-          </el-table>
-          <div class="additional-fields">
-            <div class="additional-fields-options">
-              <el-checkbox
-                v-for="item in additionalFieldDisplay"
-                :key="item.value"
-                :model-value="item.checked"
-                disabled
-              >
-                {{ item.label }}
-              </el-checkbox>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -284,7 +228,10 @@
     formatAwardSettingSummary,
     formatSportEntryDetailDisplay,
     getSportCatalogKey,
-    formatApplicableRegionSummary
+    formatApplicableRegionSummary,
+    getItemScoreUnit,
+    hasScoreFieldInItem,
+    normalizeItemSource
   } from '@/views/event-item/data.js';
   import AttachmentTable from './attachment-table.vue';
 
@@ -298,38 +245,10 @@
   const referenceRecords = computed(() => createReferenceRecords(data.value));
   const awardSummary = computed(() => formatAwardSettingSummary(data.value?.awardSettings));
   const applicableRegionSummary = computed(() => formatApplicableRegionSummary(data.value));
-
-  const scoreTemplateRows = computed(() => [
-    {
-      school: '',
-      grade: '',
-      className: '',
-      studentName: '',
-      studentNo: '',
-      teamName: '',
-      scoreValue: '',
-      matchResult: '',
-      scoreText: ''
-    }
-  ]);
-
-  const scoreUnit = computed(() => {
-    const scoreValue = (data.value?.scoreFieldConfig ?? []).find(
-      (field) => field.name === '成绩数值'
-    );
-    return scoreValue?.unit && scoreValue.unit !== '-' ? scoreValue.unit : '秒';
-  });
-
-  const additionalFieldDisplay = computed(() => {
-    const fields = data.value?.scoreFieldConfig ?? [];
-    return [
-      { label: '上传成绩证明', value: '成绩证明' },
-      { label: '备注', value: '备注' }
-    ].map((item) => ({
-      ...item,
-      checked: fields.some((field) => field.name === item.value)
-    }));
-  });
+  const normalizedSource = computed(() => normalizeItemSource(data.value?.source));
+  const displayScoreUnit = computed(() => getItemScoreUnit(data.value));
+  const uploadProofText = computed(() => (hasScoreFieldInItem(data.value, '成绩证明') ? '是' : '否'));
+  const remarkText = computed(() => (hasScoreFieldInItem(data.value, '备注') ? '是' : '否'));
 
   const emitAction = (action) => {
     visible.value = false;

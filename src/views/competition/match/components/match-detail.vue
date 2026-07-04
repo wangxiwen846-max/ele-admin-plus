@@ -118,6 +118,7 @@
         <el-descriptions :column="2" size="small" class="desc-plain">
           <el-descriptions-item label="比赛开始时间">{{ data.startTime || '-' }}</el-descriptions-item>
           <el-descriptions-item label="比赛结束时间">{{ data.endTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item v-if="isClass" label="报名时间">{{ registrationTimeText }}</el-descriptions-item>
           <el-descriptions-item label="比赛状态">
             <el-tag :type="getStatusTagType(data.matchStatus)" size="small" effect="plain">
               {{ data.matchStatus }}
@@ -449,6 +450,7 @@
     formatMatchItemRegistrationSummary,
     formatMatchTime,
     formatMatchTypeLabel,
+    formatRegistrationTime,
     formatRegistrationOverview,
     formatRegistrationMethods,
     formatSourceWeight,
@@ -487,6 +489,7 @@
     formatMatchTypeLabel(data.value?.matchType, data.value?.stageName)
   );
   const matchTypeDetailText = computed(() => matchTypeLabel.value);
+  const registrationTimeText = computed(() => formatRegistrationTime(data.value));
   const itemStats = computed(() => getMatchItemStats(data.value ?? {}));
   const linkedItems = computed(() => getMatchLinkedItems(data.value));
   const registrationRows = computed(() => getItemRegistrationRows(data.value));
