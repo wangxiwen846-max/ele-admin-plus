@@ -157,7 +157,7 @@
       </div>
 
       <div class="detail-block">
-        <div class="block-title">赛段与范围配置</div>
+        <div class="block-title">参赛范围</div>
         <el-descriptions :column="1" size="small" class="desc-plain">
           <el-descriptions-item label="参赛范围">全国范围</el-descriptions-item>
         </el-descriptions>

@@ -192,7 +192,7 @@
 
     <div v-show="showStep2" class="form-section step-section-card">
       <div class="section-head">
-        <div class="section-title">赛段与范围配置</div>
+        <div class="section-title">{{ mode === 'add' ? '参赛范围' : '赛段与范围配置' }}</div>
       </div>
       <div class="section-body">
         <scope-summary-field
