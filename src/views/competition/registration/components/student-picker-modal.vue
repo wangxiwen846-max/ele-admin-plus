@@ -9,6 +9,18 @@
     @update:model-value="emit('update:visible', $event)"
   >
     <el-form :inline="true" @submit.prevent="">
+      <el-form-item label="学生姓名">
+        <el-input v-model.trim="filters.name" clearable placeholder="支持模糊搜索" style="width: 140px" />
+      </el-form-item>
+      <el-form-item label="参赛编号">
+        <el-input
+          v-model.trim="filters.participantNumber"
+          clearable
+          placeholder="精准搜索"
+          style="width: 140px"
+          :disabled="!matchId"
+        />
+      </el-form-item>
       <el-form-item label="学校">
         <el-select v-model="filters.school" clearable filterable placeholder="全部" style="width: 150px">
           <el-option v-for="item in schoolOptions" :key="item" :label="item" :value="item" />
@@ -24,9 +36,6 @@
           <el-option v-for="item in classOptions" :key="item" :label="item" :value="item" />
         </el-select>
       </el-form-item>
-      <el-form-item label="姓名">
-        <el-input v-model.trim="filters.name" clearable placeholder="学生姓名" style="width: 140px" />
-      </el-form-item>
     </el-form>
     <el-table
       ref="tableRef"
@@ -38,6 +47,7 @@
       @selection-change="handleSelectionChange"
     >
       <el-table-column type="selection" width="46" :selectable="isSelectable" />
+      <el-table-column prop="participantNumber" label="参赛编号" width="96" align="center" />
       <el-table-column prop="name" label="学生姓名" width="100" />
       <el-table-column prop="idNo" label="证件号" min-width="150" show-overflow-tooltip />
       <el-table-column prop="school" label="学校" min-width="130" show-overflow-tooltip />
@@ -54,10 +64,15 @@
 <script setup>
   import { computed, reactive, ref, watch } from 'vue';
   import { EleMessage } from 'ele-admin-plus';
-  import { getStudentOptions, getStudentGradeOptions, getStudentSchoolOptions } from '../data.js';
+  import {
+    getStudentGradeOptions,
+    getStudentPickerRows,
+    getStudentSchoolOptions
+  } from '../data.js';
 
   const props = defineProps({
     visible: Boolean,
+    matchId: { type: [String, Number], default: '' },
     excludeIds: { type: Array, default: () => [] }
   });
 
@@ -65,15 +80,18 @@
 
   const tableRef = ref(null);
   const selection = ref([]);
-  const filters = reactive({ school: '', grade: '', className: '', name: '' });
+  const filters = reactive({ school: '', grade: '', className: '', name: '', participantNumber: '' });
   const schoolOptions = getStudentSchoolOptions();
   const gradeOptions = getStudentGradeOptions();
   const classOptions = computed(() => {
-    const list = getStudentOptions({ school: filters.school, grade: filters.grade });
+    const list = getStudentPickerRows(props.matchId, {
+      school: filters.school,
+      grade: filters.grade
+    });
     return [...new Set(list.map((item) => item.className))];
   });
 
-  const rows = computed(() => getStudentOptions(filters));
+  const rows = computed(() => getStudentPickerRows(props.matchId, filters));
 
   const isSelectable = (row) => !props.excludeIds.includes(row.studentId);
 
@@ -86,7 +104,13 @@
     (value) => {
       if (value) {
         selection.value = [];
-        Object.assign(filters, { school: '', grade: '', className: '', name: '' });
+        Object.assign(filters, {
+          school: '',
+          grade: '',
+          className: '',
+          name: '',
+          participantNumber: ''
+        });
       }
     }
   );

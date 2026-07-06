@@ -47,7 +47,8 @@
     </div>
 
     <el-table :data="detail.students" border size="small" max-height="420">
-      <el-table-column prop="studentName" label="学生姓名" width="100" fixed="left" />
+      <el-table-column prop="participantNumber" label="参赛编号" width="96" align="center" fixed="left" />
+      <el-table-column prop="studentName" label="学生姓名" width="100" />
       <el-table-column prop="school" label="学校" min-width="130" show-overflow-tooltip />
       <template v-if="isDailyView">
         <el-table-column prop="grade" label="年级" width="100" align="center" />

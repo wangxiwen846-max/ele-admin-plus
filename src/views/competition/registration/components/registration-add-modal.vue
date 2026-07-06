@@ -64,6 +64,9 @@
         <el-form-item label="已选学生">
           <div class="table-wrap">
             <el-table :data="selectedStudents" border size="small" empty-text="请从学生库选择学生">
+              <el-table-column label="参赛编号" width="96" align="center">
+                <template #default="{ row }">{{ displayStudentParticipantNumber(row.studentId) }}</template>
+              </el-table-column>
               <el-table-column prop="name" label="学生姓名" width="100" />
               <el-table-column prop="idNo" label="证件号" min-width="160" show-overflow-tooltip />
               <el-table-column prop="school" label="学校" min-width="130" show-overflow-tooltip />
@@ -100,6 +103,11 @@
         <el-form-item label="成员列表">
           <div class="table-wrap">
             <el-table :data="selectedStudents" border size="small" empty-text="请从学生库添加成员">
+              <el-table-column label="参赛编号" width="96" align="center">
+                <template #default>
+                  {{ teamParticipantNumberPreview }}
+                </template>
+              </el-table-column>
               <el-table-column prop="name" label="学生姓名" width="100" />
               <el-table-column prop="idNo" label="证件号" min-width="160" show-overflow-tooltip />
               <el-table-column prop="gender" label="性别" width="70" align="center" />
@@ -127,6 +135,7 @@
 
     <student-picker-modal
       v-model:visible="pickerVisible"
+      :match-id="form.matchId"
       :exclude-ids="selectedIds"
       @confirm="handlePicked"
     />
@@ -140,8 +149,11 @@
   import {
     addPersonalEntries,
     addTeamEntry,
+    formatParticipantNumberDisplay,
     getItemOptionsByMatch,
-    getRegisterableMatches
+    getRegisterableMatches,
+    getStudentParticipantNumberInMatch,
+    getTeamParticipantNumberInMatch
   } from '../data.js';
 
   const props = defineProps({
@@ -161,6 +173,16 @@
   const itemOptions = computed(() => (form.matchId ? getItemOptionsByMatch(form.matchId) : []));
   const selectedItem = computed(() => itemOptions.value.find((item) => item.itemId === form.itemId));
   const selectedIds = computed(() => selectedStudents.value.map((s) => s.studentId));
+
+  const displayStudentParticipantNumber = (studentId) =>
+    formatParticipantNumberDisplay(getStudentParticipantNumberInMatch(form.matchId, studentId));
+
+  const teamParticipantNumberPreview = computed(() => {
+    if (!form.matchId || !form.teamName) {
+      return '-';
+    }
+    return formatParticipantNumberDisplay(getTeamParticipantNumberInMatch(form.matchId, form.teamName));
+  });
 
   function createEmptyForm() {
     return { matchId: '', itemId: '', teamName: '', school: '', remark: '' };

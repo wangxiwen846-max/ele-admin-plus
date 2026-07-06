@@ -65,6 +65,8 @@ export function getStudentGradeOptions() {
 export const registrationStore = reactive({
   personalEntries: [],
   teamEntries: [],
+  /** 按比赛记录下一个待分配的参赛编号序号（从 1 递增，删除不回收） */
+  matchParticipantSeq: {},
   importLogs: [
     {
       logId: 'log_001',
@@ -84,6 +86,200 @@ export function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+const PARTICIPANT_NUMBER_PATTERN = /^\d{5}$/;
+
+export function formatParticipantNumber(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) {
+    return '';
+  }
+  return String(num).padStart(5, '0');
+}
+
+export function formatParticipantNumberDisplay(value) {
+  return value ? formatParticipantNumber(value) || value : '-';
+}
+
+function parseParticipantNumberValue(value) {
+  if (value == null || value === '') {
+    return null;
+  }
+  const normalized = formatParticipantNumber(value);
+  return PARTICIPANT_NUMBER_PATTERN.test(normalized) ? normalized : null;
+}
+
+function collectMatchParticipantNumbers(matchId) {
+  const numbers = [];
+  registrationStore.personalEntries
+    .filter((entry) => entry.matchId === matchId && entry.participantNumber)
+    .forEach((entry) => numbers.push(entry.participantNumber));
+  registrationStore.teamEntries
+    .filter((entry) => entry.matchId === matchId && entry.participantNumber)
+    .forEach((entry) => numbers.push(entry.participantNumber));
+  return numbers;
+}
+
+function syncMatchParticipantSeq(matchId) {
+  const max = collectMatchParticipantNumbers(matchId).reduce((current, item) => {
+    const num = Number(item);
+    return Number.isFinite(num) ? Math.max(current, num) : current;
+  }, 0);
+  const next = registrationStore.matchParticipantSeq[matchId] ?? 1;
+  registrationStore.matchParticipantSeq[matchId] = Math.max(next, max + 1);
+}
+
+function allocateParticipantNumber(matchId) {
+  syncMatchParticipantSeq(matchId);
+  const next = registrationStore.matchParticipantSeq[matchId];
+  registrationStore.matchParticipantSeq[matchId] = next + 1;
+  return formatParticipantNumber(next);
+}
+
+export function getStudentParticipantNumberInMatch(matchId, studentId) {
+  seedEntries();
+  return findStudentParticipantNumberInMatch(matchId, studentId);
+}
+
+export function getTeamParticipantNumberInMatch(matchId, teamName) {
+  seedEntries();
+  return findTeamParticipantNumberInMatch(matchId, teamName);
+}
+
+function findStudentParticipantNumberInMatch(matchId, studentId) {
+  const entry = registrationStore.personalEntries.find(
+    (item) => item.matchId === matchId && item.studentId === studentId && item.participantNumber
+  );
+  return entry?.participantNumber || null;
+}
+
+function findTeamParticipantNumberInMatch(matchId, teamName) {
+  const normalized = String(teamName || '').trim();
+  if (!normalized) {
+    return null;
+  }
+  const entry = registrationStore.teamEntries.find(
+    (item) => item.matchId === matchId && item.teamName === normalized && item.participantNumber
+  );
+  return entry?.participantNumber || null;
+}
+
+function isParticipantNumberUsedByOther(matchId, participantNumber, exclude = {}) {
+  const personalConflict = registrationStore.personalEntries.some(
+    (entry) =>
+      entry.matchId === matchId &&
+      entry.participantNumber === participantNumber &&
+      entry.studentId !== exclude.studentId
+  );
+  if (personalConflict) {
+    return true;
+  }
+  const teamConflict = registrationStore.teamEntries.some(
+    (entry) =>
+      entry.matchId === matchId &&
+      entry.participantNumber === participantNumber &&
+      entry.teamName !== exclude.teamName
+  );
+  return teamConflict;
+}
+
+export function assignStudentParticipantNumber(matchId, studentId, preferredNumber = null) {
+  const existing = findStudentParticipantNumberInMatch(matchId, studentId);
+  if (existing) {
+    return existing;
+  }
+  const normalizedPreferred = parseParticipantNumberValue(preferredNumber);
+  if (normalizedPreferred) {
+    if (isParticipantNumberUsedByOther(matchId, normalizedPreferred, { studentId })) {
+      return null;
+    }
+    syncMatchParticipantSeq(matchId);
+    const seq = Number(normalizedPreferred);
+    if (seq >= registrationStore.matchParticipantSeq[matchId]) {
+      registrationStore.matchParticipantSeq[matchId] = seq + 1;
+    }
+    return normalizedPreferred;
+  }
+  return allocateParticipantNumber(matchId);
+}
+
+export function assignTeamParticipantNumber(matchId, teamName, preferredNumber = null) {
+  const existing = findTeamParticipantNumberInMatch(matchId, teamName);
+  if (existing) {
+    return existing;
+  }
+  const normalizedPreferred = parseParticipantNumberValue(preferredNumber);
+  if (normalizedPreferred) {
+    if (isParticipantNumberUsedByOther(matchId, normalizedPreferred, { teamName })) {
+      return null;
+    }
+    syncMatchParticipantSeq(matchId);
+    const seq = Number(normalizedPreferred);
+    if (seq >= registrationStore.matchParticipantSeq[matchId]) {
+      registrationStore.matchParticipantSeq[matchId] = seq + 1;
+    }
+    return normalizedPreferred;
+  }
+  return allocateParticipantNumber(matchId);
+}
+
+export function validateParticipantNumberInput(matchId, participantNumber, context = {}) {
+  const normalized = parseParticipantNumberValue(participantNumber);
+  if (!normalized) {
+    return { valid: false, reason: '参赛编号必须为 5 位数字' };
+  }
+  const { studentId, teamName } = context;
+  const existingStudent = studentId ? getStudentParticipantNumberInMatch(matchId, studentId) : null;
+  const existingTeam = teamName ? getTeamParticipantNumberInMatch(matchId, teamName) : null;
+  const existing = existingStudent || existingTeam;
+  if (existing && existing !== normalized) {
+    return { valid: false, reason: '参赛编号与当前比赛下已有编号不一致' };
+  }
+  if (isParticipantNumberUsedByOther(matchId, normalized, { studentId, teamName })) {
+    return { valid: false, reason: '参赛编号在当前比赛内重复' };
+  }
+  return { valid: true, value: normalized };
+}
+
+export function getStudentPickerRows(matchId, filters = {}) {
+  let list = STUDENT_OPTIONS.filter((student) => {
+    if (filters.school && student.school !== filters.school) {
+      return false;
+    }
+    if (filters.grade && student.grade !== filters.grade) {
+      return false;
+    }
+    if (filters.className && student.className !== filters.className) {
+      return false;
+    }
+    if (filters.name && !student.name.includes(String(filters.name).trim())) {
+      return false;
+    }
+    return true;
+  });
+  if (matchId && filters.participantNumber) {
+    const exact = String(filters.participantNumber).trim();
+    if (exact) {
+      list = list.filter(
+        (student) => getStudentParticipantNumberInMatch(matchId, student.studentId) === exact
+      );
+    }
+  }
+  return list.map((student) => ({
+    ...student,
+    participantNumber: matchId
+      ? formatParticipantNumberDisplay(getStudentParticipantNumberInMatch(matchId, student.studentId))
+      : '-'
+  }));
+}
+
+export function filterRosterRowsByParticipantNumber(rows = [], participantNumber = '') {
+  const exact = String(participantNumber || '').trim();
+  if (!exact) {
+    return rows;
+  }
+  return rows.filter((row) => row.participantNumber === exact);
+}
+
 function seedEntries() {
   if (registrationStore.personalEntries.length || registrationStore.teamEntries.length) {
     return;
@@ -93,9 +289,15 @@ function seedEntries() {
     const items = getMatchLinkedItems(match);
     const personalItem = items.find((item) => item.matchForm === '个人') ?? items[0];
     const teamItem = items.find((item) => item.matchForm === '团体');
+    const studentNumberMap = new Map();
     if (personalItem) {
       STUDENT_OPTIONS.slice(0, 3).forEach((student, index) => {
-        registrationStore.personalEntries.push({
+        let participantNumber = studentNumberMap.get(student.studentId);
+        if (!participantNumber) {
+          participantNumber = allocateParticipantNumber(match.matchId);
+          studentNumberMap.set(student.studentId, participantNumber);
+        }
+        const entry = {
           entryId: `p_${match.matchId}_${personalItem.itemId}_${student.studentId}`,
           matchId: match.matchId,
           itemId: personalItem.itemId,
@@ -110,18 +312,21 @@ function seedEntries() {
           insuranceStatus: index === 0 ? '已参保' : index === 1 ? '待参保' : '异常',
           exceptionReason: index === 2 ? '证件号与学生库不一致' : '',
           scoreStatus: index === 0 ? '已上传' : '未上传',
-          remark: ''
-        });
+          remark: '',
+          participantNumber
+        };
+        registrationStore.personalEntries.push(entry);
       });
     }
     if (teamItem) {
-      registrationStore.teamEntries.push({
+      const teamName = matchIndex % 2 ? '飞跃少年队' : '阳光冲刺队';
+      const teamEntry = {
         teamId: `t_${match.matchId}_${teamItem.itemId}_1`,
         matchId: match.matchId,
         itemId: teamItem.itemId,
         itemName: teamItem.itemName,
         matchForm: '团体',
-        teamName: matchIndex % 2 ? '飞跃少年队' : '阳光冲刺队',
+        teamName,
         school: '第一实验小学',
         members: STUDENT_OPTIONS.slice(1, 5).map((student, index) => ({
           ...student,
@@ -129,8 +334,10 @@ function seedEntries() {
           exceptionReason: index === 3 ? '学生库未匹配到有效证件号' : ''
         })),
         scoreStatus: '未上传',
-        remark: ''
-      });
+        remark: '',
+        participantNumber: findTeamParticipantNumberInMatch(match.matchId, teamName) || allocateParticipantNumber(match.matchId)
+      };
+      registrationStore.teamEntries.push(teamEntry);
     }
   });
 }
@@ -312,6 +519,11 @@ export function addPersonalEntry(payload) {
     scoreStatus: '未上传',
     remark: payload.remark || ''
   };
+  entry.participantNumber = assignStudentParticipantNumber(
+    payload.matchId,
+    student.studentId,
+    payload.participantNumber
+  );
   registrationStore.personalEntries.unshift(entry);
   return entry;
 }
@@ -334,6 +546,11 @@ export function addTeamEntry(payload) {
     scoreStatus: '未上传',
     remark: payload.remark || ''
   };
+  entry.participantNumber = assignTeamParticipantNumber(
+    payload.matchId,
+    payload.teamName,
+    payload.participantNumber
+  );
   registrationStore.teamEntries.unshift(entry);
   return entry;
 }
@@ -397,6 +614,7 @@ export function addPersonalEntries(payload) {
       scoreStatus: '未上传',
       remark
     };
+    entry.participantNumber = assignStudentParticipantNumber(matchId, student.studentId);
     registrationStore.personalEntries.unshift(entry);
     added.push(entry);
   });
@@ -497,6 +715,7 @@ export function getMatchRosterRows(matchId) {
         itemName: entry.itemName || item.itemName || '-',
         project: item.project || '-',
         matchForm: '个人',
+        participantNumber: formatParticipantNumberDisplay(entry.participantNumber),
         targetName: entry.studentName,
         school: entry.school,
         gradeClassOrMemberCount: entry.gradeClass,
@@ -519,6 +738,7 @@ export function getMatchRosterRows(matchId) {
         itemName: team.itemName || item.itemName || '-',
         project: item.project || '-',
         matchForm: '团体',
+        participantNumber: formatParticipantNumberDisplay(team.participantNumber),
         targetName: team.teamName,
         school: team.school,
         gradeClassOrMemberCount: String(team.members.length),
@@ -558,6 +778,12 @@ export function filterMatchRosterRows(rows = [], filters = {}) {
     }
     if (filters.targetName && !row.targetName.includes(filters.targetName)) {
       return false;
+    }
+    if (filters.participantNumber) {
+      const exact = String(filters.participantNumber).trim();
+      if (exact && row.participantNumber !== exact) {
+        return false;
+      }
     }
     if (filters.insuranceStatus && row.insuranceStatus !== filters.insuranceStatus) {
       return false;
@@ -615,8 +841,16 @@ function resolveRelationScope(match, insuranceType) {
 function buildInsuranceStudentRow(match, participant, insuranceType, planName, method) {
   const grade = participant.grade || '-';
   const className = participant.className || '-';
+  const participantNumber =
+    participant.participantNumber ||
+    (participant.studentId
+      ? getStudentParticipantNumberInMatch(match.matchId, participant.studentId)
+      : participant.teamName
+        ? getTeamParticipantNumberInMatch(match.matchId, participant.teamName)
+        : null);
   return {
     studentId: participant.studentId,
+    participantNumber: formatParticipantNumberDisplay(participantNumber),
     studentName: participant.studentName || participant.name,
     idNo: participant.idNo,
     school: participant.school,
@@ -687,7 +921,9 @@ export function getInsuranceDetail(context = {}) {
     title = `保险详情 - ${context.student.name || context.student.studentName}`;
   } else if (context.scope === 'team' && context.teamId) {
     const team = teams.find((t) => t.teamId === context.teamId);
-    participants = team ? team.members : [];
+    participants = team
+      ? team.members.map((member) => ({ ...member, participantNumber: team.participantNumber }))
+      : [];
     title = `保险详情 - ${team?.teamName ?? '团队'}`;
   } else if (context.scope === 'item' && context.itemId) {
     const itemPersonal = personal.filter((e) => String(e.itemId) === String(context.itemId));
@@ -837,6 +1073,7 @@ export const PERSONAL_IMPORT_FIELDS = [
   '班级',
   '学生姓名',
   '学号',
+  '参赛编号',
   '性别',
   '联系电话',
   '备注'
@@ -849,6 +1086,7 @@ export const TEAM_IMPORT_FIELDS = [
   '团队名称',
   '成员姓名',
   '成员学号',
+  '参赛编号',
   '联系电话',
   '备注'
 ];

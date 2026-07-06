@@ -303,46 +303,8 @@
             <el-descriptions-item label="日积分生成">固定开启</el-descriptions-item>
             <el-descriptions-item label="日积分生成时间">{{ pointsRulesDisplay.dailyGenerateTime }}</el-descriptions-item>
             <el-descriptions-item label="数据截止时间">{{ pointsRulesDisplay.dataCutoffTime }}</el-descriptions-item>
-            <el-descriptions-item label="超过截止时间的数据">{{ pointsRulesDisplay.overdueDataHandling }}</el-descriptions-item>
-            <el-descriptions-item label="周积分生成">{{ pointsRulesDisplay.weeklyEnabled ? '开启' : '关闭' }}</el-descriptions-item>
-            <el-descriptions-item v-if="pointsRulesDisplay.weeklyEnabled" label="周统计周期">
-              {{ pointsRulesDisplay.weeklyStatPeriod }}
-            </el-descriptions-item>
-            <el-descriptions-item v-if="pointsRulesDisplay.weeklyEnabled" label="周积分生成时间">
-              {{ pointsRulesDisplay.weeklyGenerateTime }}
-            </el-descriptions-item>
-            <el-descriptions-item v-if="pointsRulesDisplay.weeklyEnabled" label="周榜是否展示">
-              {{ pointsRulesDisplay.weeklyRankingVisible ? '是' : '否' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="阶段累计积分">固定生成</el-descriptions-item>
-            <el-descriptions-item label="阶段累计更新方式">{{ pointsRulesDisplay.stageUpdateMethod }}</el-descriptions-item>
-            <el-descriptions-item
-              v-if="pointsRulesDisplay.stageUpdateMethod !== '比赛结束后生成'"
-              label="阶段累计更新时间"
-            >
-              {{ pointsRulesDisplay.stageUpdateTime || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="阶段累计规则">{{ pointsRulesDisplay.stageRule }}</el-descriptions-item>
-            <el-descriptions-item label="是否允许补交">
-              {{ pointsRulesDisplay.allowLateSubmit ? '是' : '否' }}
-            </el-descriptions-item>
-            <el-descriptions-item v-if="pointsRulesDisplay.allowLateSubmit" label="补交截止时间">
-              {{ pointsRulesDisplay.lateSubmitDeadline || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="是否允许补算">
-              {{ pointsRulesDisplay.allowRecalculate ? '是' : '否' }}
-            </el-descriptions-item>
-            <el-descriptions-item v-if="pointsRulesDisplay.allowRecalculate" label="补算范围">
-              {{ pointsRulesDisplay.recalculateScope }}
-            </el-descriptions-item>
-            <el-descriptions-item v-if="pointsRulesDisplay.recalculateRemark" label="补算说明" :span="2">
-              <detail-text-cell :text="pointsRulesDisplay.recalculateRemark" :max-length="80" />
-            </el-descriptions-item>
-            <el-descriptions-item label="重复提交规则" :span="2">
-              {{ pointsRulesDisplay.resubmitRule }}
-            </el-descriptions-item>
-            <el-descriptions-item v-if="pointsRulesDisplay.description" label="生成规则说明" :span="2">
-              <detail-text-cell :text="pointsRulesDisplay.description" :max-length="80" />
+            <el-descriptions-item label="是否允许补交补算">
+              {{ pointsRulesDisplay.allowLateRecalculate ? '是' : '否' }}
             </el-descriptions-item>
           </el-descriptions>
         </div>

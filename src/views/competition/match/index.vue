@@ -114,9 +114,14 @@
       @closed="participantVisible = false"
     />
 
-    <registration-roster-list-modal
-      v-model:visible="rosterVisible"
+    <registration-detail-modal
+      v-model:visible="rosterDetailVisible"
       :match-id="rosterMatchId"
+      @view-insurance="openRegistrationInsurance"
+    />
+    <registration-insurance-modal
+      v-model:visible="registrationInsuranceVisible"
+      :context="registrationInsuranceContext"
     />
   </ele-page>
 </template>
@@ -130,7 +135,8 @@
   import MatchSearch from './components/match-search.vue';
   import MatchDetail from './components/match-detail.vue';
   import DailyParticipantListModal from './components/daily-participant-list-modal.vue';
-  import RegistrationRosterListModal from '@/views/competition/registration/components/registration-roster-list-modal.vue';
+  import RegistrationDetailModal from '@/views/competition/registration/components/registration-detail-modal.vue';
+  import RegistrationInsuranceModal from '@/views/competition/registration/components/registration-insurance-modal.vue';
   import {
     copyMatchData,
     formatListDateTime,
@@ -159,8 +165,10 @@
   const detailMatchId = ref('');
   const participantVisible = ref(false);
   const participantMatch = ref(null);
-  const rosterVisible = ref(false);
+  const rosterDetailVisible = ref(false);
   const rosterMatchId = ref('');
+  const registrationInsuranceVisible = ref(false);
+  const registrationInsuranceContext = ref({});
 
   const columns = ref([
     {
@@ -285,7 +293,12 @@
       return;
     }
     rosterMatchId.value = row.matchId;
-    rosterVisible.value = true;
+    rosterDetailVisible.value = true;
+  };
+
+  const openRegistrationInsurance = (context) => {
+    registrationInsuranceContext.value = context;
+    registrationInsuranceVisible.value = true;
   };
 
   const viewDailyRecord = (row) => {

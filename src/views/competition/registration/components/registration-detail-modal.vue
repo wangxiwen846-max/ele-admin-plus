@@ -91,6 +91,9 @@
             <el-table-column label="比赛形式" width="90" align="center">
               <template #default>个人</template>
             </el-table-column>
+            <el-table-column prop="participantNumber" label="参赛编号" width="96" align="center">
+              <template #default="{ row }">{{ formatParticipantNumberDisplay(row.participantNumber) }}</template>
+            </el-table-column>
             <el-table-column prop="studentName" label="学生姓名" width="100" />
             <el-table-column prop="school" label="学校" min-width="130" show-overflow-tooltip />
             <el-table-column prop="gradeClass" label="年级班级" width="120" />
@@ -124,6 +127,9 @@
             </el-table-column>
             <el-table-column label="比赛形式" width="90" align="center">
               <template #default>团体</template>
+            </el-table-column>
+            <el-table-column prop="participantNumber" label="参赛编号" width="96" align="center">
+              <template #default="{ row }">{{ formatParticipantNumberDisplay(row.participantNumber) }}</template>
             </el-table-column>
             <el-table-column prop="teamName" label="团队名称" min-width="140" />
             <el-table-column prop="school" label="学校" min-width="130" show-overflow-tooltip />
@@ -160,6 +166,7 @@
           <el-button link type="primary" @click="view = 'roster'">返回团队列表</el-button>
           <span class="roster-summary">
             <span>当前团队：{{ currentTeam?.teamName }}</span>
+            <span>参赛编号：{{ formatParticipantNumberDisplay(currentTeam?.participantNumber) }}</span>
             <span>所属学校：{{ currentTeam?.school }}</span>
             <span>成员人数：{{ currentTeam?.members?.length || 0 }}</span>
           </span>
@@ -183,7 +190,7 @@
             </el-table-column>
             <el-table-column label="操作" width="100" align="center" fixed="right">
               <template #default="{ row }">
-                <el-link type="primary" underline="never" @click="openInsurance({ scope: 'member', student: row })">
+                <el-link type="primary" underline="never" @click="openInsurance({ scope: 'member', student: { ...row, participantNumber: currentTeam?.participantNumber } })">
                   查看保险
                 </el-link>
               </template>
@@ -200,6 +207,9 @@
     <!-- 学生详情小弹窗 -->
     <el-dialog v-model="studentVisible" title="学生详情" width="560px" append-to-body>
       <el-descriptions v-if="currentStudent" :column="2" border size="small">
+        <el-descriptions-item label="参赛编号">
+          {{ formatParticipantNumberDisplay(currentStudent.participantNumber) }}
+        </el-descriptions-item>
         <el-descriptions-item label="学生姓名">{{ currentStudent.studentName }}</el-descriptions-item>
         <el-descriptions-item label="性别">{{ currentStudent.gender || '-' }}</el-descriptions-item>
         <el-descriptions-item label="证件号">{{ currentStudent.idNo }}</el-descriptions-item>
@@ -211,6 +221,7 @@
 
     <student-picker-modal
       v-model:visible="editMemberVisible"
+      :match-id="matchId"
       :exclude-ids="[]"
       @confirm="handleEditMembers"
     />
@@ -224,6 +235,7 @@
   import ContentModal from './content-modal.vue';
   import StudentPickerModal from './student-picker-modal.vue';
   import {
+    formatParticipantNumberDisplay,
     getPersonalEntriesByItem,
     getMatchItemFormLayout,
     getRegistrationDetail,

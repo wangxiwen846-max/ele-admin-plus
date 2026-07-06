@@ -23,7 +23,7 @@
       </div>
       <div class="section-body">
         <el-row :gutter="20">
-          <el-col :sm="16" :xs="24">
+          <el-col :sm="mode === 'add' ? 24 : 16" :xs="24">
             <el-form-item label="活动名称" prop="activityName">
               <el-input
                 v-model.trim="form.activityName"
@@ -33,7 +33,7 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :sm="8" :xs="24">
+          <el-col v-if="mode !== 'add'" :sm="8" :xs="24">
             <el-form-item label="活动状态">
               <el-tag :type="statusTagType" size="small" effect="plain">{{ activityStatus }}</el-tag>
             </el-form-item>
@@ -192,6 +192,20 @@
 
     <div v-show="showStep2" class="form-section step-section-card">
       <div class="section-head">
+        <div class="section-title">赛段与范围配置</div>
+      </div>
+      <div class="section-body">
+        <scope-summary-field
+          v-model="form.coverage"
+          :stages="form.stages"
+          disabled
+          fixed-national
+        />
+      </div>
+    </div>
+
+    <div v-show="showStep2" class="form-section step-section-card">
+      <div class="section-head">
         <div class="section-title">赛段管理</div>
       </div>
       <div class="section-body">
@@ -247,6 +261,7 @@
   import UnitTagSelect from './unit-tag-select.vue';
   import CommitteeMemberList from './committee-member-list.vue';
   import ActivityItemPicker from './activity-item-picker.vue';
+  import ScopeSummaryField from './scope-summary-field.vue';
   import StageCardList from './stage-card-list.vue';
   import {
     clone,

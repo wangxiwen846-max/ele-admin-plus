@@ -34,6 +34,13 @@
     </div>
 
     <div class="confirm-block">
+      <div class="block-title">赛段与范围配置</div>
+      <el-descriptions :column="1" size="small" border>
+        <el-descriptions-item label="参赛范围">全国范围</el-descriptions-item>
+      </el-descriptions>
+    </div>
+
+    <div class="confirm-block">
       <div class="block-title">赛段信息</div>
       <el-table v-if="form.stages?.length" :data="form.stages" border size="small">
         <el-table-column prop="stageName" label="赛段名称" min-width="120" />

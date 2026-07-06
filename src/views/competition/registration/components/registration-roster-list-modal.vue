@@ -72,6 +72,11 @@
                 </el-form-item>
               </el-col>
               <el-col :lg="6" :md="8" :xs="24">
+                <el-form-item label="参赛编号">
+                  <el-input v-model.trim="filters.participantNumber" clearable placeholder="精准搜索" />
+                </el-form-item>
+              </el-col>
+              <el-col :lg="6" :md="8" :xs="24">
                 <el-form-item label="学生/团队">
                   <el-input v-model.trim="filters.targetName" clearable placeholder="模糊搜索" />
                 </el-form-item>
@@ -104,6 +109,7 @@
               <el-table-column prop="itemName" label="设项名称" min-width="120" fixed="left" show-overflow-tooltip />
               <el-table-column prop="project" label="参赛项目" min-width="110" show-overflow-tooltip />
               <el-table-column prop="matchForm" label="比赛形式" width="90" align="center" />
+              <el-table-column prop="participantNumber" label="参赛编号" width="96" align="center" />
               <el-table-column label="学生姓名 / 团队名称" min-width="130" show-overflow-tooltip>
                 <template #default="{ row }">{{ row.targetName }}</template>
               </el-table-column>
@@ -226,11 +232,15 @@
     />
     <student-picker-modal
       v-model:visible="editMemberVisible"
+      :match-id="matchId"
       :exclude-ids="[]"
       @confirm="handleEditMembers"
     />
     <el-dialog v-model="studentVisible" title="学生报名详情" width="560px" append-to-body destroy-on-close>
       <el-descriptions v-if="currentStudent" :column="2" border size="small">
+        <el-descriptions-item label="参赛编号">
+          {{ formatParticipantNumberDisplay(currentStudent.participantNumber) }}
+        </el-descriptions-item>
         <el-descriptions-item label="学生姓名">{{ currentStudent.studentName }}</el-descriptions-item>
         <el-descriptions-item label="性别">{{ currentStudent.gender || '-' }}</el-descriptions-item>
         <el-descriptions-item label="证件号">{{ currentStudent.idNo }}</el-descriptions-item>
@@ -259,6 +269,7 @@
   import {
     SCORE_STATUS_OPTIONS,
     filterMatchRosterRows,
+    formatParticipantNumberDisplay,
     getGradeClassCascaderOptions,
     getItemOptionsByMatch,
     getMatchItemFormLayout,
@@ -320,6 +331,7 @@
       school: '',
       gradeClassPath: [],
       targetName: '',
+      participantNumber: '',
       insuranceStatus: '',
       scoreStatus: ''
     };

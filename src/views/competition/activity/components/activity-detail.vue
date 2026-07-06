@@ -157,6 +157,13 @@
       </div>
 
       <div class="detail-block">
+        <div class="block-title">赛段与范围配置</div>
+        <el-descriptions :column="1" size="small" class="desc-plain">
+          <el-descriptions-item label="参赛范围">全国范围</el-descriptions-item>
+        </el-descriptions>
+      </div>
+
+      <div class="detail-block">
         <div class="block-title">赛段信息</div>
         <el-table :data="data.stages" border size="small">
           <el-table-column prop="stageName" label="赛段名称" min-width="120" />
@@ -197,11 +204,6 @@
           <el-table-column label="计分规则" min-width="120">
             <template #default="{ row }">
               <detail-text-cell :text="row.scoringRule" :max-length="20" />
-            </template>
-          </el-table-column>
-          <el-table-column label="报名设置" min-width="130">
-            <template #default="{ row }">
-              <detail-text-cell :text="row.registrationSetting" :max-length="22" />
             </template>
           </el-table-column>
           <el-table-column label="参赛要求" min-width="120">

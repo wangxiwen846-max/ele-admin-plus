@@ -11,7 +11,8 @@ import {
   addTeamEntry,
   getItemOptionsByMatch,
   isStudentRegisteredInItem,
-  registrationStore
+  registrationStore,
+  validateParticipantNumberInput
 } from './data.js';
 
 export const PERSONAL_IMPORT_TEMPLATE_NAME = '个人赛参赛名单导入模板.xlsx';
@@ -23,6 +24,7 @@ const PERSONAL_HEADER_MAP = {
   班级: 'className',
   学生姓名: 'studentName',
   学号: 'studentNo',
+  参赛编号: 'participantNumber',
   性别: 'gender',
   联系电话: 'phone',
   备注: 'remark'
@@ -35,6 +37,7 @@ const TEAM_HEADER_MAP = {
   团队名称: 'teamName',
   成员姓名: 'memberName',
   成员学号: 'memberNo',
+  参赛编号: 'participantNumber',
   联系电话: 'phone',
   备注: 'remark'
 };
@@ -98,8 +101,8 @@ export async function downloadImportTemplate(matchForm) {
     const buffer = await buildWorkbook(
       TEAM_IMPORT_FIELDS,
       [
-        ['第一实验小学', '五年级', '3班', '五年级跳绳队', '王小明', '20250001', '138****1234', '队员'],
-        ['第一实验小学', '五年级', '3班', '五年级跳绳队', '李思雨', '20250002', '138****2356', '队员']
+        ['第一实验小学', '五年级', '3班', '五年级跳绳队', '王小明', '20250001', '00001', '138****1234', '队员'],
+        ['第一实验小学', '五年级', '3班', '五年级跳绳队', '李思雨', '20250002', '00001', '138****2356', '队员']
       ],
       '团体赛名单'
     );
@@ -108,7 +111,7 @@ export async function downloadImportTemplate(matchForm) {
   }
   const buffer = await buildWorkbook(
     PERSONAL_IMPORT_FIELDS,
-    [['第一实验小学', '五年级', '3班', '王小明', '20250001', '男', '138****1234', '-']],
+    [['第一实验小学', '五年级', '3班', '王小明', '20250001', '00001', '男', '138****1234', '-']],
     '个人赛名单'
   );
   download(buffer, PERSONAL_IMPORT_TEMPLATE_NAME, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -165,6 +168,7 @@ function validatePersonalRows(rows, matchId, itemId) {
   const errors = [];
   const validRows = [];
   const seenKeys = new Set();
+  const fileParticipantNumbers = new Map();
 
   rows.forEach((row) => {
     const rowErrors = [];
@@ -203,7 +207,24 @@ function validatePersonalRows(rows, matchId, itemId) {
       return;
     }
 
-    validRows.push({ ...row, student });
+    const participantNumber = String(row.participantNumber || '').trim();
+    if (participantNumber) {
+      const previousStudent = fileParticipantNumbers.get(participantNumber);
+      if (previousStudent && previousStudent !== student.studentId) {
+        pushError(errors, row.rowNo, 'participantNumber', '导入文件中参赛编号重复', PERSONAL_FIELD_LABEL);
+        return;
+      }
+      fileParticipantNumbers.set(participantNumber, student.studentId);
+      const check = validateParticipantNumberInput(matchId, participantNumber, {
+        studentId: student.studentId
+      });
+      if (!check.valid) {
+        pushError(errors, row.rowNo, 'participantNumber', check.reason, PERSONAL_FIELD_LABEL);
+        return;
+      }
+    }
+
+    validRows.push({ ...row, student, participantNumber });
   });
 
   return { errors, validRows };
@@ -214,6 +235,7 @@ function validateTeamRows(rows, matchId, itemId) {
   const validRows = [];
   const teamMeta = new Map();
   const teamMemberKeys = new Map();
+  const teamParticipantNumbers = new Map();
 
   rows.forEach((row) => {
     TEAM_REQUIRED.forEach((key) => {
@@ -283,7 +305,22 @@ function validateTeamRows(rows, matchId, itemId) {
       return;
     }
 
-    validRows.push({ ...row, student, teamKey });
+    const participantNumber = String(row.participantNumber || '').trim();
+    if (participantNumber) {
+      const previous = teamParticipantNumbers.get(teamKey);
+      if (previous && previous !== participantNumber) {
+        pushError(errors, row.rowNo, 'participantNumber', '同一团队下参赛编号需保持一致', TEAM_FIELD_LABEL);
+        return;
+      }
+      teamParticipantNumbers.set(teamKey, participantNumber);
+      const check = validateParticipantNumberInput(matchId, participantNumber, { teamName: teamKey });
+      if (!check.valid) {
+        pushError(errors, row.rowNo, 'participantNumber', check.reason, TEAM_FIELD_LABEL);
+        return;
+      }
+    }
+
+    validRows.push({ ...row, student, teamKey, participantNumber });
   });
 
   if (!rows.length) {
@@ -348,10 +385,14 @@ export function confirmImportRows(validRows, matchForm, matchId, itemId) {
           teamName: row.teamName,
           school: row.school,
           remark: row.remark || '',
+          participantNumber: row.participantNumber || '',
           memberIds: []
         });
       }
       const team = teamMap.get(row.teamKey);
+      if (!team.participantNumber && row.participantNumber) {
+        team.participantNumber = row.participantNumber;
+      }
       if (!team.memberIds.includes(row.student.studentId)) {
         team.memberIds.push(row.student.studentId);
       }
@@ -363,7 +404,8 @@ export function confirmImportRows(validRows, matchForm, matchId, itemId) {
         teamName: team.teamName,
         school: team.school,
         memberIds: team.memberIds,
-        remark: team.remark
+        remark: team.remark,
+        participantNumber: team.participantNumber || undefined
       });
     });
     return teamMap.size;
@@ -375,7 +417,8 @@ export function confirmImportRows(validRows, matchForm, matchId, itemId) {
       itemId,
       studentId: row.student.studentId,
       phone: row.phone || '',
-      remark: row.remark || ''
+      remark: row.remark || '',
+      participantNumber: row.participantNumber || undefined
     });
   });
   return validRows.length;
