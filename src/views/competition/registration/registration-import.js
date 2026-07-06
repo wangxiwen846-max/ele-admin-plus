@@ -23,7 +23,6 @@ const PERSONAL_HEADER_MAP = {
   年级: 'grade',
   班级: 'className',
   学生姓名: 'studentName',
-  学号: 'studentNo',
   参赛编号: 'participantNumber',
   性别: 'gender',
   联系电话: 'phone',
@@ -36,14 +35,13 @@ const TEAM_HEADER_MAP = {
   班级: 'className',
   团队名称: 'teamName',
   成员姓名: 'memberName',
-  成员学号: 'memberNo',
-  参赛编号: 'participantNumber',
+  成员参赛编号: 'participantNumber',
   联系电话: 'phone',
   备注: 'remark'
 };
 
-const PERSONAL_REQUIRED = ['school', 'grade', 'className', 'studentName', 'studentNo', 'gender'];
-const TEAM_REQUIRED = ['school', 'grade', 'className', 'teamName', 'memberName', 'memberNo'];
+const PERSONAL_REQUIRED = ['school', 'grade', 'className', 'studentName', 'gender'];
+const TEAM_REQUIRED = ['school', 'grade', 'className', 'teamName', 'memberName'];
 
 const PERSONAL_FIELD_LABEL = Object.fromEntries(
   Object.entries(PERSONAL_HEADER_MAP).map(([label, key]) => [key, label])
@@ -63,14 +61,20 @@ function normalizeClassName(value) {
 }
 
 function matchStudent({ school, grade, className, studentNo, name }) {
-  return STUDENT_OPTIONS.find(
+  const candidates = STUDENT_OPTIONS.filter(
     (student) =>
       student.school === String(school || '').trim() &&
       student.grade === String(grade || '').trim() &&
       normalizeClassName(student.className) === normalizeClassName(className) &&
-      String(student.studentNo) === String(studentNo).trim() &&
       student.name === String(name || '').trim()
   );
+  if (!candidates.length) {
+    return null;
+  }
+  if (studentNo) {
+    return candidates.find((student) => String(student.studentNo) === String(studentNo).trim()) ?? null;
+  }
+  return candidates.length === 1 ? candidates[0] : null;
 }
 
 function getCellText(cell) {
@@ -101,8 +105,8 @@ export async function downloadImportTemplate(matchForm) {
     const buffer = await buildWorkbook(
       TEAM_IMPORT_FIELDS,
       [
-        ['第一实验小学', '五年级', '3班', '五年级跳绳队', '王小明', '20250001', '00001', '138****1234', '队员'],
-        ['第一实验小学', '五年级', '3班', '五年级跳绳队', '李思雨', '20250002', '00001', '138****2356', '队员']
+        ['第一实验小学', '五年级', '3班', '五年级跳绳队', '王小明', '00001', '138****1234', '队员'],
+        ['第一实验小学', '五年级', '3班', '五年级跳绳队', '李思雨', '00002', '138****2356', '队员']
       ],
       '团体赛名单'
     );
@@ -111,7 +115,7 @@ export async function downloadImportTemplate(matchForm) {
   }
   const buffer = await buildWorkbook(
     PERSONAL_IMPORT_FIELDS,
-    [['第一实验小学', '五年级', '3班', '王小明', '20250001', '00001', '男', '138****1234', '-']],
+    [['第一实验小学', '五年级', '3班', '王小明', '00001', '男', '138****1234', '-']],
     '个人赛名单'
   );
   download(buffer, PERSONAL_IMPORT_TEMPLATE_NAME, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -187,23 +191,22 @@ function validatePersonalRows(rows, matchId, itemId) {
       school: row.school,
       grade: row.grade,
       className: row.className,
-      studentNo: row.studentNo,
       name: row.studentName
     });
     if (!student) {
-      pushError(errors, row.rowNo, 'studentNo', '无法匹配学生库，请核对学校、年级、班级、学号、姓名', PERSONAL_FIELD_LABEL);
+      pushError(errors, row.rowNo, 'studentName', '无法匹配学生库，请核对学校、年级、班级、姓名', PERSONAL_FIELD_LABEL);
       return;
     }
 
-    const dupKey = `${row.school}|${row.grade}|${row.className}|${row.studentNo}|${row.studentName}`;
+    const dupKey = `${row.school}|${row.grade}|${row.className}|${row.studentName}`;
     if (seenKeys.has(dupKey)) {
-      pushError(errors, row.rowNo, 'studentNo', '导入文件中存在重复学生', PERSONAL_FIELD_LABEL);
+      pushError(errors, row.rowNo, 'studentName', '导入文件中存在重复学生', PERSONAL_FIELD_LABEL);
       return;
     }
     seenKeys.add(dupKey);
 
     if (isStudentRegisteredInItem(matchId, itemId, student.studentId)) {
-      pushError(errors, row.rowNo, 'studentNo', '该学生已在当前比赛设项报名', PERSONAL_FIELD_LABEL);
+      pushError(errors, row.rowNo, 'studentName', '该学生已在当前比赛设项报名', PERSONAL_FIELD_LABEL);
       return;
     }
 
@@ -235,7 +238,7 @@ function validateTeamRows(rows, matchId, itemId) {
   const validRows = [];
   const teamMeta = new Map();
   const teamMemberKeys = new Map();
-  const teamParticipantNumbers = new Map();
+  const fileParticipantNumbers = new Map();
 
   rows.forEach((row) => {
     TEAM_REQUIRED.forEach((key) => {
@@ -281,11 +284,10 @@ function validateTeamRows(rows, matchId, itemId) {
       school: row.school,
       grade: row.grade,
       className: row.className,
-      studentNo: row.memberNo,
       name: row.memberName
     });
     if (!student) {
-      pushError(errors, row.rowNo, 'memberNo', '无法匹配学生库，请核对学校、年级、班级、学号、姓名', TEAM_FIELD_LABEL);
+      pushError(errors, row.rowNo, 'memberName', '无法匹配学生库，请核对学校、年级、班级、姓名', TEAM_FIELD_LABEL);
       return;
     }
 
@@ -295,25 +297,27 @@ function validateTeamRows(rows, matchId, itemId) {
     }
     const members = teamMemberKeys.get(teamKey);
     if (members.has(memberKey)) {
-      pushError(errors, row.rowNo, 'memberNo', '同一团队下成员不可重复', TEAM_FIELD_LABEL);
+      pushError(errors, row.rowNo, 'memberName', '同一团队下成员不可重复', TEAM_FIELD_LABEL);
       return;
     }
     members.add(memberKey);
 
     if (isStudentRegisteredInItem(matchId, itemId, student.studentId)) {
-      pushError(errors, row.rowNo, 'memberNo', '该学生已在当前比赛设项报名', TEAM_FIELD_LABEL);
+      pushError(errors, row.rowNo, 'memberName', '该学生已在当前比赛设项报名', TEAM_FIELD_LABEL);
       return;
     }
 
     const participantNumber = String(row.participantNumber || '').trim();
     if (participantNumber) {
-      const previous = teamParticipantNumbers.get(teamKey);
-      if (previous && previous !== participantNumber) {
-        pushError(errors, row.rowNo, 'participantNumber', '同一团队下参赛编号需保持一致', TEAM_FIELD_LABEL);
+      const previousStudent = fileParticipantNumbers.get(participantNumber);
+      if (previousStudent && previousStudent !== student.studentId) {
+        pushError(errors, row.rowNo, 'participantNumber', '导入文件中成员参赛编号重复', TEAM_FIELD_LABEL);
         return;
       }
-      teamParticipantNumbers.set(teamKey, participantNumber);
-      const check = validateParticipantNumberInput(matchId, participantNumber, { teamName: teamKey });
+      fileParticipantNumbers.set(participantNumber, student.studentId);
+      const check = validateParticipantNumberInput(matchId, participantNumber, {
+        studentId: student.studentId
+      });
       if (!check.valid) {
         pushError(errors, row.rowNo, 'participantNumber', check.reason, TEAM_FIELD_LABEL);
         return;
@@ -385,13 +389,13 @@ export function confirmImportRows(validRows, matchForm, matchId, itemId) {
           teamName: row.teamName,
           school: row.school,
           remark: row.remark || '',
-          participantNumber: row.participantNumber || '',
+          memberParticipantNumbers: {},
           memberIds: []
         });
       }
       const team = teamMap.get(row.teamKey);
-      if (!team.participantNumber && row.participantNumber) {
-        team.participantNumber = row.participantNumber;
+      if (row.participantNumber) {
+        team.memberParticipantNumbers[row.student.studentId] = row.participantNumber;
       }
       if (!team.memberIds.includes(row.student.studentId)) {
         team.memberIds.push(row.student.studentId);
@@ -405,7 +409,7 @@ export function confirmImportRows(validRows, matchForm, matchId, itemId) {
         school: team.school,
         memberIds: team.memberIds,
         remark: team.remark,
-        participantNumber: team.participantNumber || undefined
+        memberParticipantNumbers: team.memberParticipantNumbers
       });
     });
     return teamMap.size;

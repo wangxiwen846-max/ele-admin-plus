@@ -114,8 +114,14 @@ function collectMatchParticipantNumbers(matchId) {
     .filter((entry) => entry.matchId === matchId && entry.participantNumber)
     .forEach((entry) => numbers.push(entry.participantNumber));
   registrationStore.teamEntries
-    .filter((entry) => entry.matchId === matchId && entry.participantNumber)
-    .forEach((entry) => numbers.push(entry.participantNumber));
+    .filter((entry) => entry.matchId === matchId)
+    .forEach((entry) => {
+      (entry.members ?? []).forEach((member) => {
+        if (member.participantNumber) {
+          numbers.push(member.participantNumber);
+        }
+      });
+    });
   return numbers;
 }
 
@@ -140,27 +146,25 @@ export function getStudentParticipantNumberInMatch(matchId, studentId) {
   return findStudentParticipantNumberInMatch(matchId, studentId);
 }
 
-export function getTeamParticipantNumberInMatch(matchId, teamName) {
-  seedEntries();
-  return findTeamParticipantNumberInMatch(matchId, teamName);
-}
-
 function findStudentParticipantNumberInMatch(matchId, studentId) {
-  const entry = registrationStore.personalEntries.find(
+  const personalEntry = registrationStore.personalEntries.find(
     (item) => item.matchId === matchId && item.studentId === studentId && item.participantNumber
   );
-  return entry?.participantNumber || null;
-}
-
-function findTeamParticipantNumberInMatch(matchId, teamName) {
-  const normalized = String(teamName || '').trim();
-  if (!normalized) {
-    return null;
+  if (personalEntry?.participantNumber) {
+    return personalEntry.participantNumber;
   }
-  const entry = registrationStore.teamEntries.find(
-    (item) => item.matchId === matchId && item.teamName === normalized && item.participantNumber
-  );
-  return entry?.participantNumber || null;
+  for (const team of registrationStore.teamEntries) {
+    if (team.matchId !== matchId) {
+      continue;
+    }
+    const member = (team.members ?? []).find(
+      (item) => item.studentId === studentId && item.participantNumber
+    );
+    if (member?.participantNumber) {
+      return member.participantNumber;
+    }
+  }
+  return null;
 }
 
 function isParticipantNumberUsedByOther(matchId, participantNumber, exclude = {}) {
@@ -173,13 +177,14 @@ function isParticipantNumberUsedByOther(matchId, participantNumber, exclude = {}
   if (personalConflict) {
     return true;
   }
-  const teamConflict = registrationStore.teamEntries.some(
-    (entry) =>
-      entry.matchId === matchId &&
-      entry.participantNumber === participantNumber &&
-      entry.teamName !== exclude.teamName
+  return registrationStore.teamEntries.some((team) =>
+    (team.members ?? []).some(
+      (member) =>
+        team.matchId === matchId &&
+        member.participantNumber === participantNumber &&
+        member.studentId !== exclude.studentId
+    )
   );
-  return teamConflict;
 }
 
 export function assignStudentParticipantNumber(matchId, studentId, preferredNumber = null) {
@@ -202,39 +207,17 @@ export function assignStudentParticipantNumber(matchId, studentId, preferredNumb
   return allocateParticipantNumber(matchId);
 }
 
-export function assignTeamParticipantNumber(matchId, teamName, preferredNumber = null) {
-  const existing = findTeamParticipantNumberInMatch(matchId, teamName);
-  if (existing) {
-    return existing;
-  }
-  const normalizedPreferred = parseParticipantNumberValue(preferredNumber);
-  if (normalizedPreferred) {
-    if (isParticipantNumberUsedByOther(matchId, normalizedPreferred, { teamName })) {
-      return null;
-    }
-    syncMatchParticipantSeq(matchId);
-    const seq = Number(normalizedPreferred);
-    if (seq >= registrationStore.matchParticipantSeq[matchId]) {
-      registrationStore.matchParticipantSeq[matchId] = seq + 1;
-    }
-    return normalizedPreferred;
-  }
-  return allocateParticipantNumber(matchId);
-}
-
 export function validateParticipantNumberInput(matchId, participantNumber, context = {}) {
   const normalized = parseParticipantNumberValue(participantNumber);
   if (!normalized) {
     return { valid: false, reason: '参赛编号必须为 5 位数字' };
   }
-  const { studentId, teamName } = context;
-  const existingStudent = studentId ? getStudentParticipantNumberInMatch(matchId, studentId) : null;
-  const existingTeam = teamName ? getTeamParticipantNumberInMatch(matchId, teamName) : null;
-  const existing = existingStudent || existingTeam;
+  const { studentId } = context;
+  const existing = studentId ? findStudentParticipantNumberInMatch(matchId, studentId) : null;
   if (existing && existing !== normalized) {
     return { valid: false, reason: '参赛编号与当前比赛下已有编号不一致' };
   }
-  if (isParticipantNumberUsedByOther(matchId, normalized, { studentId, teamName })) {
+  if (isParticipantNumberUsedByOther(matchId, normalized, { studentId })) {
     return { valid: false, reason: '参赛编号在当前比赛内重复' };
   }
   return { valid: true, value: normalized };
@@ -309,8 +292,8 @@ function seedEntries() {
           school: student.school,
           gradeClass: student.gradeClass,
           phone: index === 0 ? '138****1234' : '',
-          insuranceStatus: index === 0 ? '已参保' : index === 1 ? '待参保' : '异常',
-          exceptionReason: index === 2 ? '证件号与学生库不一致' : '',
+          insuranceStatus: index === 0 ? '已参保' : '待参保',
+          exceptionReason: '',
           scoreStatus: index === 0 ? '已上传' : '未上传',
           remark: '',
           participantNumber
@@ -328,14 +311,21 @@ function seedEntries() {
         matchForm: '团体',
         teamName,
         school: '第一实验小学',
-        members: STUDENT_OPTIONS.slice(1, 5).map((student, index) => ({
-          ...student,
-          insuranceStatus: index < 2 ? '已参保' : index === 2 ? '待参保' : '异常',
-          exceptionReason: index === 3 ? '学生库未匹配到有效证件号' : ''
-        })),
+        members: STUDENT_OPTIONS.slice(1, 5).map((student, index) => {
+          let participantNumber = studentNumberMap.get(student.studentId);
+          if (!participantNumber) {
+            participantNumber = allocateParticipantNumber(match.matchId);
+            studentNumberMap.set(student.studentId, participantNumber);
+          }
+          return {
+            ...student,
+            participantNumber,
+            insuranceStatus: index < 2 ? '已参保' : '待参保',
+            exceptionReason: ''
+          };
+        }),
         scoreStatus: '未上传',
-        remark: '',
-        participantNumber: findTeamParticipantNumberInMatch(match.matchId, teamName) || allocateParticipantNumber(match.matchId)
+        remark: ''
       };
       registrationStore.teamEntries.push(teamEntry);
     }
@@ -372,6 +362,12 @@ export function getAllRegistrationMatches() {
   return getAllMatches().map((match) => buildMatchRegistrationRow(match));
 }
 
+export function normalizeInsuranceDisplayStatus(status) {
+  return status === '已参保' ? '已参保' : '待参保';
+}
+
+export const REGISTRATION_INSURANCE_STATUS_OPTIONS = ['待参保', '已参保'];
+
 export function buildMatchRegistrationRow(match) {
   seedEntries();
   const personal = registrationStore.personalEntries.filter((entry) => entry.matchId === match.matchId);
@@ -406,15 +402,9 @@ export function summarizeInsuranceStatus(statuses = [], emptyStatus = '待参保
   if (!statuses.length) {
     return emptyStatus;
   }
-  if (statuses.includes('异常')) {
-    return '异常';
-  }
-  const insured = statuses.filter((status) => status === '已参保').length;
-  if (insured === statuses.length) {
+  const normalized = statuses.map(normalizeInsuranceDisplayStatus);
+  if (normalized.every((status) => status === '已参保')) {
     return '已参保';
-  }
-  if (insured > 0) {
-    return '部分参保';
   }
   return '待参保';
 }
@@ -432,7 +422,7 @@ export function getRegistrationDetail(matchId) {
     ...row,
     insuredCount: [...personal, ...members].filter((entry) => entry.insuranceStatus === '已参保').length,
     pendingCount: [...personal, ...members].filter((entry) => entry.insuranceStatus === '待参保').length,
-    exceptionCount: [...personal, ...members].filter((entry) => entry.insuranceStatus === '异常').length,
+    exceptionCount: 0,
     itemStats: getItemStats(match),
     personalEntries: personal,
     teamEntries: teams,
@@ -530,10 +520,20 @@ export function addPersonalEntry(payload) {
 
 export function addTeamEntry(payload) {
   const item = getItemOptionsByMatch(payload.matchId).find((row) => row.itemId === payload.itemId);
+  const memberParticipantNumbers = payload.memberParticipantNumbers ?? {};
   const members = (payload.memberIds ?? [])
     .map((id) => STUDENT_OPTIONS.find((student) => student.studentId === id))
     .filter(Boolean)
-    .map((student) => ({ ...student, insuranceStatus: '待参保', exceptionReason: '' }));
+    .map((student) => ({
+      ...student,
+      insuranceStatus: '待参保',
+      exceptionReason: '',
+      participantNumber: assignStudentParticipantNumber(
+        payload.matchId,
+        student.studentId,
+        memberParticipantNumbers[student.studentId]
+      )
+    }));
   const entry = {
     teamId: `t_${Date.now()}`,
     matchId: payload.matchId,
@@ -546,11 +546,6 @@ export function addTeamEntry(payload) {
     scoreStatus: '未上传',
     remark: payload.remark || ''
   };
-  entry.participantNumber = assignTeamParticipantNumber(
-    payload.matchId,
-    payload.teamName,
-    payload.participantNumber
-  );
   registrationStore.teamEntries.unshift(entry);
   return entry;
 }
@@ -649,28 +644,48 @@ export function updateTeamMembers(teamId, memberIds = []) {
     .filter(Boolean)
     .map((student) => {
       const exist = team.members.find((member) => member.studentId === student.studentId);
-      return exist || { ...student, insuranceStatus: '待参保', exceptionReason: '' };
+      if (exist) {
+        return exist;
+      }
+      return {
+        ...student,
+        insuranceStatus: '待参保',
+        exceptionReason: '',
+        participantNumber: assignStudentParticipantNumber(team.matchId, student.studentId)
+      };
     });
   return team;
 }
 
 export function getPersonalEntriesByItem(matchId, itemId) {
   seedEntries();
-  return registrationStore.personalEntries.filter(
-    (entry) => entry.matchId === matchId && String(entry.itemId) === String(itemId)
-  );
+  return registrationStore.personalEntries
+    .filter((entry) => entry.matchId === matchId && String(entry.itemId) === String(itemId))
+    .map((entry) => ({
+      ...entry,
+      insuranceStatus: normalizeInsuranceDisplayStatus(entry.insuranceStatus),
+      exceptionReason: ''
+    }));
 }
 
 export function getTeamEntriesByItem(matchId, itemId) {
   seedEntries();
   return registrationStore.teamEntries
     .filter((entry) => entry.matchId === matchId && String(entry.itemId) === String(itemId))
-    .map((team) => ({
-      ...team,
-      memberCount: team.members.length,
-      insuredCount: team.members.filter((member) => member.insuranceStatus === '已参保').length,
-      insuranceStatus: summarizeInsuranceStatus(team.members.map((member) => member.insuranceStatus))
-    }));
+    .map((team) => {
+      const members = (team.members ?? []).map((member) => ({
+        ...member,
+        insuranceStatus: normalizeInsuranceDisplayStatus(member.insuranceStatus),
+        exceptionReason: ''
+      }));
+      return {
+        ...team,
+        members,
+        memberCount: members.length,
+        insuredCount: members.filter((member) => member.insuranceStatus === '已参保').length,
+        insuranceStatus: summarizeInsuranceStatus(members.map((member) => member.insuranceStatus))
+      };
+    });
 }
 
 /** 比赛参赛名单简要信息（弹窗顶部） */
@@ -720,7 +735,7 @@ export function getMatchRosterRows(matchId) {
         school: entry.school,
         gradeClassOrMemberCount: entry.gradeClass,
         insuredCount: entry.insuranceStatus === '已参保' ? 1 : 0,
-        insuranceStatus: entry.insuranceStatus,
+        insuranceStatus: normalizeInsuranceDisplayStatus(entry.insuranceStatus),
         scoreStatus: entry.scoreStatus,
         raw: entry
       });
@@ -738,7 +753,7 @@ export function getMatchRosterRows(matchId) {
         itemName: team.itemName || item.itemName || '-',
         project: item.project || '-',
         matchForm: '团体',
-        participantNumber: formatParticipantNumberDisplay(team.participantNumber),
+        participantNumber: '-',
         targetName: team.teamName,
         school: team.school,
         gradeClassOrMemberCount: String(team.members.length),
@@ -781,8 +796,18 @@ export function filterMatchRosterRows(rows = [], filters = {}) {
     }
     if (filters.participantNumber) {
       const exact = String(filters.participantNumber).trim();
-      if (exact && row.participantNumber !== exact) {
-        return false;
+      if (exact) {
+        if (row.rowType === 'personal') {
+          if (row.participantNumber !== exact) {
+            return false;
+          }
+        } else if (
+          !(row.raw.members ?? []).some(
+            (member) => formatParticipantNumber(member.participantNumber) === exact
+          )
+        ) {
+          return false;
+        }
       }
     }
     if (filters.insuranceStatus && row.insuranceStatus !== filters.insuranceStatus) {
@@ -843,11 +868,7 @@ function buildInsuranceStudentRow(match, participant, insuranceType, planName, m
   const className = participant.className || '-';
   const participantNumber =
     participant.participantNumber ||
-    (participant.studentId
-      ? getStudentParticipantNumberInMatch(match.matchId, participant.studentId)
-      : participant.teamName
-        ? getTeamParticipantNumberInMatch(match.matchId, participant.teamName)
-        : null);
+    (participant.studentId ? getStudentParticipantNumberInMatch(match.matchId, participant.studentId) : null);
   return {
     studentId: participant.studentId,
     participantNumber: formatParticipantNumberDisplay(participantNumber),
@@ -861,8 +882,8 @@ function buildInsuranceStudentRow(match, participant, insuranceType, planName, m
     insurancePlan: planName,
     insuranceMethod: method,
     relationScope: resolveRelationScope(match, insuranceType),
-    insuranceStatus: participant.insuranceStatus || '待参保',
-    exceptionReason: participant.exceptionReason || '-'
+    insuranceStatus: normalizeInsuranceDisplayStatus(participant.insuranceStatus || '待参保'),
+    exceptionReason: '-'
   };
 }
 
@@ -891,7 +912,7 @@ function summarizeInsuranceDetail(match, participants, { dedupe = false } = {}) 
       requiredCount: list.length,
       insuredCount: statuses.filter((s) => s === '已参保').length,
       pendingCount: statuses.filter((s) => s === '待参保').length,
-      exceptionCount: statuses.filter((s) => s === '异常').length,
+      exceptionCount: 0,
       insuranceStatus: summarizeInsuranceStatus(statuses)
     },
     students: list
@@ -921,9 +942,7 @@ export function getInsuranceDetail(context = {}) {
     title = `保险详情 - ${context.student.name || context.student.studentName}`;
   } else if (context.scope === 'team' && context.teamId) {
     const team = teams.find((t) => t.teamId === context.teamId);
-    participants = team
-      ? team.members.map((member) => ({ ...member, participantNumber: team.participantNumber }))
-      : [];
+    participants = team ? team.members : [];
     title = `保险详情 - ${team?.teamName ?? '团队'}`;
   } else if (context.scope === 'item' && context.itemId) {
     const itemPersonal = personal.filter((e) => String(e.itemId) === String(context.itemId));
@@ -1025,7 +1044,7 @@ export function getDailyRecordDetail(matchId) {
       points: row.points + ((index + i) % 3)
     }));
     const total = details.reduce((sum, row) => sum + row.points, 0);
-    const insuranceStatus = index === 4 ? '异常' : index === 3 ? '待参保' : '已参保';
+    const insuranceStatus = index === 3 ? '待参保' : '已参保';
     return {
       studentId: student.studentId,
       studentName: student.name,
@@ -1038,7 +1057,7 @@ export function getDailyRecordDetail(matchId) {
       latestPoints: details[0].points,
       latestTime: details[0].time,
       insuranceStatus,
-      exceptionReason: insuranceStatus === '异常' ? '证件号与学生库不一致' : '',
+      exceptionReason: '',
       details
     };
   });
@@ -1061,7 +1080,7 @@ export function getDailyRecordDetail(matchId) {
       totalPoints: students.reduce((sum, s) => sum + s.totalPoints, 0),
       insuredCount: statuses.filter((s) => s === '已参保').length,
       pendingCount: statuses.filter((s) => s === '待参保').length,
-      exceptionCount: statuses.filter((s) => s === '异常').length
+      exceptionCount: 0
     },
     students
   };
@@ -1072,7 +1091,6 @@ export const PERSONAL_IMPORT_FIELDS = [
   '年级',
   '班级',
   '学生姓名',
-  '学号',
   '参赛编号',
   '性别',
   '联系电话',
@@ -1085,8 +1103,7 @@ export const TEAM_IMPORT_FIELDS = [
   '班级',
   '团队名称',
   '成员姓名',
-  '成员学号',
-  '参赛编号',
+  '成员参赛编号',
   '联系电话',
   '备注'
 ];

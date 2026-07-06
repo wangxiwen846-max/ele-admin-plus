@@ -84,7 +84,12 @@
               <el-col :lg="6" :md="8" :xs="24">
                 <el-form-item label="保险状态">
                   <el-select v-model="filters.insuranceStatus" clearable placeholder="全部" class="ele-fluid">
-                    <el-option v-for="opt in INSURANCE_STATUS_OPTIONS" :key="opt" :label="opt" :value="opt" />
+                    <el-option
+                      v-for="opt in REGISTRATION_INSURANCE_STATUS_OPTIONS"
+                      :key="opt"
+                      :label="opt"
+                      :value="opt"
+                    />
                   </el-select>
                 </el-form-item>
               </el-col>
@@ -109,8 +114,12 @@
               <el-table-column prop="itemName" label="设项名称" min-width="120" fixed="left" show-overflow-tooltip />
               <el-table-column prop="project" label="参赛项目" min-width="110" show-overflow-tooltip />
               <el-table-column prop="matchForm" label="比赛形式" width="90" align="center" />
-              <el-table-column prop="participantNumber" label="参赛编号" width="96" align="center" />
-              <el-table-column label="学生姓名 / 团队名称" min-width="130" show-overflow-tooltip>
+              <el-table-column label="参赛编号" width="96" align="center">
+                <template #default="{ row }">
+                  {{ row.rowType === 'personal' ? row.participantNumber : '-' }}
+                </template>
+              </el-table-column>
+              <el-table-column label="学生姓名 / 队伍名称" min-width="130" show-overflow-tooltip>
                 <template #default="{ row }">{{ row.targetName }}</template>
               </el-table-column>
               <el-table-column prop="school" label="学校" min-width="120" show-overflow-tooltip />
@@ -180,7 +189,12 @@
         </div>
         <div class="table-wrap">
           <el-table :data="currentTeam?.members || []" border size="small" max-height="420">
-            <el-table-column prop="name" label="学生姓名" width="100" fixed="left" />
+            <el-table-column label="参赛编号" width="96" align="center" fixed="left">
+              <template #default="{ row }">
+                {{ formatParticipantNumberDisplay(row.participantNumber || getMemberParticipantNumber(row.studentId)) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="name" label="成员姓名" width="100" />
             <el-table-column prop="idNo" label="证件号" min-width="160" show-overflow-tooltip />
             <el-table-column prop="gender" label="性别" width="70" align="center" />
             <el-table-column prop="school" label="学校" min-width="120" show-overflow-tooltip />
@@ -260,7 +274,6 @@
   import { EleMessage } from 'ele-admin-plus';
   import { ElMessageBox } from 'element-plus';
   import { PlusOutlined } from '@/components/icons';
-  import { INSURANCE_STATUS_OPTIONS } from '@/views/competition/insurance/data.js';
   import ContentModal from './content-modal.vue';
   import RegistrationAddModal from './registration-add-modal.vue';
   import RegistrationImportModal from './registration-import-modal.vue';
@@ -268,6 +281,7 @@
   import StudentPickerModal from './student-picker-modal.vue';
   import {
     SCORE_STATUS_OPTIONS,
+    REGISTRATION_INSURANCE_STATUS_OPTIONS,
     filterMatchRosterRows,
     formatParticipantNumberDisplay,
     getGradeClassCascaderOptions,
@@ -275,6 +289,7 @@
     getMatchItemFormLayout,
     getMatchRosterBrief,
     getMatchRosterRows,
+    getStudentParticipantNumberInMatch,
     getStudentSchoolOptions,
     getTeamEntriesByItem,
     removePersonalEntry,
@@ -376,9 +391,12 @@
   );
 
   const statusTag = (status) => {
-    const map = { 已参保: 'success', 部分参保: 'warning', 待参保: 'info', 异常: 'danger' };
+    const map = { 已参保: 'success', 待参保: 'info' };
     return map[status] || 'info';
   };
+
+  const getMemberParticipantNumber = (studentId) =>
+    getStudentParticipantNumberInMatch(props.matchId, studentId);
 
   const openAdd = (itemId = '') => {
     presetItemId.value = itemId;

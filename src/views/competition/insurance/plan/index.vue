@@ -178,11 +178,6 @@
                 />
               </el-form-item>
             </el-col>
-            <el-col :xs="24">
-              <el-form-item label="覆盖比赛类型">
-                <match-type-cascader v-model="editForm.coverageTypes" multiple class="ele-fluid" />
-              </el-form-item>
-            </el-col>
           </template>
           <el-col :xs="24">
             <el-form-item label="保障说明">
@@ -224,9 +219,6 @@
         <el-descriptions-item v-if="current.chargeMethod === '按学期'" label="保障周期">
           {{ current.startDate }} 至 {{ current.endDate }}
         </el-descriptions-item>
-        <el-descriptions-item v-if="current.chargeMethod === '按学期'" label="覆盖比赛类型" :span="2">
-          {{ formatMatchTypesList(current.coverageTypes, '、') }}
-        </el-descriptions-item>
         <el-descriptions-item label="保费">¥{{ current.premium }}</el-descriptions-item>
         <el-descriptions-item label="保额">¥{{ current.insuredAmount }}</el-descriptions-item>
         <el-descriptions-item label="保障说明" :span="2">{{ current.description || '未填写' }}</el-descriptions-item>
@@ -249,11 +241,7 @@
     insuranceStore,
     saveInsurancePlan
   } from '../data.js';
-  import {
-    MATCH_TYPE_CLASS,
-    MATCH_TYPE_DAILY,
-    normalizeMatchTypeLeaves
-  } from '@/views/competition/match-type.js';
+  import { normalizeMatchTypeLeaves } from '@/views/competition/match-type.js';
 
   defineOptions({ name: 'CompetitionInsurancePlan' });
   const tableRef = ref(null);
@@ -295,7 +283,6 @@
       semester: '第一学期',
       startDate: '',
       endDate: '',
-      coverageTypes: [MATCH_TYPE_DAILY, MATCH_TYPE_CLASS],
       premium: 0,
       insuredAmount: 0,
       description: '',
@@ -367,21 +354,17 @@
   };
 
   const handleChargeMethodChange = (value) => {
-    if (value === '按学期') {
-      editForm.coverageTypes = [MATCH_TYPE_DAILY, MATCH_TYPE_CLASS];
-    } else {
+    if (value !== '按学期') {
       editForm.schoolYear = '';
       editForm.semester = '第一学期';
       editForm.startDate = '';
       editForm.endDate = '';
-      editForm.coverageTypes = [];
     }
   };
 
   const openEdit = (row) => {
     Object.assign(editForm, row ? clone(row) : createEmptyForm());
     editForm.matchTypes = normalizeMatchTypeLeaves(editForm.matchTypes ?? []);
-    editForm.coverageTypes = normalizeMatchTypeLeaves(editForm.coverageTypes ?? []);
     editForm.attachments = row ? buildPlanAttachments(row) : [];
     editVisible.value = true;
   };

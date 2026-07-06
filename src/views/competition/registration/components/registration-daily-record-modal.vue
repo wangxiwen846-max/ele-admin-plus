@@ -148,7 +148,8 @@
     getDailyRecordClassOptions,
     getDailyRecordDetail,
     getDailyRecordGradeOptions,
-    getDailyRecordSchoolOptions
+    getDailyRecordSchoolOptions,
+    REGISTRATION_INSURANCE_STATUS_OPTIONS
   } from '../data.js';
 
   const props = defineProps({
@@ -161,7 +162,7 @@
   const detail = ref(null);
   const view = ref('summary');
   const currentStudent = ref(null);
-  const statusOptions = ['待参保', '部分参保', '已参保', '异常'];
+  const statusOptions = REGISTRATION_INSURANCE_STATUS_OPTIONS;
   const filters = reactive({ name: '', school: '', grade: '', className: '', source: '', insuranceStatus: '' });
 
   const schoolOptions = computed(() => getDailyRecordSchoolOptions(props.matchId));
@@ -239,7 +240,7 @@
   };
 
   const statusTag = (status) => {
-    const map = { 已参保: 'success', 部分参保: 'warning', 待参保: 'info', 异常: 'danger' };
+    const map = { 已参保: 'success', 待参保: 'info' };
     return map[status] || 'info';
   };
 

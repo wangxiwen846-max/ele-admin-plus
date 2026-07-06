@@ -171,7 +171,7 @@ const FITNESS_AUTHORITIES = [
   },
   {
     menuId: 410,
-    parentId: 400,
+    parentId: 0,
     menuType: 0,
     title: '保险管理',
     icon: 'SafetyCertificateOutlined',
@@ -182,7 +182,7 @@ const FITNESS_AUTHORITIES = [
     menuId: 411,
     parentId: 410,
     menuType: 0,
-    title: '保险方案',
+    title: '保险方案管理',
     icon: 'SolutionOutlined',
     path: '/competition/insurance/plan',
     component: '/competition/insurance/plan',

@@ -34,7 +34,7 @@
           <el-col :lg="8" :md="12" :sm="12" :xs="24">
             <el-form-item label="保险状态">
               <el-select v-model="query.insuranceStatus" clearable placeholder="请选择" class="ele-fluid">
-                <el-option v-for="opt in INSURANCE_STATUS_OPTIONS" :key="opt" :label="opt" :value="opt" />
+                <el-option v-for="opt in REGISTRATION_INSURANCE_STATUS_OPTIONS" :key="opt" :label="opt" :value="opt" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -136,7 +136,7 @@
   import { computed, reactive, ref } from 'vue';
   import { EleMessage } from 'ele-admin-plus';
   import { PlusOutlined } from '@/components/icons';
-  import { INSURANCE_STATUS_OPTIONS } from '@/views/competition/insurance/data.js';
+  import { REGISTRATION_INSURANCE_STATUS_OPTIONS } from './data.js';
   import { isDailyMatch } from '@/views/competition/match/data.js';
   import { matchTypeMatchesLeaf } from '@/views/competition/match-type.js';
   import MatchTypeCascader from '@/views/competition/components/match-type-cascader.vue';
@@ -216,7 +216,7 @@
   };
 
   const getInsuranceStatusTag = (status) => {
-    const map = { 已参保: 'success', 部分参保: 'warning', 待参保: 'info', 异常: 'danger' };
+    const map = { 已参保: 'success', 待参保: 'info' };
     return map[status] || 'info';
   };
 

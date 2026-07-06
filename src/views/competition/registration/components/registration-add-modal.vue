@@ -104,9 +104,7 @@
           <div class="table-wrap">
             <el-table :data="selectedStudents" border size="small" empty-text="请从学生库添加成员">
               <el-table-column label="参赛编号" width="96" align="center">
-                <template #default>
-                  {{ teamParticipantNumberPreview }}
-                </template>
+                <template #default="{ row }">{{ displayStudentParticipantNumber(row.studentId) }}</template>
               </el-table-column>
               <el-table-column prop="name" label="学生姓名" width="100" />
               <el-table-column prop="idNo" label="证件号" min-width="160" show-overflow-tooltip />
@@ -152,8 +150,7 @@
     formatParticipantNumberDisplay,
     getItemOptionsByMatch,
     getRegisterableMatches,
-    getStudentParticipantNumberInMatch,
-    getTeamParticipantNumberInMatch
+    getStudentParticipantNumberInMatch
   } from '../data.js';
 
   const props = defineProps({
@@ -176,13 +173,6 @@
 
   const displayStudentParticipantNumber = (studentId) =>
     formatParticipantNumberDisplay(getStudentParticipantNumberInMatch(form.matchId, studentId));
-
-  const teamParticipantNumberPreview = computed(() => {
-    if (!form.matchId || !form.teamName) {
-      return '-';
-    }
-    return formatParticipantNumberDisplay(getTeamParticipantNumberInMatch(form.matchId, form.teamName));
-  });
 
   function createEmptyForm() {
     return { matchId: '', itemId: '', teamName: '', school: '', remark: '' };

@@ -73,7 +73,9 @@
           <el-link type="primary" underline="never" @click="openDetail(row)">参保详情</el-link>
           <template v-if="row.status === '异常'">
             <el-divider direction="vertical" />
-            <el-link type="primary" underline="never">处理异常</el-link>
+            <el-link type="primary" underline="never" @click="openHandleDialog(row)">
+              处理异常情况
+            </el-link>
           </template>
         </template>
       </ele-pro-table>
@@ -120,16 +122,75 @@
         </div>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="handleVisible"
+      title="处理异常情况"
+      width="640px"
+      destroy-on-close
+      draggable
+      @closed="resetHandleForm"
+    >
+      <el-alert
+        type="warning"
+        :closable="false"
+        show-icon
+        class="handle-tip"
+        title="异常说明：当前记录已完成支付，但保险状态未及时变更，请确认后手动更新保险状态。"
+      />
+      <el-form v-if="handleRecord" :model="handleForm" label-width="108px">
+        <el-form-item label="学生姓名">
+          <span>{{ handleRecord.studentName }}</span>
+        </el-form-item>
+        <el-form-item label="学号">
+          <span>{{ handleRecord.studentNo || '-' }}</span>
+        </el-form-item>
+        <el-form-item label="学校">
+          <span>{{ handleRecord.school }}</span>
+        </el-form-item>
+        <el-form-item label="年级班级">
+          <span>{{ handleRecord.gradeClass }}</span>
+        </el-form-item>
+        <el-form-item label="保险方案">
+          <span>{{ getInsurancePlanName(handleRecord.planId) }}</span>
+        </el-form-item>
+        <el-form-item label="保险方式">
+          <span>{{ handleRecord.insuranceMethod || '-' }}</span>
+        </el-form-item>
+        <el-form-item label="当前保险状态">
+          <el-tag type="danger" size="small" effect="plain">异常</el-tag>
+        </el-form-item>
+        <el-form-item label="异常原因">
+          <span>{{ handleRecord.exceptionReason }}</span>
+        </el-form-item>
+        <el-form-item label="处理结果" required>
+          <el-select v-model="handleForm.result" placeholder="请选择处理结果" class="ele-fluid">
+            <el-option label="更新为已参保" value="已参保" />
+            <el-option label="暂不处理" value="暂不处理" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="处理说明">
+          <el-input v-model.trim="handleForm.remark" type="textarea" :rows="3" placeholder="选填" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="handleVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitHandle">确认处理</el-button>
+      </template>
+    </el-dialog>
   </ele-page>
 </template>
 
 <script setup>
   import { computed, reactive, ref } from 'vue';
+  import { EleMessage } from 'ele-admin-plus';
   import {
     GRADE_CLASS_CASCADER_OPTIONS,
+    canHandleInsuranceException,
     findInsurancePlan,
     getInsurancePlanName,
     getSchoolFilterOptions,
+    handleInsuranceException,
     insuranceStore
   } from '../data.js';
 
@@ -137,7 +198,10 @@
 
   const tableRef = ref(null);
   const detailVisible = ref(false);
+  const handleVisible = ref(false);
   const current = ref(null);
+  const handleRecord = ref(null);
+  const handleForm = reactive({ result: '', remark: '' });
   const schoolOptions = computed(() => getSchoolFilterOptions());
   const gradeClassOptions = GRADE_CLASS_CASCADER_OPTIONS;
   const query = reactive({
@@ -172,7 +236,9 @@
   };
 
   const datasource = ({ pages }) => {
-    let list = insuranceStore.records;
+    let list = insuranceStore.records.filter(
+      (row) => row.status !== '异常' || canHandleInsuranceException(row)
+    );
     if (query.studentName) list = list.filter((row) => row.studentName.includes(query.studentName));
     if (query.school) list = list.filter((row) => row.school === query.school);
     if (query.gradeClassPath?.length) list = list.filter(matchGradeClass);
@@ -201,11 +267,42 @@
     current.value = row;
     detailVisible.value = true;
   };
+
+  const resetHandleForm = () => {
+    handleForm.result = '';
+    handleForm.remark = '';
+    handleRecord.value = null;
+  };
+
+  const openHandleDialog = (row) => {
+    handleRecord.value = row;
+    handleForm.result = '';
+    handleForm.remark = '';
+    handleVisible.value = true;
+  };
+
+  const submitHandle = () => {
+    if (!handleForm.result) {
+      EleMessage.error({ message: '请选择处理结果', plain: true });
+      return;
+    }
+    handleInsuranceException(handleRecord.value.recordId, {
+      result: handleForm.result,
+      remark: handleForm.remark
+    });
+    handleVisible.value = false;
+    tableRef.value?.reload?.();
+    EleMessage.success({ message: '异常处理已保存', plain: true });
+  };
 </script>
 
 <style scoped lang="scss">
   .detail-block {
     margin-bottom: 14px;
+  }
+
+  .handle-tip {
+    margin-bottom: 16px;
   }
 
   .block-title {

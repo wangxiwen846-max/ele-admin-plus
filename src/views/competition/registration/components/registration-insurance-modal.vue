@@ -103,7 +103,7 @@
   });
 
   const statusTag = (status) => {
-    const map = { 已参保: 'success', 部分参保: 'warning', 待参保: 'info', 异常: 'danger' };
+    const map = { 已参保: 'success', 待参保: 'info' };
     return map[status] || 'info';
   };
 </script>

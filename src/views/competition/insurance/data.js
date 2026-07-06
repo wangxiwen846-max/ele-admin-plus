@@ -25,7 +25,8 @@ export const INSURANCE_TYPE_MATCH = '单场比赛保险';
 export const CHARGE_METHOD_SEMESTER = '按学期';
 export const CHARGE_METHOD_MATCH = '按比赛';
 export const INSURANCE_STATUS_OPTIONS = ['待参保', '部分参保', '已参保', '异常'];
-export const INSURANCE_PLAN_STATUS_OPTIONS = ['启用', '停用'];
+export const INSURANCE_EXCEPTION_REASON_PAID = '已支付但状态未及时变更';
+export const INSURANCE_EXCEPTION_TYPE_PAID = 'paid_status_delay';
 export const SEMESTER_OPTIONS = ['第一学期', '第二学期'];
 
 export const GRADE_CLASS_CASCADER_OPTIONS = [
@@ -106,6 +107,7 @@ export const insuranceStore = reactive({
     {
       recordId: 'ins_001',
       studentName: '王小明',
+      studentNo: '20250001',
       gender: '男',
       idNo: '110101********1234',
       school: '第一实验小学',
@@ -124,6 +126,7 @@ export const insuranceStore = reactive({
     {
       recordId: 'ins_002',
       studentName: '李思雨',
+      studentNo: '20250002',
       gender: '女',
       idNo: '110101********2356',
       school: '第一实验小学',
@@ -142,6 +145,7 @@ export const insuranceStore = reactive({
     {
       recordId: 'ins_003',
       studentName: '赵一诺',
+      studentNo: '20250003',
       gender: '女',
       idNo: '110101********7788',
       school: '第二实验小学',
@@ -154,8 +158,12 @@ export const insuranceStore = reactive({
       schoolYearSemester: '',
       premium: 8,
       status: '异常',
-      exceptionReason: '证件号与学生库不一致',
-      handleStatus: '待处理'
+      exceptionType: INSURANCE_EXCEPTION_TYPE_PAID,
+      exceptionReason: INSURANCE_EXCEPTION_REASON_PAID,
+      handleStatus: '待处理',
+      handleRemark: '',
+      handleBy: '',
+      handleTime: ''
     }
   ]
 });
@@ -300,13 +308,8 @@ export function saveInsurancePlan(data) {
     delete next.semester;
     delete next.startDate;
     delete next.endDate;
-    delete next.coverageTypes;
-  } else {
-    next.coverageTypes = normalizeMatchTypeLeaves(next.coverageTypes ?? []);
-    if (!next.coverageTypes.length) {
-      next.coverageTypes = [MATCH_TYPE_DAILY, MATCH_TYPE_CLASS];
-    }
   }
+  delete next.coverageTypes;
   if (!next.planId) {
     next.planId = `plan_${Date.now()}`;
     next.updateTime = '刚刚';
@@ -319,4 +322,33 @@ export function saveInsurancePlan(data) {
     insuranceStore.plans.splice(index, 1, next);
   }
   return next;
+}
+
+export function canHandleInsuranceException(record) {
+  return (
+    record?.status === '异常' &&
+    record?.exceptionType === INSURANCE_EXCEPTION_TYPE_PAID &&
+    record?.exceptionReason === INSURANCE_EXCEPTION_REASON_PAID
+  );
+}
+
+export function handleInsuranceException(recordId, payload = {}) {
+  const record = insuranceStore.records.find((item) => item.recordId === recordId);
+  if (!record || !canHandleInsuranceException(record)) {
+    return null;
+  }
+  const { result, remark = '' } = payload;
+  const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  record.handleRemark = remark;
+  record.handleBy = '体测管理员';
+  record.handleTime = now;
+  if (result === '已参保') {
+    record.status = '已参保';
+    record.handleStatus = '已处理';
+    record.exceptionReason = '';
+    record.exceptionType = '';
+  } else {
+    record.handleStatus = '暂不处理';
+  }
+  return record;
 }

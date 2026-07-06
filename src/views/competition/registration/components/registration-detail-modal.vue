@@ -128,10 +128,7 @@
             <el-table-column label="比赛形式" width="90" align="center">
               <template #default>团体</template>
             </el-table-column>
-            <el-table-column prop="participantNumber" label="参赛编号" width="96" align="center">
-              <template #default="{ row }">{{ formatParticipantNumberDisplay(row.participantNumber) }}</template>
-            </el-table-column>
-            <el-table-column prop="teamName" label="团队名称" min-width="140" />
+            <el-table-column prop="teamName" label="队伍名称" min-width="140" />
             <el-table-column prop="school" label="学校" min-width="130" show-overflow-tooltip />
             <el-table-column prop="memberCount" label="成员人数" width="90" align="center" />
             <el-table-column prop="insuredCount" label="已参保人数" width="100" align="center" />
@@ -166,14 +163,18 @@
           <el-button link type="primary" @click="view = 'roster'">返回团队列表</el-button>
           <span class="roster-summary">
             <span>当前团队：{{ currentTeam?.teamName }}</span>
-            <span>参赛编号：{{ formatParticipantNumberDisplay(currentTeam?.participantNumber) }}</span>
             <span>所属学校：{{ currentTeam?.school }}</span>
             <span>成员人数：{{ currentTeam?.members?.length || 0 }}</span>
           </span>
         </div>
         <div class="table-wrap">
           <el-table :data="currentTeam?.members || []" border size="small">
-            <el-table-column prop="name" label="学生姓名" width="100" fixed="left" />
+            <el-table-column label="参赛编号" width="96" align="center" fixed="left">
+              <template #default="{ row }">
+                {{ formatParticipantNumberDisplay(row.participantNumber || getMemberParticipantNumber(row.studentId)) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="name" label="成员姓名" width="100" />
             <el-table-column prop="idNo" label="证件号" min-width="160" show-overflow-tooltip />
             <el-table-column prop="gender" label="性别" width="70" align="center" />
             <el-table-column prop="school" label="学校" min-width="130" show-overflow-tooltip />
@@ -190,7 +191,7 @@
             </el-table-column>
             <el-table-column label="操作" width="100" align="center" fixed="right">
               <template #default="{ row }">
-                <el-link type="primary" underline="never" @click="openInsurance({ scope: 'member', student: { ...row, participantNumber: currentTeam?.participantNumber } })">
+                <el-link type="primary" underline="never" @click="openInsurance({ scope: 'member', student: row })">
                   查看保险
                 </el-link>
               </template>
@@ -239,6 +240,7 @@
     getPersonalEntriesByItem,
     getMatchItemFormLayout,
     getRegistrationDetail,
+    getStudentParticipantNumberInMatch,
     getTeamEntriesByItem,
     removePersonalEntry,
     removeTeamEntry,
@@ -330,9 +332,12 @@
   );
 
   const statusTag = (status) => {
-    const map = { 已参保: 'success', 部分参保: 'warning', 待参保: 'info', 异常: 'danger' };
+    const map = { 已参保: 'success', 待参保: 'info' };
     return map[status] || 'info';
   };
+
+  const getMemberParticipantNumber = (studentId) =>
+    getStudentParticipantNumberInMatch(props.matchId, studentId);
 
   const backToMain = () => {
     view.value = 'main';
