@@ -3,9 +3,9 @@
  */
 import NProgress from 'nprogress';
 import { createRouter, createWebHistory } from 'vue-router';
-import { LOGIN_PATH, REDIRECT_PATH, LAYOUT_PATH } from '@/config/setting';
+import { HOME_PATH, LOGIN_PATH, PROTOTYPE_AUTO_LOGIN, REDIRECT_PATH, LAYOUT_PATH } from '@/config/setting';
 import { useUserStore } from '@/store/modules/user';
-import { getToken } from '@/utils/token-util';
+import { ensurePrototypeToken, getToken } from '@/utils/token-util';
 import { setPageTitle } from '@/utils/page-title-util';
 import { getRouteTitle } from '@/i18n/use-locale';
 import { routes, getMenuRoutes, isWhiteList } from './routes';
@@ -33,7 +33,11 @@ router.beforeEach(async (to) => {
     NProgress.start();
     setPageTitle(getRouteTitle(to));
   }
-  if (!getToken()) {
+  ensurePrototypeToken();
+  if (PROTOTYPE_AUTO_LOGIN && to.path === LOGIN_PATH) {
+    return { path: HOME_PATH, replace: true };
+  }
+  if (!PROTOTYPE_AUTO_LOGIN && !getToken()) {
     // 未登录跳转登录界面
     if (!isWhiteList(to.path)) {
       const query = { from: encodeURIComponent(to.fullPath) };

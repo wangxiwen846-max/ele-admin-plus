@@ -3,7 +3,7 @@
  */
 import axios from 'axios';
 import { unref } from 'vue';
-import { LOGIN_PATH, LAYOUT_PATH, TOKEN_HEADER_NAME } from '@/config/setting';
+import { LOGIN_PATH, LAYOUT_PATH, PROTOTYPE_AUTO_LOGIN, TOKEN_HEADER_NAME } from '@/config/setting';
 import router from '@/router';
 import { isWhiteList } from '@/router/routes';
 import { getToken, setToken } from './token-util';
@@ -32,6 +32,14 @@ export function requestInterceptor(config) {
  * 响应拦截处理
  */
 export function responseInterceptor(res) {
+  // 原型阶段不跳转登录页
+  if (PROTOTYPE_AUTO_LOGIN) {
+    const newToken = res.headers['authorization'];
+    if (newToken) {
+      setToken(newToken);
+    }
+    return;
+  }
   // 登录过期处理
   if (res.data?.code === 401 || (res.data?.code === 403 && !getToken())) {
     const toRoute = res.config.toRoute;

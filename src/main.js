@@ -9,7 +9,10 @@ import { iconsInstaller } from '@/components/IconSelect/util';
 import 'element-plus/theme-chalk/display.css';
 import 'ele-admin-plus/es/style/nprogress.scss';
 import './styles/themes';
+import { ensurePrototypeToken } from '@/utils/token-util';
 import './styles/index.scss';
+
+ensurePrototypeToken();
 
 // 设置高德地图密钥
 const mapKeySecret = import.meta.env.VITE_MAP_SECRET;

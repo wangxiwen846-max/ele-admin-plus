@@ -208,7 +208,7 @@ export async function getUserInfo(_toRoute) {
   return Promise.resolve({
     userId: 1,
     username: 'admin',
-    nickname: '体测管理员',
+    nickname: '赛事管理员',
     avatar: '',
     sex: '0',
     roles: [{ roleId: 1, roleCode: 'admin', roleName: '管理员' }],

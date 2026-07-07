@@ -1,11 +1,14 @@
 /** 登录页面的路由地址 */
 export const LOGIN_PATH = '/login';
 
+/** 原型阶段免登录，直接进入后台 */
+export const PROTOTYPE_AUTO_LOGIN = true;
+
 /** 不需要登录的路由地址 */
 export const WHITE_LIST = [LOGIN_PATH, '/forget'];
 
 /** 首页路径, 为空则取第一个菜单的地址 */
-export const HOME_PATH = void 0;
+export const HOME_PATH = '/competition/activity';
 
 /** 外层布局的路由地址 */
 export const LAYOUT_PATH = '/';

@@ -1,17 +1,36 @@
 /**
  * token操作封装
  */
-import { TOKEN_CACHE_NAME } from '@/config/setting';
+import { PROTOTYPE_AUTO_LOGIN, TOKEN_CACHE_NAME } from '@/config/setting';
+
+/** 原型默认 token */
+export const PROTOTYPE_MOCK_TOKEN = 'prototype-mock-token';
+
+/**
+ * 原型阶段确保存在默认登录 token
+ */
+export function ensurePrototypeToken() {
+  if (!PROTOTYPE_AUTO_LOGIN) {
+    return;
+  }
+  if (!localStorage.getItem(TOKEN_CACHE_NAME) && !sessionStorage.getItem(TOKEN_CACHE_NAME)) {
+    localStorage.setItem(TOKEN_CACHE_NAME, PROTOTYPE_MOCK_TOKEN);
+  }
+}
 
 /**
  * 获取缓存的token
  */
 export function getToken() {
-  const token = localStorage.getItem(TOKEN_CACHE_NAME);
-  if (!token) {
-    return sessionStorage.getItem(TOKEN_CACHE_NAME);
+  const token =
+    localStorage.getItem(TOKEN_CACHE_NAME) || sessionStorage.getItem(TOKEN_CACHE_NAME);
+  if (token) {
+    return token;
   }
-  return token;
+  if (PROTOTYPE_AUTO_LOGIN) {
+    return PROTOTYPE_MOCK_TOKEN;
+  }
+  return null;
 }
 
 /**

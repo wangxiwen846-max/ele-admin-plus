@@ -1,5 +1,5 @@
 import { ElMessageBox } from 'element-plus';
-import { LOGIN_PATH } from '@/config/setting';
+import { HOME_PATH, LOGIN_PATH, PROTOTYPE_AUTO_LOGIN } from '@/config/setting';
 import { removeToken } from '@/utils/token-util';
 import router from '@/router';
 
@@ -9,6 +9,11 @@ import router from '@/router';
  * @param route 是否使用路由跳转
  */
 export function goLogin(from, route) {
+  if (PROTOTYPE_AUTO_LOGIN) {
+    const target = from ? decodeURIComponent(from) : HOME_PATH;
+    router.replace(target);
+    return;
+  }
   removeToken();
   if (route) {
     router.push({
@@ -28,6 +33,10 @@ export function goLogin(from, route) {
  * @param route 是否使用路由跳转
  */
 export function showExpiredLogout(from, route) {
+  if (PROTOTYPE_AUTO_LOGIN) {
+    goLogin(from, route);
+    return;
+  }
   ElMessageBox.close();
   ElMessageBox.alert('登录状态已过期, 请退出重新登录!', '系统提示', {
     confirmButtonText: '重新登录',
