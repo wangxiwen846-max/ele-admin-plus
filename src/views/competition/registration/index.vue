@@ -1,12 +1,29 @@
-<!-- 比赛管理 / 参赛名单 -->
+<!-- 比赛管理 / 参赛名单（参赛人员明细） -->
 <template>
   <ele-page class="registration-page">
     <ele-card :body-style="{ paddingBottom: '2px' }">
       <el-form label-width="82px" @keyup.enter="handleSearch" @submit.prevent="">
         <el-row :gutter="8">
           <el-col :lg="8" :md="12" :sm="12" :xs="24">
+            <el-form-item label="参赛编号">
+              <el-input v-model.trim="query.participantNumber" clearable placeholder="精准查询" />
+            </el-form-item>
+          </el-col>
+          <el-col :lg="8" :md="12" :sm="12" :xs="24">
+            <el-form-item label="学生姓名">
+              <el-input v-model.trim="query.studentName" clearable placeholder="支持模糊搜索" />
+            </el-form-item>
+          </el-col>
+          <el-col :lg="8" :md="12" :sm="12" :xs="24">
             <el-form-item label="赛事活动">
-              <el-select v-model="query.activityId" clearable filterable placeholder="请选择" class="ele-fluid">
+              <el-select
+                v-model="query.activityId"
+                clearable
+                filterable
+                placeholder="请选择"
+                class="ele-fluid"
+                @change="handleActivityChange"
+              >
                 <el-option
                   v-for="item in activityOptions"
                   :key="item.activityId"
@@ -18,41 +35,40 @@
           </el-col>
           <el-col :lg="8" :md="12" :sm="12" :xs="24">
             <el-form-item label="赛段">
-              <el-input v-model.trim="query.stageName" clearable placeholder="支持模糊搜索" />
-            </el-form-item>
-          </el-col>
-          <el-col :lg="8" :md="12" :sm="12" :xs="24">
-            <el-form-item label="比赛类型">
-              <match-type-cascader v-model="query.matchType" class="ele-fluid" />
-            </el-form-item>
-          </el-col>
-          <el-col :lg="8" :md="12" :sm="12" :xs="24">
-            <el-form-item label="比赛名称">
-              <el-input v-model.trim="query.matchName" clearable placeholder="支持模糊搜索" />
-            </el-form-item>
-          </el-col>
-          <el-col :lg="8" :md="12" :sm="12" :xs="24">
-            <el-form-item label="保险状态">
-              <el-select v-model="query.insuranceStatus" clearable placeholder="请选择" class="ele-fluid">
-                <el-option v-for="opt in REGISTRATION_INSURANCE_STATUS_OPTIONS" :key="opt" :label="opt" :value="opt" />
+              <el-select
+                v-model="query.stageName"
+                clearable
+                placeholder="请先选择赛事活动"
+                class="ele-fluid"
+                :disabled="!query.activityId"
+                @change="handleStageChange"
+              >
+                <el-option
+                  v-for="item in stageOptions"
+                  :key="item.stageId || item.stageName"
+                  :label="item.stageName"
+                  :value="item.stageName"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :lg="8" :md="12" :sm="12" :xs="24">
-            <el-form-item label="学校">
-              <el-input v-model.trim="query.school" clearable placeholder="支持模糊搜索" />
+            <el-form-item label="比赛类型">
+              <match-type-cascader
+                v-model="query.matchType"
+                class="ele-fluid"
+                :disabled="!query.stageName"
+                :allowed-leaf-types="matchTypeLeafOptions"
+                placeholder="请先选择赛段"
+                @update:model-value="handleMatchTypeChange"
+              />
             </el-form-item>
           </el-col>
           <el-col :lg="8" :md="12" :sm="12" :xs="24">
-            <el-form-item label="比赛时间">
-              <el-date-picker
-                v-model="query.dateRange"
-                type="daterange"
-                value-format="YYYY-MM-DD"
-                start-placeholder="开始日期"
-                end-placeholder="结束日期"
-                class="ele-fluid"
-              />
+            <el-form-item label="比赛名称">
+              <el-select v-model="query.matchName" clearable filterable placeholder="请选择" class="ele-fluid">
+                <el-option v-for="name in matchNameOptions" :key="name" :label="name" :value="name" />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :lg="8" :md="12" :sm="12" :xs="24">
@@ -68,12 +84,12 @@
     <ele-card :body-style="{ paddingBottom: '4px' }">
       <ele-pro-table
         ref="tableRef"
-        row-key="matchId"
+        row-key="rowKey"
         :columns="columns"
         :datasource="datasource"
         :show-overflow-tooltip="true"
         :toolbar="{ theme: 'default' }"
-        cache-key="CompetitionRegistrationTable"
+        cache-key="CompetitionRegistrationParticipantTable"
       >
         <template #toolbar>
           <el-button type="primary" :icon="PlusOutlined" class="ele-btn-icon" @click="openAdd()">
@@ -82,28 +98,18 @@
           <el-button @click="openImport()">导入名单</el-button>
           <el-button @click="exportAll">导出名单</el-button>
         </template>
-        <template #matchName="{ row }">
-          <el-link type="primary" underline="never" @click="openDetail(row)">{{ row.matchName }}</el-link>
-        </template>
-        <template #teamCount="{ row }">{{ row.teamCount || '-' }}</template>
         <template #insuranceStatus="{ row }">
           <el-tag :type="getInsuranceStatusTag(row.insuranceStatus)" size="small" effect="plain">
             {{ row.insuranceStatus }}
           </el-tag>
         </template>
+        <template #scoreStatus="{ row }">
+          <el-tag :type="getScoreStatusTag(row.scoreStatus)" size="small" effect="plain">
+            {{ row.scoreStatus }}
+          </el-tag>
+        </template>
         <template #action="{ row }">
-          <template v-if="isDailyRow(row)">
-            <el-link type="primary" underline="never" @click="openDailyRecord(row)">查看参与记录</el-link>
-            <el-divider direction="vertical" />
-            <el-link type="primary" underline="never" @click="openInsurance(row)">查看保险</el-link>
-          </template>
-          <template v-else>
-            <el-link type="primary" underline="never" @click="openDetail(row)">查看详情</el-link>
-            <el-divider direction="vertical" />
-            <el-link type="primary" underline="never" @click="openInsurance(row)">查看保险</el-link>
-            <el-divider direction="vertical" />
-            <el-link type="primary" underline="never" @click="exportList(row)">导出</el-link>
-          </template>
+          <el-link type="primary" underline="never" @click="openInsurance(row)">查看保险</el-link>
         </template>
       </ele-pro-table>
     </ele-card>
@@ -114,17 +120,6 @@
       @done="reloadTable"
     />
     <registration-import-modal v-model:visible="importVisible" @done="reloadTable" />
-    <registration-detail-modal
-      v-model:visible="detailVisible"
-      :match-id="detailMatchId"
-      @done="reloadTable"
-      @view-insurance="openInsuranceContext"
-    />
-    <registration-daily-record-modal
-      v-model:visible="dailyVisible"
-      :match-id="dailyMatchId"
-      @view-insurance="openInsuranceContext"
-    />
     <registration-insurance-modal
       v-model:visible="insuranceVisible"
       :context="insuranceContext"
@@ -136,77 +131,94 @@
   import { computed, reactive, ref } from 'vue';
   import { EleMessage } from 'ele-admin-plus';
   import { PlusOutlined } from '@/components/icons';
-  import { REGISTRATION_INSURANCE_STATUS_OPTIONS } from './data.js';
-  import { isDailyMatch } from '@/views/competition/match/data.js';
   import { matchTypeMatchesLeaf } from '@/views/competition/match-type.js';
   import MatchTypeCascader from '@/views/competition/components/match-type-cascader.vue';
   import RegistrationAddModal from './components/registration-add-modal.vue';
   import RegistrationImportModal from './components/registration-import-modal.vue';
-  import RegistrationDetailModal from './components/registration-detail-modal.vue';
-  import RegistrationDailyRecordModal from './components/registration-daily-record-modal.vue';
   import RegistrationInsuranceModal from './components/registration-insurance-modal.vue';
-  import { getActivityFilterOptions, getAllRegistrationMatches } from './data.js';
+  import {
+    getActivityFilterOptions,
+    getAllRegistrationParticipants,
+    getMatchNameFilterOptions,
+    getMatchTypeLeafOptionsForStage,
+    getStageFilterOptions,
+    filterParticipantsByAccountScope
+  } from './data.js';
 
   defineOptions({ name: 'CompetitionRegistration' });
 
   const tableRef = ref(null);
   const addVisible = ref(false);
   const importVisible = ref(false);
-  const detailVisible = ref(false);
-  const dailyVisible = ref(false);
   const insuranceVisible = ref(false);
   const addMatchId = ref('');
-  const detailMatchId = ref('');
-  const dailyMatchId = ref('');
   const insuranceContext = ref({});
 
   const query = reactive({
+    participantNumber: '',
+    studentName: '',
     activityId: void 0,
     stageName: '',
     matchType: '',
-    matchName: '',
-    insuranceStatus: '',
-    school: '',
-    dateRange: []
+    matchName: ''
   });
 
   const columns = ref([
+    { prop: 'participantNumber', label: '参赛编号', width: 110, align: 'center', fixed: 'left' },
+    { prop: 'activityName', label: '赛事活动', minWidth: 160 },
     { prop: 'stageName', label: '赛段', minWidth: 110 },
-    { prop: 'matchTypeLabel', label: '比赛类型', minWidth: 160, align: 'center' },
-    { prop: 'matchName', label: '比赛名称', minWidth: 190, slot: 'matchName', fixed: 'left' },
-    { prop: 'itemCount', label: '设项数量', width: 90, align: 'center' },
-    { prop: 'participantCount', label: '参赛人数', width: 90, align: 'center' },
-    { prop: 'teamCount', label: '团队数', width: 80, align: 'center', slot: 'teamCount' },
-    { prop: 'insuranceType', label: '保险类型', width: 120, align: 'center' },
-    { prop: 'insurancePlan', label: '保险方案', minWidth: 170 },
-    { prop: 'insuranceMethod', label: '保险方式', width: 100, align: 'center' },
+    { prop: 'matchTypeLabel', label: '比赛类型', minWidth: 150, align: 'center' },
+    { prop: 'matchName', label: '比赛名称', minWidth: 180 },
+    { prop: 'itemName', label: '设项名称', minWidth: 130 },
+    { prop: 'project', label: '参赛项目', minWidth: 120 },
+    { prop: 'matchForm', label: '比赛形式', width: 90, align: 'center' },
+    { prop: 'school', label: '学校', minWidth: 130 },
+    { prop: 'grade', label: '年级', width: 90, align: 'center' },
+    { prop: 'className', label: '班级', width: 90, align: 'center' },
+    { prop: 'classNo', label: '班内序号', width: 90, align: 'center' },
+    { prop: 'studentName', label: '学生姓名', width: 100 },
+    { prop: 'teamName', label: '队伍名称', minWidth: 120 },
     { prop: 'insuranceStatus', label: '保险状态', width: 100, align: 'center', slot: 'insuranceStatus' },
+    { prop: 'scoreStatus', label: '成绩状态', width: 100, align: 'center', slot: 'scoreStatus' },
+    { prop: 'reportMethod', label: '报名方式', width: 110, align: 'center' },
+    { prop: 'registerTime', label: '报名时间', width: 150, align: 'center' },
     { prop: 'updateTime', label: '更新时间', width: 150, align: 'center' },
-    { columnKey: 'action', label: '操作', width: 220, align: 'center', slot: 'action', fixed: 'right' }
+    { columnKey: 'action', label: '操作', width: 110, align: 'center', slot: 'action', fixed: 'right' }
   ]);
 
   const activityOptions = computed(() => getActivityFilterOptions());
+  const stageOptions = computed(() => getStageFilterOptions(query.activityId));
+  const matchTypeLeafOptions = computed(() =>
+    getMatchTypeLeafOptionsForStage(query.activityId, query.stageName)
+  );
+  const matchNameOptions = computed(() =>
+    getMatchNameFilterOptions({
+      activityId: query.activityId,
+      stageName: query.stageName,
+      matchType: query.matchType
+    })
+  );
 
   const datasource = ({ pages }) => {
-    let list = getAllRegistrationMatches();
+    let list = filterParticipantsByAccountScope(getAllRegistrationParticipants());
+    const participantNumber = query.participantNumber.trim().toUpperCase();
+    if (participantNumber) {
+      list = list.filter((row) => String(row.participantNumber || '').toUpperCase() === participantNumber);
+    }
+    if (query.studentName) {
+      list = list.filter((row) => row.studentName.includes(query.studentName));
+    }
     if (query.activityId) {
       list = list.filter((row) => row.activityId === query.activityId);
     }
     if (query.stageName) {
-      list = list.filter((row) => row.stageName.includes(query.stageName));
+      list = list.filter((row) => row.stageName === query.stageName);
     }
     if (query.matchType) {
       list = list.filter((row) => matchTypeMatchesLeaf(row.matchType, query.matchType, row.stageName));
     }
     if (query.matchName) {
-      list = list.filter((row) => row.matchName.includes(query.matchName));
-    }
-    if (query.insuranceStatus) {
-      list = list.filter((row) => row.insuranceStatus === query.insuranceStatus);
-    }
-    if (query.dateRange?.length === 2) {
-      const [start, end] = query.dateRange;
-      list = list.filter((row) => row.startTime?.slice(0, 10) <= end && row.endTime?.slice(0, 10) >= start);
+      list = list.filter((row) => row.matchName === query.matchName);
     }
     const { page = 1, limit = 10 } = pages || {};
     return Promise.resolve({
@@ -220,7 +232,25 @@
     return map[status] || 'info';
   };
 
-  const isDailyRow = (row) => isDailyMatch(row);
+  const getScoreStatusTag = (status) => {
+    const map = { 已上传: 'success', 异常: 'danger', 未上传: 'info' };
+    return map[status] || 'info';
+  };
+
+  const handleActivityChange = () => {
+    query.stageName = '';
+    query.matchType = '';
+    query.matchName = '';
+  };
+
+  const handleStageChange = () => {
+    query.matchType = '';
+    query.matchName = '';
+  };
+
+  const handleMatchTypeChange = () => {
+    query.matchName = '';
+  };
 
   const handleSearch = () => {
     tableRef.value?.reload?.({ page: 1 });
@@ -228,13 +258,12 @@
 
   const resetSearch = () => {
     Object.assign(query, {
+      participantNumber: '',
+      studentName: '',
       activityId: void 0,
       stageName: '',
       matchType: '',
-      matchName: '',
-      insuranceStatus: '',
-      school: '',
-      dateRange: []
+      matchName: ''
     });
     handleSearch();
   };
@@ -243,17 +272,8 @@
     tableRef.value?.reload?.();
   };
 
-  const openDetail = (row) => {
-    if (isDailyRow(row)) {
-      openDailyRecord(row);
-      return;
-    }
-    detailMatchId.value = row.matchId;
-    detailVisible.value = true;
-  };
-
-  const openAdd = (row) => {
-    addMatchId.value = row?.matchId || '';
+  const openAdd = () => {
+    addMatchId.value = '';
     addVisible.value = true;
   };
 
@@ -261,25 +281,13 @@
     importVisible.value = true;
   };
 
-  const openDailyRecord = (row) => {
-    dailyMatchId.value = row.matchId;
-    dailyVisible.value = true;
-  };
-
   const openInsurance = (row) => {
-    insuranceContext.value = isDailyRow(row)
-      ? { matchId: row.matchId, scope: 'daily' }
-      : { matchId: row.matchId, scope: 'match' };
+    if (row.rowType === 'member') {
+      insuranceContext.value = { matchId: row.matchId, scope: 'member', student: row.raw.member };
+    } else {
+      insuranceContext.value = { matchId: row.matchId, scope: 'student', student: row.raw };
+    }
     insuranceVisible.value = true;
-  };
-
-  const openInsuranceContext = (context) => {
-    insuranceContext.value = context;
-    insuranceVisible.value = true;
-  };
-
-  const exportList = (row) => {
-    EleMessage.success({ message: `${row.matchName} 名单已生成导出任务。`, plain: true });
   };
 
   const exportAll = () => {
