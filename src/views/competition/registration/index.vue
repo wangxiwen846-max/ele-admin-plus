@@ -136,6 +136,7 @@
   import RegistrationAddModal from './components/registration-add-modal.vue';
   import RegistrationImportModal from './components/registration-import-modal.vue';
   import RegistrationInsuranceModal from './components/registration-insurance-modal.vue';
+  import { exportParticipants } from './registration-import.js';
   import {
     getActivityFilterOptions,
     getAllRegistrationParticipants,
@@ -199,7 +200,7 @@
     })
   );
 
-  const datasource = ({ pages }) => {
+  const getFilteredParticipants = () => {
     let list = filterParticipantsByAccountScope(getAllRegistrationParticipants());
     const participantNumber = query.participantNumber.trim().toUpperCase();
     if (participantNumber) {
@@ -220,6 +221,11 @@
     if (query.matchName) {
       list = list.filter((row) => row.matchName === query.matchName);
     }
+    return list;
+  };
+
+  const datasource = ({ pages }) => {
+    const list = getFilteredParticipants();
     const { page = 1, limit = 10 } = pages || {};
     return Promise.resolve({
       list: list.slice((page - 1) * limit, page * limit),
@@ -290,8 +296,18 @@
     insuranceVisible.value = true;
   };
 
-  const exportAll = () => {
-    EleMessage.success({ message: '当前筛选结果参赛名单已生成导出任务。', plain: true });
+  const exportAll = async () => {
+    const list = getFilteredParticipants();
+    if (!list.length) {
+      EleMessage.warning({ message: '当前筛选结果为空，暂无可导出的参赛名单。', plain: true });
+      return;
+    }
+    try {
+      const fileName = await exportParticipants(list);
+      EleMessage.success({ message: `${fileName} 已开始下载，共 ${list.length} 条数据。`, plain: true });
+    } catch (error) {
+      EleMessage.error({ message: error?.message || '导出失败，请稍后重试。', plain: true });
+    }
   };
 </script>
 

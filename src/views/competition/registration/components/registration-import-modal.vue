@@ -134,7 +134,7 @@
       type="info"
       show-icon
       :closable="false"
-      title="导入前请选择比赛和设项；模板不包含比赛名称和设项名称。上传后请点击「校验数据」，如有错误请修改 Excel 后重新上传。"
+      title="导入前请选择比赛和设项，并可按需选择导入范围（学校 / 年级 / 班级）。选择到班级时按班导入，模板无需填写学校、年级、班级；否则为跨班导入，模板需填写这些字段。上传后请点击「校验数据」，如有错误请修改 Excel 后重新上传。"
     />
 
     <template v-if="validated">
@@ -179,7 +179,13 @@
     parseImportFile,
     validateImportRows
   } from '../registration-import.js';
-  import { getItemOptionsByMatch, getRegisterableMatches } from '../data.js';
+  import {
+    getItemOptionsByMatch,
+    getRegisterableMatches,
+    getScopeSchoolOptions,
+    getScopeGradeOptions,
+    getScopeClassOptions
+  } from '../data.js';
 
   const props = defineProps({
     visible: Boolean,
@@ -192,7 +198,7 @@
   const lockedMatchId = computed(() => props.matchId || '');
   const lockedItemId = computed(() => props.itemId || '');
   const registerableMatches = computed(() => getRegisterableMatches());
-  const form = reactive({ matchId: '', itemId: '' });
+  const form = reactive({ matchId: '', itemId: '', school: '', grade: '', className: '' });
   const uploadFile = ref(null);
   const validated = ref(false);
   const parsedRows = ref([]);
@@ -208,8 +214,16 @@
   const selectedItem = computed(() =>
     itemOptions.value.find((item) => String(item.itemId) === String(form.itemId))
   );
+  const scope = computed(() => ({
+    school: form.school,
+    grade: form.grade,
+    className: form.className
+  }));
+  const scopeSchoolOptions = computed(() => getScopeSchoolOptions());
+  const scopeGradeOptions = computed(() => getScopeGradeOptions(form.school));
+  const scopeClassOptions = computed(() => getScopeClassOptions(form.school, form.grade));
   const templateFields = computed(() =>
-    selectedItem.value?.matchForm ? getTemplateFields(selectedItem.value.matchForm) : []
+    selectedItem.value?.matchForm ? getTemplateFields(selectedItem.value.matchForm, scope.value) : []
   );
   const canDownloadTemplate = computed(() => !!(form.matchId && form.itemId && selectedItem.value));
   const canUpload = computed(() => canDownloadTemplate.value);
@@ -262,6 +276,9 @@
       }
       form.matchId = props.matchId || '';
       form.itemId = props.itemId || '';
+      form.school = '';
+      form.grade = '';
+      form.className = '';
       resetValidation();
     }
   );
@@ -281,6 +298,17 @@
 
   const handleMatchChange = () => {
     form.itemId = '';
+    resetValidation();
+  };
+
+  const handleScopeSchoolChange = () => {
+    form.grade = '';
+    form.className = '';
+    resetValidation();
+  };
+
+  const handleScopeGradeChange = () => {
+    form.className = '';
     resetValidation();
   };
 
@@ -316,7 +344,7 @@
       return;
     }
     try {
-      const fileName = await downloadImportTemplate(selectedItem.value.matchForm);
+      const fileName = await downloadImportTemplate(selectedItem.value.matchForm, scope.value);
       EleMessage.success({ message: `${fileName} 已开始下载。`, plain: true });
     } catch (error) {
       EleMessage.error({ message: error?.message || '模板下载失败', plain: true });
@@ -333,12 +361,17 @@
       return;
     }
     try {
-      parsedRows.value = await parseImportFile(uploadFile.value, selectedItem.value.matchForm);
+      parsedRows.value = await parseImportFile(
+        uploadFile.value,
+        selectedItem.value.matchForm,
+        scope.value
+      );
       const result = validateImportRows(
         parsedRows.value,
         selectedItem.value.matchForm,
         form.matchId,
-        form.itemId
+        form.itemId,
+        scope.value
       );
       Object.assign(summary, result);
       validated.value = true;

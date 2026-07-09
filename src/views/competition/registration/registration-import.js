@@ -4,6 +4,7 @@
 import ExcelJS from 'exceljs';
 import { download } from '@/utils/common.js';
 import {
+  PARTICIPANT_EXPORT_COLUMNS,
   STUDENT_OPTIONS,
   addPersonalEntry,
   addTeamEntry,
@@ -416,6 +417,22 @@ function validateTeamRows(rows, matchId, itemId, scope = {}) {
   }
 
   return { errors, validRows };
+}
+
+export const PARTICIPANT_EXPORT_NAME = '参赛名单.xlsx';
+
+/** 导出参赛名单（rows 为当前筛选后的主列表数据） */
+export async function exportParticipants(rows = []) {
+  const headers = PARTICIPANT_EXPORT_COLUMNS.map((column) => column.label);
+  const dataRows = rows.map((row) =>
+    PARTICIPANT_EXPORT_COLUMNS.map((column) => {
+      const value = row[column.prop];
+      return value == null || value === '' ? '-' : String(value);
+    })
+  );
+  const buffer = await buildWorkbook(headers, dataRows, '参赛名单');
+  download(buffer, PARTICIPANT_EXPORT_NAME, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  return PARTICIPANT_EXPORT_NAME;
 }
 
 export async function parseImportFile(file, matchForm, scope = {}) {
