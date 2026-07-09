@@ -64,13 +64,14 @@
         <el-form-item label="已选学生">
           <div class="table-wrap">
             <el-table :data="selectedStudents" border size="small" empty-text="请从学生库选择学生">
-              <el-table-column label="参赛编号" width="96" align="center">
+              <el-table-column label="参赛编号" width="110" align="center">
                 <template #default="{ row }">{{ displayStudentParticipantNumber(row.studentId) }}</template>
               </el-table-column>
               <el-table-column prop="name" label="学生姓名" width="100" />
               <el-table-column prop="idNo" label="证件号" min-width="160" show-overflow-tooltip />
               <el-table-column prop="school" label="学校" min-width="130" show-overflow-tooltip />
               <el-table-column prop="gradeClass" label="年级班级" width="120" />
+              <el-table-column prop="classNo" label="班内序号" width="90" align="center" />
               <el-table-column prop="gender" label="性别" width="70" align="center" />
               <el-table-column label="操作" width="80" align="center" fixed="right">
                 <template #default="{ row }">
@@ -103,7 +104,7 @@
         <el-form-item label="成员列表">
           <div class="table-wrap">
             <el-table :data="selectedStudents" border size="small" empty-text="请从学生库添加成员">
-              <el-table-column label="参赛编号" width="96" align="center">
+              <el-table-column label="参赛编号" width="110" align="center">
                 <template #default="{ row }">{{ displayStudentParticipantNumber(row.studentId) }}</template>
               </el-table-column>
               <el-table-column prop="name" label="学生姓名" width="100" />
@@ -111,6 +112,7 @@
               <el-table-column prop="gender" label="性别" width="70" align="center" />
               <el-table-column prop="school" label="学校" min-width="130" show-overflow-tooltip />
               <el-table-column prop="gradeClass" label="年级班级" width="120" />
+              <el-table-column prop="classNo" label="班内序号" width="90" align="center" />
               <el-table-column label="操作" width="80" align="center" fixed="right">
                 <template #default="{ row }">
                   <el-link type="danger" underline="never" @click="removeStudent(row.studentId)">移除</el-link>

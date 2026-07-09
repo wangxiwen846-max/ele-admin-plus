@@ -47,11 +47,12 @@
       @selection-change="handleSelectionChange"
     >
       <el-table-column type="selection" width="46" :selectable="isSelectable" />
-      <el-table-column prop="participantNumber" label="参赛编号" width="96" align="center" />
+      <el-table-column prop="participantNumber" label="参赛编号" width="110" align="center" />
       <el-table-column prop="name" label="学生姓名" width="100" />
       <el-table-column prop="idNo" label="证件号" min-width="150" show-overflow-tooltip />
       <el-table-column prop="school" label="学校" min-width="130" show-overflow-tooltip />
       <el-table-column prop="gradeClass" label="年级班级" width="120" />
+      <el-table-column prop="classNo" label="班内序号" width="90" align="center" />
       <el-table-column prop="gender" label="性别" width="70" align="center" />
     </el-table>
     <template #footer>

@@ -22,6 +22,7 @@ const PERSONAL_HEADER_MAP = {
   学校: 'school',
   年级: 'grade',
   班级: 'className',
+  班内序号: 'classNo',
   学生姓名: 'studentName',
   参赛编号: 'participantNumber',
   性别: 'gender',
@@ -33,6 +34,7 @@ const TEAM_HEADER_MAP = {
   学校: 'school',
   年级: 'grade',
   班级: 'className',
+  班内序号: 'classNo',
   团队名称: 'teamName',
   成员姓名: 'memberName',
   成员参赛编号: 'participantNumber',
@@ -60,7 +62,7 @@ function normalizeClassName(value) {
   return normalizeText(value).replace(/班/g, '班');
 }
 
-function matchStudent({ school, grade, className, studentNo, name }) {
+function matchStudent({ school, grade, className, classNo, name }) {
   const candidates = STUDENT_OPTIONS.filter(
     (student) =>
       student.school === String(school || '').trim() &&
@@ -71,8 +73,9 @@ function matchStudent({ school, grade, className, studentNo, name }) {
   if (!candidates.length) {
     return null;
   }
-  if (studentNo) {
-    return candidates.find((student) => String(student.studentNo) === String(studentNo).trim()) ?? null;
+  // 同班同名时用班内序号进一步区分
+  if (classNo) {
+    return candidates.find((student) => String(student.classNo) === String(classNo).trim()) ?? null;
   }
   return candidates.length === 1 ? candidates[0] : null;
 }
@@ -105,8 +108,8 @@ export async function downloadImportTemplate(matchForm) {
     const buffer = await buildWorkbook(
       TEAM_IMPORT_FIELDS,
       [
-        ['第一实验小学', '五年级', '3班', '五年级跳绳队', '王小明', '00001', '138****1234', '队员'],
-        ['第一实验小学', '五年级', '3班', '五年级跳绳队', '李思雨', '00002', '138****2356', '队员']
+        ['第一实验小学', '五年级', '3班', '1', '五年级跳绳队', '王小明', 'HD00001', '138****1234', '队员'],
+        ['第一实验小学', '五年级', '3班', '2', '五年级跳绳队', '李思雨', 'HD00002', '138****2356', '队员']
       ],
       '团体赛名单'
     );
@@ -115,7 +118,7 @@ export async function downloadImportTemplate(matchForm) {
   }
   const buffer = await buildWorkbook(
     PERSONAL_IMPORT_FIELDS,
-    [['第一实验小学', '五年级', '3班', '王小明', '00001', '男', '138****1234', '-']],
+    [['第一实验小学', '五年级', '3班', '1', '王小明', 'HD00001', '男', '138****1234', '-']],
     '个人赛名单'
   );
   download(buffer, PERSONAL_IMPORT_TEMPLATE_NAME, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -191,6 +194,7 @@ function validatePersonalRows(rows, matchId, itemId) {
       school: row.school,
       grade: row.grade,
       className: row.className,
+      classNo: row.classNo,
       name: row.studentName
     });
     if (!student) {
@@ -284,6 +288,7 @@ function validateTeamRows(rows, matchId, itemId) {
       school: row.school,
       grade: row.grade,
       className: row.className,
+      classNo: row.classNo,
       name: row.memberName
     });
     if (!student) {
