@@ -1,4 +1,4 @@
-<!-- 保险管理 / 保险方案管理 -->
+<!-- 保险管理 / 保险方案 -->
 <template>
   <ele-page>
     <ele-card :body-style="{ paddingBottom: '2px' }">
