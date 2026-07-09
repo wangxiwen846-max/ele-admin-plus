@@ -553,14 +553,27 @@
     margin-bottom: 12px;
   }
 
-  .error-table-wrap {
-    margin-top: 8px;
+  .preview-table-wrap {
+    margin-bottom: 12px;
   }
 
+  .preview-table-title,
   .error-table-title {
     margin-bottom: 8px;
     font-size: 13px;
     font-weight: 500;
     color: var(--el-text-color-primary);
+  }
+
+  .error-table-wrap {
+    margin-top: 8px;
+  }
+
+  :deep(.import-error-row) {
+    background-color: var(--el-color-danger-light-9);
+  }
+
+  :deep(.cell-error .el-input__wrapper) {
+    box-shadow: 0 0 0 1px var(--el-color-danger) inset;
   }
 </style>
