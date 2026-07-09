@@ -406,7 +406,7 @@
   // 全局 dirty：有任意行被修改
   const dirty = computed(() => Object.values(dirtyRows.value).some(Boolean));
 
-  // ─── 选项计算 ────────────────────────────────────────────────
+  // ─── 选项计算 ��───────────────────────────────────────────────
   const itemOptions = computed(() => (form.matchId ? getItemOptionsByMatch(form.matchId) : []));
   const selectedItem = computed(() =>
     itemOptions.value.find((item) => String(item.itemId) === String(form.itemId))
@@ -686,28 +686,44 @@
   /* 校验统计 */
   .validate-summary {
     display: flex;
-    gap: 32px;
-    padding: 12px 16px;
+    gap: 12px;
     margin-bottom: 12px;
-    background: var(--el-fill-color-lighter);
-    border-radius: 6px;
   }
 
   .summary-item {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 4px;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 12px 16px;
+    background: var(--el-fill-color-lighter);
+    border: 1px solid var(--el-border-color-lighter);
+    border-left-width: 3px;
+    border-radius: 6px;
+  }
+
+  .summary-item:nth-child(1) {
+    border-left-color: var(--el-border-color);
+  }
+
+  .summary-item:nth-child(2) {
+    border-left-color: var(--el-color-success);
+  }
+
+  .summary-item:nth-child(3) {
+    border-left-color: var(--el-color-danger);
   }
 
   .summary-label {
     font-size: 12px;
     color: var(--el-text-color-secondary);
+    line-height: 1;
   }
 
   .summary-value {
-    font-size: 22px;
-    font-weight: 600;
+    font-size: 24px;
+    font-weight: 700;
     color: var(--el-text-color-primary);
     line-height: 1;
   }
