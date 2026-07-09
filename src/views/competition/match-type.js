@@ -2,33 +2,34 @@
  * 比赛类型统一数据字典
  *
  * 两级结构：
- * - 校园赛 - 班班赛 / 校园赛 - 每日积分赛
- * - 区域赛
+ * - 省级校园行 - 每日积分赛 / 省级校园行 - 校内赛 / 省级校园行 - 区域赛
  * - 全国总决赛
  *
  * 存储使用叶子类型；展示使用 formatMatchTypeLabel 完整路径。
  */
 
-export const MATCH_TYPE_CAMPUS_TOP = '校园赛';
+export const MATCH_TYPE_CAMPUS_TOP = '省级校园行';
 export const MATCH_TYPE_REGION = '区域赛';
 export const MATCH_TYPE_FINAL = '全国总决赛';
 
 /** @deprecated 筛选场景请使用叶子类型 + 级联选择 */
-export const MATCH_TYPE_TOP_LEVEL_OPTIONS = ['校园赛', '区域赛', '全国总决赛'];
+export const MATCH_TYPE_TOP_LEVEL_OPTIONS = ['省级校园行', '全国总决赛'];
 
-export const CAMPUS_SUBTYPE_CLASS = '班班赛';
+export const CAMPUS_SUBTYPE_CLASS = '校内赛';
 export const CAMPUS_SUBTYPE_DAILY = '每日积分赛';
+export const CAMPUS_SUBTYPE_REGION = '区域赛';
 
-export const CAMPUS_SUBTYPE_OPTIONS = [CAMPUS_SUBTYPE_DAILY, CAMPUS_SUBTYPE_CLASS];
+export const CAMPUS_SUBTYPE_OPTIONS = [CAMPUS_SUBTYPE_DAILY, CAMPUS_SUBTYPE_CLASS, CAMPUS_SUBTYPE_REGION];
 
 export const PUBLISH_MATCH_TYPE_DAILY = CAMPUS_SUBTYPE_DAILY;
 export const PUBLISH_MATCH_TYPE_CLASS = CAMPUS_SUBTYPE_CLASS;
-export const PUBLISH_MATCH_TYPE_REGION = MATCH_TYPE_REGION;
+export const PUBLISH_MATCH_TYPE_REGION = CAMPUS_SUBTYPE_REGION;
 export const PUBLISH_MATCH_TYPE_FINAL = MATCH_TYPE_FINAL;
 
 export const CAMPUS_PUBLISH_MATCH_TYPES = [
+  PUBLISH_MATCH_TYPE_DAILY,
   PUBLISH_MATCH_TYPE_CLASS,
-  PUBLISH_MATCH_TYPE_DAILY
+  PUBLISH_MATCH_TYPE_REGION
 ];
 
 export const MATCH_TYPE_DAILY = CAMPUS_SUBTYPE_DAILY;
@@ -36,13 +37,12 @@ export const MATCH_TYPE_CLASS = CAMPUS_SUBTYPE_CLASS;
 
 export const MATCH_TYPE_CLASS_TYPES = [
   MATCH_TYPE_CLASS,
-  MATCH_TYPE_REGION,
   MATCH_TYPE_FINAL
 ];
 
-export const MATCH_TYPE_LEAF_OPTIONS = [MATCH_TYPE_DAILY, ...MATCH_TYPE_CLASS_TYPES];
+export const MATCH_TYPE_LEAF_OPTIONS = [MATCH_TYPE_DAILY, MATCH_TYPE_CLASS, CAMPUS_SUBTYPE_REGION, MATCH_TYPE_FINAL];
 
-/** @deprecated 历史代码别名，值为班班赛 */
+/** @deprecated 历史代码别名，值为校内赛 */
 export const MATCH_TYPE_CAMPUS = MATCH_TYPE_CLASS;
 
 export const MATCH_TYPE_CASCADER_PROPS_SINGLE = {
@@ -65,8 +65,8 @@ const LEGACY_LEAF_TYPE_MAP = {
   '校内赛/班班赛': MATCH_TYPE_CLASS,
   班班赛: MATCH_TYPE_CLASS,
   每日积分赛: MATCH_TYPE_DAILY,
-  区域赛: MATCH_TYPE_REGION,
-  区域晋级赛: MATCH_TYPE_REGION,
+  区域赛: CAMPUS_SUBTYPE_REGION,
+  区域晋级赛: CAMPUS_SUBTYPE_REGION,
   全国总决赛: MATCH_TYPE_FINAL,
   全国赛: MATCH_TYPE_FINAL,
   校园积分赛: MATCH_TYPE_DAILY
@@ -75,7 +75,7 @@ const LEGACY_LEAF_TYPE_MAP = {
 const TOP_LEVEL_BY_LEAF = {
   [MATCH_TYPE_CLASS]: MATCH_TYPE_CAMPUS_TOP,
   [MATCH_TYPE_DAILY]: MATCH_TYPE_CAMPUS_TOP,
-  [MATCH_TYPE_REGION]: MATCH_TYPE_REGION,
+  [CAMPUS_SUBTYPE_REGION]: MATCH_TYPE_CAMPUS_TOP,
   [MATCH_TYPE_FINAL]: MATCH_TYPE_FINAL
 };
 
@@ -87,12 +87,12 @@ export function normalizeMatchTypeLeaf(type = '', stageName = '') {
   if (LEGACY_LEAF_TYPE_MAP[type]) {
     return LEGACY_LEAF_TYPE_MAP[type];
   }
-  if (type === MATCH_TYPE_CAMPUS_TOP) {
+  if (type === MATCH_TYPE_CAMPUS_TOP || type === '校园赛') {
     if (stageName === MATCH_TYPE_FINAL) {
       return MATCH_TYPE_FINAL;
     }
-    if (stageName === '区域晋级赛' || stageName === MATCH_TYPE_REGION) {
-      return MATCH_TYPE_REGION;
+    if (stageName === '区域晋级赛' || stageName === '区域赛') {
+      return CAMPUS_SUBTYPE_REGION;
     }
     return MATCH_TYPE_CLASS;
   }
@@ -102,12 +102,12 @@ export function normalizeMatchTypeLeaf(type = '', stageName = '') {
   return type;
 }
 
-/** 规范化比赛类型列表为叶子类型（兼容历史一级「校园赛」） */
+/** 规范化比赛类型列表为叶子类型（兼容历史一级「校园赛」/「区域赛」） */
 export function normalizeMatchTypeLeaves(types = []) {
   const leaves = [];
   (types ?? []).forEach((type) => {
-    if (type === MATCH_TYPE_CAMPUS_TOP) {
-      leaves.push(MATCH_TYPE_DAILY, MATCH_TYPE_CLASS);
+    if (type === MATCH_TYPE_CAMPUS_TOP || type === '校园赛') {
+      leaves.push(MATCH_TYPE_DAILY, MATCH_TYPE_CLASS, CAMPUS_SUBTYPE_REGION);
       return;
     }
     const leaf = normalizeMatchTypeLeaf(type);
@@ -160,7 +160,7 @@ export function getDefaultPublishMatchTypesForStageName(stageName = '') {
     return [
       PUBLISH_MATCH_TYPE_DAILY,
       PUBLISH_MATCH_TYPE_CLASS,
-      PUBLISH_MATCH_TYPE_REGION
+      CAMPUS_SUBTYPE_REGION
     ];
   }
   return [PUBLISH_MATCH_TYPE_DAILY, PUBLISH_MATCH_TYPE_CLASS];
@@ -249,13 +249,14 @@ export function cascaderValueToPublishMatchTypes(paths = []) {
   return [...new Set(leaves)];
 }
 
-/** 发布比赛级联选择：一级 + 校园赛子类型 */
+/** 发布比赛级联选择：一级「省级校园行」含三个子类型 + 全国总决赛 */
 export function buildMatchTypeCascaderOptions(allowedLeafTypes = []) {
   const allowed = allowedLeafTypes.map((type) => normalizeMatchTypeLeaf(type));
   const options = [];
   const campusChildren = [
     { label: CAMPUS_SUBTYPE_DAILY, value: MATCH_TYPE_DAILY },
-    { label: CAMPUS_SUBTYPE_CLASS, value: MATCH_TYPE_CLASS }
+    { label: CAMPUS_SUBTYPE_CLASS, value: MATCH_TYPE_CLASS },
+    { label: CAMPUS_SUBTYPE_REGION, value: CAMPUS_SUBTYPE_REGION }
   ].filter((item) => allowed.includes(item.value));
   if (campusChildren.length) {
     options.push({
@@ -263,9 +264,6 @@ export function buildMatchTypeCascaderOptions(allowedLeafTypes = []) {
       value: MATCH_TYPE_CAMPUS_TOP,
       children: campusChildren
     });
-  }
-  if (allowed.includes(MATCH_TYPE_REGION)) {
-    options.push({ label: MATCH_TYPE_REGION, value: MATCH_TYPE_REGION });
   }
   if (allowed.includes(MATCH_TYPE_FINAL)) {
     options.push({ label: MATCH_TYPE_FINAL, value: MATCH_TYPE_FINAL });
@@ -283,7 +281,7 @@ export function getMatchTypeStageHint(stage = {}) {
     return '全国总决赛赛段仅支持发布全国总决赛类型比赛。';
   }
   if (stageName === '校园行') {
-    return `校园行赛段支持${formatMatchTypesList([MATCH_TYPE_DAILY, MATCH_TYPE_CLASS, MATCH_TYPE_REGION], '、')}。`;
+    return `校园行赛段支持${formatMatchTypesList([MATCH_TYPE_DAILY, MATCH_TYPE_CLASS, CAMPUS_SUBTYPE_REGION], '、')}。`;
   }
   return '';
 }
