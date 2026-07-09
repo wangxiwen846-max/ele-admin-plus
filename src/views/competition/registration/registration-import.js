@@ -4,8 +4,6 @@
 import ExcelJS from 'exceljs';
 import { download } from '@/utils/common.js';
 import {
-  PERSONAL_IMPORT_FIELDS,
-  TEAM_IMPORT_FIELDS,
   STUDENT_OPTIONS,
   addPersonalEntry,
   addTeamEntry,
@@ -18,39 +16,79 @@ import {
 export const PERSONAL_IMPORT_TEMPLATE_NAME = '个人赛参赛名单导入模板.xlsx';
 export const TEAM_IMPORT_TEMPLATE_NAME = '团体赛参赛名单导入模板.xlsx';
 
-const PERSONAL_HEADER_MAP = {
+/**
+ * 导入模板字段（参赛编号在前，统一学生信息字段顺序）
+ * 已选择学校/年级/班级时（按班导入），模板不再重复填写这些字段；
+ * 跨班导入时，模板中需要包含学校、年级、班级字段。
+ */
+const PERSONAL_FIELDS_INCLASS = ['参赛编号', '学生姓名', '班内序号', '性别', '联系电话', '备注'];
+const PERSONAL_FIELDS_CROSS = ['参赛编号', '学生姓名', '学校', '年级', '班级', '班内序号', '性别', '联系电话', '备注'];
+const TEAM_FIELDS_INCLASS = ['成员参赛编号', '成员姓名', '班内序号', '队伍名称', '联系电话', '备注'];
+const TEAM_FIELDS_CROSS = ['成员参赛编号', '成员姓名', '学校', '年级', '班级', '班内序号', '队伍名称', '联系电话', '备注'];
+
+// 统一表头 -> 字段 key 映射（覆盖个人 / 团体、按班 / 跨班全部列）
+const HEADER_MAP = {
+  参赛编号: 'participantNumber',
+  成员参赛编号: 'participantNumber',
+  学生姓名: 'studentName',
+  成员姓名: 'memberName',
   学校: 'school',
   年级: 'grade',
   班级: 'className',
   班内序号: 'classNo',
-  学生姓名: 'studentName',
-  参赛编号: 'participantNumber',
+  队伍名称: 'teamName',
   性别: 'gender',
   联系电话: 'phone',
   备注: 'remark'
 };
 
-const TEAM_HEADER_MAP = {
-  学校: 'school',
-  年级: 'grade',
-  班级: 'className',
-  班内序号: 'classNo',
-  团队名称: 'teamName',
-  成员姓名: 'memberName',
-  成员参赛编号: 'participantNumber',
-  联系电话: 'phone',
-  备注: 'remark'
+// 字段 key -> 展示名称（用于错误明细，区分个人 / 团体）
+const PERSONAL_FIELD_LABEL = {
+  participantNumber: '参赛编号',
+  studentName: '学生姓名',
+  school: '学校',
+  grade: '年级',
+  className: '班级',
+  classNo: '班内序号',
+  gender: '性别',
+  phone: '联系电话',
+  remark: '备注'
+};
+const TEAM_FIELD_LABEL = {
+  participantNumber: '成员参赛编号',
+  memberName: '成员姓名',
+  school: '学校',
+  grade: '年级',
+  className: '班级',
+  classNo: '班内序号',
+  teamName: '队伍名称',
+  phone: '联系电话',
+  remark: '备注'
 };
 
-const PERSONAL_REQUIRED = ['school', 'grade', 'className', 'studentName', 'gender'];
-const TEAM_REQUIRED = ['school', 'grade', 'className', 'teamName', 'memberName'];
+/** 是否跨班导入：未完整选择学校 + 年级 + 班级时按跨班处理 */
+function isCrossClass(scope = {}) {
+  return !(scope.school && scope.grade && scope.className);
+}
 
-const PERSONAL_FIELD_LABEL = Object.fromEntries(
-  Object.entries(PERSONAL_HEADER_MAP).map(([label, key]) => [key, label])
-);
-const TEAM_FIELD_LABEL = Object.fromEntries(
-  Object.entries(TEAM_HEADER_MAP).map(([label, key]) => [key, label])
-);
+/** 按比赛形式 + 导入范围返回模板字段 */
+export function getTemplateFields(matchForm, scope = {}) {
+  const cross = isCrossClass(scope);
+  if (matchForm === '团体') {
+    return cross ? TEAM_FIELDS_CROSS : TEAM_FIELDS_INCLASS;
+  }
+  return cross ? PERSONAL_FIELDS_CROSS : PERSONAL_FIELDS_INCLASS;
+}
+
+/** 必填字段（按班导入时学校/年级/班级来自导入范围，无需填写） */
+function getRequiredKeys(matchForm, cross) {
+  if (matchForm === '团体') {
+    const base = ['memberName', 'classNo', 'teamName'];
+    return cross ? ['school', 'grade', 'className', ...base] : base;
+  }
+  const base = ['studentName', 'classNo', 'gender'];
+  return cross ? ['school', 'grade', 'className', ...base] : base;
+}
 
 function normalizeText(value) {
   return String(value ?? '')
@@ -103,24 +141,44 @@ async function buildWorkbook(headers, sampleRows, sheetName) {
   return buffer;
 }
 
-export async function downloadImportTemplate(matchForm) {
+// 模板示例值（按表头标签取值）
+const SAMPLE_VALUES = {
+  参赛编号: 'HD00001',
+  成员参赛编号: 'HD00001',
+  学生姓名: '王小明',
+  成员姓名: '王小明',
+  学校: '第一实验小学',
+  年级: '五年级',
+  班级: '3班',
+  班内序号: '1',
+  队伍名称: '五年级跳绳队',
+  性别: '男',
+  联系电话: '138****1234',
+  备注: '-'
+};
+
+function buildSampleRow(fields, overrides = {}) {
+  return fields.map((label) => overrides[label] ?? SAMPLE_VALUES[label] ?? '');
+}
+
+export async function downloadImportTemplate(matchForm, scope = {}) {
+  const fields = getTemplateFields(matchForm, scope);
   if (matchForm === '团体') {
-    const buffer = await buildWorkbook(
-      TEAM_IMPORT_FIELDS,
-      [
-        ['第一实验小学', '五年级', '3班', '1', '五年级跳绳队', '王小明', 'HD00001', '138****1234', '队员'],
-        ['第一实验小学', '五年级', '3班', '2', '五年级跳绳队', '李思雨', 'HD00002', '138****2356', '队员']
-      ],
-      '团体赛名单'
-    );
+    const sampleRows = [
+      buildSampleRow(fields),
+      buildSampleRow(fields, {
+        参赛编号: 'HD00002',
+        成员参赛编号: 'HD00002',
+        学生姓名: '李思雨',
+        成员姓名: '李思雨',
+        班内序号: '2'
+      })
+    ];
+    const buffer = await buildWorkbook(fields, sampleRows, '团体赛名单');
     download(buffer, TEAM_IMPORT_TEMPLATE_NAME, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     return TEAM_IMPORT_TEMPLATE_NAME;
   }
-  const buffer = await buildWorkbook(
-    PERSONAL_IMPORT_FIELDS,
-    [['第一实验小学', '五年级', '3班', '1', '王小明', 'HD00001', '男', '138****1234', '-']],
-    '个人赛名单'
-  );
+  const buffer = await buildWorkbook(fields, [buildSampleRow(fields)], '个人赛名单');
   download(buffer, PERSONAL_IMPORT_TEMPLATE_NAME, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   return PERSONAL_IMPORT_TEMPLATE_NAME;
 }
@@ -171,15 +229,23 @@ function pushError(errors, rowNo, fieldKey, reason, fieldLabelMap) {
   });
 }
 
-function validatePersonalRows(rows, matchId, itemId) {
+function validatePersonalRows(rows, matchId, itemId, scope = {}) {
   const errors = [];
   const validRows = [];
   const seenKeys = new Set();
   const fileParticipantNumbers = new Map();
+  const cross = isCrossClass(scope);
+  const requiredKeys = getRequiredKeys('个人', cross);
 
   rows.forEach((row) => {
+    // 按班导入：学校 / 年级 / 班级来自导入范围
+    if (!cross) {
+      row.school = scope.school;
+      row.grade = scope.grade;
+      row.className = scope.className;
+    }
     const rowErrors = [];
-    PERSONAL_REQUIRED.forEach((key) => {
+    requiredKeys.forEach((key) => {
       if (!String(row[key] || '').trim()) {
         rowErrors.push(key);
         pushError(errors, row.rowNo, key, '必填字段不能为空', PERSONAL_FIELD_LABEL);
@@ -237,15 +303,26 @@ function validatePersonalRows(rows, matchId, itemId) {
   return { errors, validRows };
 }
 
-function validateTeamRows(rows, matchId, itemId) {
+function validateTeamRows(rows, matchId, itemId, scope = {}) {
   const errors = [];
   const validRows = [];
   const teamMeta = new Map();
   const teamMemberKeys = new Map();
   const fileParticipantNumbers = new Map();
+  const cross = isCrossClass(scope);
+  const requiredKeys = getRequiredKeys('团体', cross);
+
+  // 按班导入：学校 / 年级 / 班级来自导入范围
+  if (!cross) {
+    rows.forEach((row) => {
+      row.school = scope.school;
+      row.grade = scope.grade;
+      row.className = scope.className;
+    });
+  }
 
   rows.forEach((row) => {
-    TEAM_REQUIRED.forEach((key) => {
+    requiredKeys.forEach((key) => {
       if (!String(row[key] || '').trim()) {
         pushError(errors, row.rowNo, key, '必填字段不能为空', TEAM_FIELD_LABEL);
       }
@@ -253,7 +330,7 @@ function validateTeamRows(rows, matchId, itemId) {
   });
 
   rows.forEach((row) => {
-    const requiredMissing = TEAM_REQUIRED.some((key) => !String(row[key] || '').trim());
+    const requiredMissing = requiredKeys.some((key) => !String(row[key] || '').trim());
     if (requiredMissing) {
       return;
     }
@@ -341,7 +418,7 @@ function validateTeamRows(rows, matchId, itemId) {
   return { errors, validRows };
 }
 
-export async function parseImportFile(file, matchForm) {
+export async function parseImportFile(file, matchForm, scope = {}) {
   const buffer = await file.arrayBuffer();
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
@@ -349,13 +426,10 @@ export async function parseImportFile(file, matchForm) {
   if (!worksheet) {
     throw new Error('Excel 文件中没有可用工作表');
   }
-  if (matchForm === '团体') {
-    return parseSheetRows(worksheet, TEAM_HEADER_MAP, TEAM_IMPORT_FIELDS);
-  }
-  return parseSheetRows(worksheet, PERSONAL_HEADER_MAP, PERSONAL_IMPORT_FIELDS);
+  return parseSheetRows(worksheet, HEADER_MAP, getTemplateFields(matchForm, scope));
 }
 
-export function validateImportRows(rows, matchForm, matchId, itemId) {
+export function validateImportRows(rows, matchForm, matchId, itemId, scope = {}) {
   const totalCount = rows.length;
   if (!totalCount) {
     return {
@@ -369,8 +443,8 @@ export function validateImportRows(rows, matchForm, matchId, itemId) {
 
   const result =
     matchForm === '团体'
-      ? validateTeamRows(rows, matchId, itemId)
-      : validatePersonalRows(rows, matchId, itemId);
+      ? validateTeamRows(rows, matchId, itemId, scope)
+      : validatePersonalRows(rows, matchId, itemId, scope);
 
   const errorCount = result.errors.length;
   const failedRowNos = new Set(result.errors.map((item) => item.rowNo));
@@ -445,10 +519,6 @@ export function appendImportLog(payload) {
     errorCount: payload.errorCount || 0,
     status: payload.errorCount ? '部分成功' : '成功'
   });
-}
-
-export function getTemplateFields(matchForm) {
-  return matchForm === '团体' ? TEAM_IMPORT_FIELDS : PERSONAL_IMPORT_FIELDS;
 }
 
 export function getItemMatchForm(matchId, itemId) {

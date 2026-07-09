@@ -44,14 +44,15 @@
       size="small"
       height="360"
       row-key="studentId"
+      :empty-text="emptyStudentText"
       @selection-change="handleSelectionChange"
     >
       <el-table-column type="selection" width="46" :selectable="isSelectable" />
       <el-table-column prop="participantNumber" label="参赛编号" width="110" align="center" />
       <el-table-column prop="name" label="学生姓名" width="100" />
-      <el-table-column prop="idNo" label="证件号" min-width="150" show-overflow-tooltip />
       <el-table-column prop="school" label="学校" min-width="130" show-overflow-tooltip />
-      <el-table-column prop="gradeClass" label="年级班级" width="120" />
+      <el-table-column prop="grade" label="年级" width="90" align="center" />
+      <el-table-column prop="className" label="班级" width="90" align="center" />
       <el-table-column prop="classNo" label="班内序号" width="90" align="center" />
       <el-table-column prop="gender" label="性别" width="70" align="center" />
     </el-table>
@@ -81,6 +82,7 @@
 
   const tableRef = ref(null);
   const selection = ref([]);
+  const emptyStudentText = '当前权限范围内暂无可报名学生，请检查学校、年级、班级或数据权限。';
   const filters = reactive({ school: '', grade: '', className: '', name: '', participantNumber: '' });
   const schoolOptions = getStudentSchoolOptions();
   const gradeOptions = getStudentGradeOptions();

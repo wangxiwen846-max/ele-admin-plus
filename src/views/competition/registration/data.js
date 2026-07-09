@@ -275,7 +275,7 @@ export function validateParticipantNumberInput(matchId, participantNumber, conte
 }
 
 export function getStudentPickerRows(matchId, filters = {}) {
-  let list = STUDENT_OPTIONS.filter((student) => {
+  let list = filterStudentsByAccountScope().filter((student) => {
     if (filters.school && student.school !== filters.school) {
       return false;
     }
@@ -568,6 +568,117 @@ export function filterParticipantsByAccountScope(rows) {
   });
 }
 
+/** 按登录人身份过滤可报名学生（学校 / 年级 / 班级维度） */
+export function filterStudentsByAccountScope(students = STUDENT_OPTIONS) {
+  const scope = REGISTRATION_ACCOUNT_SCOPE;
+  return students.filter((student) => {
+    switch (scope.type) {
+      case 'school':
+        return student.school === scope.school;
+      case 'teacher':
+        if (student.school !== scope.school) {
+          return false;
+        }
+        if (scope.grade && student.grade !== scope.grade) {
+          return false;
+        }
+        if (scope.classNames?.length && !scope.classNames.includes(student.className)) {
+          return false;
+        }
+        return true;
+      case 'specialist':
+      case 'education':
+      default:
+        if (scope.schools?.length && !scope.schools.includes(student.school)) {
+          return false;
+        }
+        return true;
+    }
+  });
+}
+
+/** 报名 / 导入范围可选学校（受登录人权限约束） */
+export function getScopeSchoolOptions() {
+  return [...new Set(filterStudentsByAccountScope().map((item) => item.school))];
+}
+
+/** 报名 / 导入范围可选年级（按学校联动，受权限约束） */
+export function getScopeGradeOptions(school) {
+  return [
+    ...new Set(
+      filterStudentsByAccountScope()
+        .filter((item) => !school || item.school === school)
+        .map((item) => item.grade)
+    )
+  ];
+}
+
+/** 报名 / 导入范围可选班级（按学校 + 年级联动，受权限约束） */
+export function getScopeClassOptions(school, grade) {
+  return [
+    ...new Set(
+      filterStudentsByAccountScope()
+        .filter((item) => (!school || item.school === school) && (!grade || item.grade === grade))
+        .map((item) => item.className)
+    )
+  ];
+}
+
+/** 选择比赛后自动带出的比赛信息 */
+export function getMatchAutoInfo(matchId) {
+  const match = findMatch(matchId);
+  if (!match) {
+    return null;
+  }
+  const time =
+    match.startTime && match.endTime
+      ? `${match.startTime} ~ ${match.endTime}`
+      : match.startTime || match.endTime || '-';
+  return {
+    activityName: match.activityName || '-',
+    stageName: match.stageName || '-',
+    matchTypeLabel: formatMatchTypeLabel(match.matchType, match.stageName),
+    matchName: match.matchName || '-',
+    matchTime: time
+  };
+}
+
+/** 选择设项后自动带出的设项信息 */
+export function getItemAutoInfo(matchId, itemId) {
+  const item = getItemOptionsByMatch(matchId).find((row) => String(row.itemId) === String(itemId));
+  if (!item) {
+    return null;
+  }
+  return {
+    itemName: item.itemName || '-',
+    project: item.project || '-',
+    matchForm: item.matchForm || '-'
+  };
+}
+
+/** 导出名单列（与参赛名单主列表字段保持一致） */
+export const PARTICIPANT_EXPORT_COLUMNS = [
+  { label: '参赛编号', prop: 'participantNumber' },
+  { label: '赛事活动', prop: 'activityName' },
+  { label: '赛段', prop: 'stageName' },
+  { label: '比赛类型', prop: 'matchTypeLabel' },
+  { label: '比赛名称', prop: 'matchName' },
+  { label: '设项名称', prop: 'itemName' },
+  { label: '参赛项目', prop: 'project' },
+  { label: '比赛形式', prop: 'matchForm' },
+  { label: '学生姓名', prop: 'studentName' },
+  { label: '学校', prop: 'school' },
+  { label: '年级', prop: 'grade' },
+  { label: '班级', prop: 'className' },
+  { label: '班内序号', prop: 'classNo' },
+  { label: '队伍名称', prop: 'teamName' },
+  { label: '保险状态', prop: 'insuranceStatus' },
+  { label: '成绩状态', prop: 'scoreStatus' },
+  { label: '报名方式', prop: 'reportMethod' },
+  { label: '报名时间', prop: 'registerTime' },
+  { label: '更新时间', prop: 'updateTime' }
+];
+
 function buildParticipantRow({ rowKey, entry, match, item, student, teamName, matchForm, raw, rowType, teamId }) {
   return {
     rowKey,
@@ -718,7 +829,7 @@ export function getItemOptionsByMatch(matchId) {
   return match ? getMatchLinkedItems(match) : [];
 }
 
-/** 根据比赛设项比赛形式判断统计表布局：personal-only | team-only | mixed */
+/** ��据比赛设项比赛形式判断统计表布局：personal-only | team-only | mixed */
 export function getMatchItemFormLayout(matchOrId) {
   const match = typeof matchOrId === 'object' ? matchOrId : findMatch(matchOrId);
   if (!match) {
@@ -830,6 +941,21 @@ export function isStudentRegisteredInItem(matchId, itemId, studentId) {
       team.matchId === matchId &&
       String(team.itemId) === String(itemId) &&
       team.members.some((member) => member.studentId === studentId)
+  );
+}
+
+/** 同一比赛、同一设项下队伍名称是否已存在 */
+export function isTeamNameRegisteredInItem(matchId, itemId, teamName) {
+  seedEntries();
+  const name = String(teamName || '').trim();
+  if (!name) {
+    return false;
+  }
+  return registrationStore.teamEntries.some(
+    (team) =>
+      team.matchId === matchId &&
+      String(team.itemId) === String(itemId) &&
+      String(team.teamName || '').trim() === name
   );
 }
 

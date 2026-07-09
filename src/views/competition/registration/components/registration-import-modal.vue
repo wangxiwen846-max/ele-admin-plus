@@ -58,6 +58,50 @@
       <el-form-item label="比赛形式">
         <span class="readonly-text">{{ selectedItem?.matchForm || '选择设项后自动带出' }}</span>
       </el-form-item>
+      <el-row :gutter="16">
+        <el-col :sm="8" :xs="24">
+          <el-form-item label="学校">
+            <el-select
+              v-model="form.school"
+              clearable
+              filterable
+              placeholder="全部（跨校导入）"
+              class="ele-fluid"
+              @change="handleScopeSchoolChange"
+            >
+              <el-option v-for="s in scopeSchoolOptions" :key="s" :label="s" :value="s" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :sm="8" :xs="24">
+          <el-form-item label="年级">
+            <el-select
+              v-model="form.grade"
+              clearable
+              placeholder="全部"
+              class="ele-fluid"
+              :disabled="!form.school"
+              @change="handleScopeGradeChange"
+            >
+              <el-option v-for="g in scopeGradeOptions" :key="g" :label="g" :value="g" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :sm="8" :xs="24">
+          <el-form-item label="班级">
+            <el-select
+              v-model="form.className"
+              clearable
+              placeholder="全部（跨班导入）"
+              class="ele-fluid"
+              :disabled="!form.grade"
+              @change="resetValidation"
+            >
+              <el-option v-for="c in scopeClassOptions" :key="c" :label="c" :value="c" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+      </el-row>
       <el-form-item label="导入模板">
         <el-button :disabled="!canDownloadTemplate" @click="handleDownloadTemplate">
           {{ downloadTemplateText }}
