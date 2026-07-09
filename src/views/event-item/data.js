@@ -351,7 +351,7 @@ export const MATCH_RESULT_OPTIONS = ['胜', '负', '平'];
 /** 成绩单位选项（按成绩类型联动） */
 export function getScoreUnitOptions(scoreType) {
   if (scoreType === SCORE_TYPE_RESULT) {
-    return ['分', '胜负'];
+    return ['分'];
   }
   return MEASUREMENT_UNIT_OPTIONS;
 }
