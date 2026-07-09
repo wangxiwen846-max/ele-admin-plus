@@ -182,7 +182,7 @@ const FITNESS_AUTHORITIES = [
     menuId: 411,
     parentId: 410,
     menuType: 0,
-    title: '保险方案管理',
+    title: '保险方案',
     icon: 'SolutionOutlined',
     path: '/competition/insurance/plan',
     component: '/competition/insurance/plan',
