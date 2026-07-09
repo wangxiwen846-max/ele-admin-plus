@@ -3,13 +3,14 @@
  */
 import ExcelJS from 'exceljs';
 import { download } from '@/utils/common.js';
+import { findEventItem, buildRegistrationSettingFromItem } from '@/views/event-item/data.js';
 import {
-  PERSONAL_IMPORT_FIELDS,
-  TEAM_IMPORT_FIELDS,
+  PARTICIPANT_EXPORT_COLUMNS,
   STUDENT_OPTIONS,
   addPersonalEntry,
   addTeamEntry,
   getItemOptionsByMatch,
+  getItemRegisteredCount,
   isStudentRegisteredInItem,
   registrationStore,
   validateParticipantNumberInput
@@ -18,37 +19,105 @@ import {
 export const PERSONAL_IMPORT_TEMPLATE_NAME = '个人赛参赛名单导入模板.xlsx';
 export const TEAM_IMPORT_TEMPLATE_NAME = '团体赛参赛名单导入模板.xlsx';
 
-const PERSONAL_HEADER_MAP = {
-  学校: 'school',
-  年级: 'grade',
-  班级: 'className',
-  学生姓名: 'studentName',
+/**
+ * 模板字段动态生成：
+ * - 已选择的范围字段（学校 / 年级 / 班级）不出现在模板中；
+ * - 未选择的范围字段出现在模板中；
+ * - 模板不含比赛/设项相关信息，也不含联系电话、学号、证件号、组别、性别组。
+ */
+/** 返回需要出现在模板中的范围字段（未选择的部分），顺序：学校 → 年级 → 班级 */
+function getScopeTemplateFields(scope = {}) {
+  const fields = [];
+  if (!scope.school) {
+    fields.push('学校');
+  }
+  if (!scope.grade) {
+    fields.push('年级');
+  }
+  if (!scope.className) {
+    fields.push('班级');
+  }
+  return fields;
+}
+
+/** 按比赛形式 + 导入范围返回模板字段 */
+export function getTemplateFields(matchForm, scope = {}) {
+  const scopeFields = getScopeTemplateFields(scope);
+  if (matchForm === '团体') {
+    return ['队伍名称', '成员参赛编号', '成员姓名', ...scopeFields, '班内序号', '性别', '备注'];
+  }
+  return ['参赛编号', '学生姓名', ...scopeFields, '班内序号', '性别', '备注'];
+}
+
+/** 模板列（含 label 与字段 key），供在线预览编辑表格使用 */
+export function getTemplateColumns(matchForm, scope = {}) {
+  return getTemplateFields(matchForm, scope).map((label) => ({
+    label,
+    key: HEADER_MAP[label]
+  }));
+}
+
+// 统一表头 -> 字段 key 映射
+const HEADER_MAP = {
   参赛编号: 'participantNumber',
-  性别: 'gender',
-  联系电话: 'phone',
-  备注: 'remark'
-};
-
-const TEAM_HEADER_MAP = {
+  成员参赛编号: 'participantNumber',
+  学生姓名: 'studentName',
+  成员姓名: 'memberName',
   学校: 'school',
   年级: 'grade',
   班级: 'className',
-  团队名称: 'teamName',
-  成员姓名: 'memberName',
-  成员参赛编号: 'participantNumber',
-  联系电话: 'phone',
+  班内序号: 'classNo',
+  队伍名称: 'teamName',
+  性别: 'gender',
   备注: 'remark'
 };
 
-const PERSONAL_REQUIRED = ['school', 'grade', 'className', 'studentName', 'gender'];
-const TEAM_REQUIRED = ['school', 'grade', 'className', 'teamName', 'memberName'];
+// 字段 key -> 展示名称（用于错误明细，区分个人 / 团体）
+const PERSONAL_FIELD_LABEL = {
+  participantNumber: '参赛编号',
+  studentName: '学生姓名',
+  school: '学校',
+  grade: '年级',
+  className: '班级',
+  classNo: '班内序号',
+  gender: '性别',
+  remark: '备注'
+};
+const TEAM_FIELD_LABEL = {
+  participantNumber: '成员参赛编号',
+  memberName: '成员姓名',
+  school: '学校',
+  grade: '年级',
+  className: '班级',
+  classNo: '班内序号',
+  teamName: '队伍名称',
+  gender: '性别',
+  remark: '备注'
+};
 
-const PERSONAL_FIELD_LABEL = Object.fromEntries(
-  Object.entries(PERSONAL_HEADER_MAP).map(([label, key]) => [key, label])
-);
-const TEAM_FIELD_LABEL = Object.fromEntries(
-  Object.entries(TEAM_HEADER_MAP).map(([label, key]) => [key, label])
-);
+/** 将已选择的范围字段注入行数据（未在模板中出现的范围字段由导入范围补齐） */
+function applyScopeToRow(row, scope = {}) {
+  if (scope.school) {
+    row.school = scope.school;
+  }
+  if (scope.grade) {
+    row.grade = scope.grade;
+  }
+  if (scope.className) {
+    row.className = scope.className;
+  }
+}
+
+/**
+ * 必填字段：姓名、班内序号必填；未通过导入范围确定的学校/年级/班级需在模板中填写。
+ */
+function getRequiredKeys(matchForm, scope = {}) {
+  const scopeKeys = ['school', 'grade', 'className'].filter((key) => !scope[key]);
+  if (matchForm === '团体') {
+    return ['teamName', 'memberName', ...scopeKeys, 'classNo'];
+  }
+  return ['studentName', ...scopeKeys, 'classNo'];
+}
 
 function normalizeText(value) {
   return String(value ?? '')
@@ -60,7 +129,7 @@ function normalizeClassName(value) {
   return normalizeText(value).replace(/班/g, '班');
 }
 
-function matchStudent({ school, grade, className, studentNo, name }) {
+function matchStudent({ school, grade, className, classNo, name }) {
   const candidates = STUDENT_OPTIONS.filter(
     (student) =>
       student.school === String(school || '').trim() &&
@@ -71,8 +140,9 @@ function matchStudent({ school, grade, className, studentNo, name }) {
   if (!candidates.length) {
     return null;
   }
-  if (studentNo) {
-    return candidates.find((student) => String(student.studentNo) === String(studentNo).trim()) ?? null;
+  // 同班同名时用班内序号进一步区分
+  if (classNo) {
+    return candidates.find((student) => String(student.classNo) === String(classNo).trim()) ?? null;
   }
   return candidates.length === 1 ? candidates[0] : null;
 }
@@ -100,24 +170,43 @@ async function buildWorkbook(headers, sampleRows, sheetName) {
   return buffer;
 }
 
-export async function downloadImportTemplate(matchForm) {
+// 模板示例值（按表头标签取值；参赛编号可留空，导入后自动生成）
+const SAMPLE_VALUES = {
+  参赛编号: 'HD00001',
+  成员参赛编号: 'HD00001',
+  学生姓名: '王小明',
+  成员姓名: '王小明',
+  学校: '第一实验小学',
+  年级: '五年级',
+  班级: '3班',
+  班内序号: '1',
+  队伍名称: '五年级跳绳队',
+  性别: '男',
+  备注: '-'
+};
+
+function buildSampleRow(fields, overrides = {}) {
+  return fields.map((label) => overrides[label] ?? SAMPLE_VALUES[label] ?? '');
+}
+
+export async function downloadImportTemplate(matchForm, scope = {}) {
+  const fields = getTemplateFields(matchForm, scope);
   if (matchForm === '团体') {
-    const buffer = await buildWorkbook(
-      TEAM_IMPORT_FIELDS,
-      [
-        ['第一实验小学', '五年级', '3班', '五年级跳绳队', '王小明', '00001', '138****1234', '队员'],
-        ['第一实验小学', '五年级', '3班', '五年级跳绳队', '李思雨', '00002', '138****2356', '队员']
-      ],
-      '团体赛名单'
-    );
+    const sampleRows = [
+      buildSampleRow(fields),
+      buildSampleRow(fields, {
+        参赛编号: 'HD00002',
+        成员参赛编号: 'HD00002',
+        学生姓名: '李思雨',
+        成员姓名: '李思雨',
+        班内序号: '2'
+      })
+    ];
+    const buffer = await buildWorkbook(fields, sampleRows, '团体赛名单');
     download(buffer, TEAM_IMPORT_TEMPLATE_NAME, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     return TEAM_IMPORT_TEMPLATE_NAME;
   }
-  const buffer = await buildWorkbook(
-    PERSONAL_IMPORT_FIELDS,
-    [['第一实验小学', '五年级', '3班', '王小明', '00001', '男', '138****1234', '-']],
-    '个人赛名单'
-  );
+  const buffer = await buildWorkbook(fields, [buildSampleRow(fields)], '个人赛名单');
   download(buffer, PERSONAL_IMPORT_TEMPLATE_NAME, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   return PERSONAL_IMPORT_TEMPLATE_NAME;
 }
@@ -160,26 +249,35 @@ function parseSheetRows(worksheet, headerMap, expectedHeaders) {
   return rows;
 }
 
-function pushError(errors, rowNo, fieldKey, reason, fieldLabelMap) {
+function pushError(errors, row, fieldKey, reason, fieldLabelMap) {
+  const record = row && typeof row === 'object' ? row : { rowNo: row };
   errors.push({
-    rowNo,
+    rowNo: record.rowNo ?? 0,
+    fieldKey,
     fieldName: fieldLabelMap[fieldKey] || fieldKey,
-    reason
+    reason,
+    teamName: record.teamName || '',
+    name: record.memberName || record.studentName || '',
+    classNo: record.classNo || ''
   });
 }
 
-function validatePersonalRows(rows, matchId, itemId) {
+function validatePersonalRows(rows, matchId, itemId, scope = {}) {
   const errors = [];
   const validRows = [];
   const seenKeys = new Set();
   const fileParticipantNumbers = new Map();
+  const requiredKeys = getRequiredKeys('个人', scope);
 
   rows.forEach((row) => {
+    // 已选择的范围字段由导入范围补齐
+    applyScopeToRow(row, scope);
+
     const rowErrors = [];
-    PERSONAL_REQUIRED.forEach((key) => {
+    requiredKeys.forEach((key) => {
       if (!String(row[key] || '').trim()) {
         rowErrors.push(key);
-        pushError(errors, row.rowNo, key, '必填字段不能为空', PERSONAL_FIELD_LABEL);
+        pushError(errors, row, key, '必填字段不能为空', PERSONAL_FIELD_LABEL);
       }
     });
 
@@ -191,22 +289,23 @@ function validatePersonalRows(rows, matchId, itemId) {
       school: row.school,
       grade: row.grade,
       className: row.className,
+      classNo: row.classNo,
       name: row.studentName
     });
     if (!student) {
-      pushError(errors, row.rowNo, 'studentName', '无法匹配学生库，请核对学校、年级、班级、姓名', PERSONAL_FIELD_LABEL);
+      pushError(errors, row, 'studentName', '无法匹配学生库，请核对学校、年级、班级、班内序号、姓名', PERSONAL_FIELD_LABEL);
       return;
     }
 
-    const dupKey = `${row.school}|${row.grade}|${row.className}|${row.studentName}`;
+    const dupKey = `${row.school}|${row.grade}|${row.className}|${row.classNo}|${row.studentName}`;
     if (seenKeys.has(dupKey)) {
-      pushError(errors, row.rowNo, 'studentName', '导入文件中存在重复学生', PERSONAL_FIELD_LABEL);
+      pushError(errors, row, 'studentName', '导入文件中存在重复学生', PERSONAL_FIELD_LABEL);
       return;
     }
     seenKeys.add(dupKey);
 
     if (isStudentRegisteredInItem(matchId, itemId, student.studentId)) {
-      pushError(errors, row.rowNo, 'studentName', '该学生已在当前比赛设项报名', PERSONAL_FIELD_LABEL);
+      pushError(errors, row, 'studentName', '该学生已在当前比赛设项报名', PERSONAL_FIELD_LABEL);
       return;
     }
 
@@ -214,7 +313,7 @@ function validatePersonalRows(rows, matchId, itemId) {
     if (participantNumber) {
       const previousStudent = fileParticipantNumbers.get(participantNumber);
       if (previousStudent && previousStudent !== student.studentId) {
-        pushError(errors, row.rowNo, 'participantNumber', '导入文件中参赛编号重复', PERSONAL_FIELD_LABEL);
+        pushError(errors, row, 'participantNumber', '导入文件中参赛编号重复', PERSONAL_FIELD_LABEL);
         return;
       }
       fileParticipantNumbers.set(participantNumber, student.studentId);
@@ -222,7 +321,7 @@ function validatePersonalRows(rows, matchId, itemId) {
         studentId: student.studentId
       });
       if (!check.valid) {
-        pushError(errors, row.rowNo, 'participantNumber', check.reason, PERSONAL_FIELD_LABEL);
+        pushError(errors, row, 'participantNumber', check.reason, PERSONAL_FIELD_LABEL);
         return;
       }
     }
@@ -230,64 +329,41 @@ function validatePersonalRows(rows, matchId, itemId) {
     validRows.push({ ...row, student, participantNumber });
   });
 
+  // 报名人数限制：已报名 + 本次导入通过人数不得超过设项上限
+  checkRegistrationLimit(errors, matchId, itemId, validRows.length, PERSONAL_FIELD_LABEL);
+
   return { errors, validRows };
 }
 
-function validateTeamRows(rows, matchId, itemId) {
+function validateTeamRows(rows, matchId, itemId, scope = {}) {
   const errors = [];
   const validRows = [];
-  const teamMeta = new Map();
   const teamMemberKeys = new Map();
   const fileParticipantNumbers = new Map();
+  const requiredKeys = getRequiredKeys('团体', scope);
 
   rows.forEach((row) => {
-    TEAM_REQUIRED.forEach((key) => {
-      if (!String(row[key] || '').trim()) {
-        pushError(errors, row.rowNo, key, '必填字段不能为空', TEAM_FIELD_LABEL);
-      }
-    });
-  });
+    // 已选择的范围字段由导入范围补齐
+    applyScopeToRow(row, scope);
 
-  rows.forEach((row) => {
-    const requiredMissing = TEAM_REQUIRED.some((key) => !String(row[key] || '').trim());
-    if (requiredMissing) {
+    const requiredMissing = requiredKeys.filter((key) => !String(row[key] || '').trim());
+    if (requiredMissing.length) {
+      requiredMissing.forEach((key) => {
+        pushError(errors, row, key, '必填字段不能为空', TEAM_FIELD_LABEL);
+      });
       return;
     }
 
     const teamKey = String(row.teamName).trim();
-    const currentMeta = {
-      school: String(row.school).trim(),
-      grade: String(row.grade).trim(),
-      className: String(row.className).trim()
-    };
-    if (!teamMeta.has(teamKey)) {
-      teamMeta.set(teamKey, currentMeta);
-    } else {
-      const saved = teamMeta.get(teamKey);
-      if (
-        saved.school !== currentMeta.school ||
-        saved.grade !== currentMeta.grade ||
-        normalizeClassName(saved.className) !== normalizeClassName(currentMeta.className)
-      ) {
-        pushError(
-          errors,
-          row.rowNo,
-          'teamName',
-          '同一团队名称下的学校、年级、班级需保持一致',
-          TEAM_FIELD_LABEL
-        );
-        return;
-      }
-    }
-
     const student = matchStudent({
       school: row.school,
       grade: row.grade,
       className: row.className,
+      classNo: row.classNo,
       name: row.memberName
     });
     if (!student) {
-      pushError(errors, row.rowNo, 'memberName', '无法匹配学生库，请核对学校、年级、班级、姓名', TEAM_FIELD_LABEL);
+      pushError(errors, row, 'memberName', '无法匹配学生库，请核对学校、年级、班级、班内序号、姓名', TEAM_FIELD_LABEL);
       return;
     }
 
@@ -297,13 +373,13 @@ function validateTeamRows(rows, matchId, itemId) {
     }
     const members = teamMemberKeys.get(teamKey);
     if (members.has(memberKey)) {
-      pushError(errors, row.rowNo, 'memberName', '同一团队下成员不可重复', TEAM_FIELD_LABEL);
+      pushError(errors, row, 'memberName', '同一团队下成员不可重复', TEAM_FIELD_LABEL);
       return;
     }
     members.add(memberKey);
 
     if (isStudentRegisteredInItem(matchId, itemId, student.studentId)) {
-      pushError(errors, row.rowNo, 'memberName', '该学生已在当前比赛设项报名', TEAM_FIELD_LABEL);
+      pushError(errors, row, 'memberName', '该学生已在当前比赛设项报名', TEAM_FIELD_LABEL);
       return;
     }
 
@@ -311,7 +387,7 @@ function validateTeamRows(rows, matchId, itemId) {
     if (participantNumber) {
       const previousStudent = fileParticipantNumbers.get(participantNumber);
       if (previousStudent && previousStudent !== student.studentId) {
-        pushError(errors, row.rowNo, 'participantNumber', '导入文件中成员参赛编号重复', TEAM_FIELD_LABEL);
+        pushError(errors, row, 'participantNumber', '导入文件中成员参赛编号重复', TEAM_FIELD_LABEL);
         return;
       }
       fileParticipantNumbers.set(participantNumber, student.studentId);
@@ -319,7 +395,7 @@ function validateTeamRows(rows, matchId, itemId) {
         studentId: student.studentId
       });
       if (!check.valid) {
-        pushError(errors, row.rowNo, 'participantNumber', check.reason, TEAM_FIELD_LABEL);
+        pushError(errors, row, 'participantNumber', check.reason, TEAM_FIELD_LABEL);
         return;
       }
     }
@@ -328,15 +404,102 @@ function validateTeamRows(rows, matchId, itemId) {
   });
 
   if (!rows.length) {
-    pushError(errors, 0, 'teamName', '团体报名数据不能为空', TEAM_FIELD_LABEL);
-  } else if (!validRows.length && !errors.length) {
-    pushError(errors, rows[0].rowNo, 'teamName', '团体成员信息缺失或无效', TEAM_FIELD_LABEL);
+    pushError(errors, { rowNo: 0 }, 'teamName', '团体报名数据不能为空', TEAM_FIELD_LABEL);
   }
+
+  // 团队人数限制：每个队伍成员数需符合设项配置的最小 / 最大人数
+  checkTeamMemberLimit(errors, itemId, validRows);
+  // 报名人数限制：已报名 + 本次导入通过成员数不得超过设项上限
+  checkRegistrationLimit(errors, matchId, itemId, validRows.length, TEAM_FIELD_LABEL);
 
   return { errors, validRows };
 }
 
-export async function parseImportFile(file, matchForm) {
+/** 读取设项的报名人数上限与团队人数限制配置 */
+function getItemLimits(itemId) {
+  const item = findEventItem(itemId);
+  if (!item) {
+    return {
+      regLimitEnabled: false,
+      regLimitCount: null,
+      teamLimitEnabled: false,
+      teamMin: null,
+      teamMax: null
+    };
+  }
+  const reg = buildRegistrationSettingFromItem(item);
+  return {
+    regLimitEnabled: !!reg.limitEnabled,
+    regLimitCount: reg.limitCount,
+    teamLimitEnabled: !!item.enableTeamMemberLimit,
+    teamMin: item.enableTeamMemberLimit ? (item.teamMin ?? null) : null,
+    teamMax: item.enableTeamMemberLimit ? (item.teamMax ?? null) : null
+  };
+}
+
+/** 报名人数限制校验（全局错误） */
+function checkRegistrationLimit(errors, matchId, itemId, passCount, fieldLabelMap) {
+  const { regLimitEnabled, regLimitCount } = getItemLimits(itemId);
+  if (!regLimitEnabled || regLimitCount == null || regLimitCount <= 0 || passCount <= 0) {
+    return;
+  }
+  const current = getItemRegisteredCount(matchId, itemId);
+  const total = current + passCount;
+  if (total > regLimitCount) {
+    pushError(
+      errors,
+      { rowNo: 0 },
+      'registerLimit',
+      `报名人数超出设项上限：已报名 ${current} 人，本次通过 ${passCount} 人，合计 ${total} 人，上限 ${regLimitCount} 人`,
+      { ...fieldLabelMap, registerLimit: '报名人数' }
+    );
+  }
+}
+
+/** 团队人数限制校验（按队伍名称分组） */
+function checkTeamMemberLimit(errors, itemId, validRows) {
+  const { teamLimitEnabled, teamMin, teamMax } = getItemLimits(itemId);
+  if (!teamLimitEnabled) {
+    return;
+  }
+  const teamGroups = new Map();
+  validRows.forEach((row) => {
+    if (!teamGroups.has(row.teamKey)) {
+      teamGroups.set(row.teamKey, []);
+    }
+    teamGroups.get(row.teamKey).push(row);
+  });
+  teamGroups.forEach((group, teamKey) => {
+    const count = group.length;
+    let reason = '';
+    if (teamMin != null && count < teamMin) {
+      reason = `团队「${teamKey}」成员 ${count} 人，少于设项最小人数 ${teamMin} 人`;
+    } else if (teamMax != null && count > teamMax) {
+      reason = `团队「${teamKey}」成员 ${count} 人，超过设项最大人数 ${teamMax} 人`;
+    }
+    if (reason) {
+      pushError(errors, group[0], 'teamName', reason, TEAM_FIELD_LABEL);
+    }
+  });
+}
+
+export const PARTICIPANT_EXPORT_NAME = '参赛名单.xlsx';
+
+/** 导出参赛名单（rows 为当前筛选后的主列表数据） */
+export async function exportParticipants(rows = []) {
+  const headers = PARTICIPANT_EXPORT_COLUMNS.map((column) => column.label);
+  const dataRows = rows.map((row) =>
+    PARTICIPANT_EXPORT_COLUMNS.map((column) => {
+      const value = row[column.prop];
+      return value == null || value === '' ? '-' : String(value);
+    })
+  );
+  const buffer = await buildWorkbook(headers, dataRows, '参赛名单');
+  download(buffer, PARTICIPANT_EXPORT_NAME, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  return PARTICIPANT_EXPORT_NAME;
+}
+
+export async function parseImportFile(file, matchForm, scope = {}) {
   const buffer = await file.arrayBuffer();
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
@@ -344,13 +507,10 @@ export async function parseImportFile(file, matchForm) {
   if (!worksheet) {
     throw new Error('Excel 文件中没有可用工作表');
   }
-  if (matchForm === '团体') {
-    return parseSheetRows(worksheet, TEAM_HEADER_MAP, TEAM_IMPORT_FIELDS);
-  }
-  return parseSheetRows(worksheet, PERSONAL_HEADER_MAP, PERSONAL_IMPORT_FIELDS);
+  return parseSheetRows(worksheet, HEADER_MAP, getTemplateFields(matchForm, scope));
 }
 
-export function validateImportRows(rows, matchForm, matchId, itemId) {
+export function validateImportRows(rows, matchForm, matchId, itemId, scope = {}) {
   const totalCount = rows.length;
   if (!totalCount) {
     return {
@@ -364,11 +524,14 @@ export function validateImportRows(rows, matchForm, matchId, itemId) {
 
   const result =
     matchForm === '团体'
-      ? validateTeamRows(rows, matchId, itemId)
-      : validatePersonalRows(rows, matchId, itemId);
+      ? validateTeamRows(rows, matchId, itemId, scope)
+      : validatePersonalRows(rows, matchId, itemId, scope);
 
   const errorCount = result.errors.length;
-  const failedRowNos = new Set(result.errors.map((item) => item.rowNo));
+  // 只统计真实数据行（rowNo > 1，首行为表头）作为失败行，全局错误（如人数超限）不计入失败行数
+  const failedRowNos = new Set(
+    result.errors.map((item) => item.rowNo).filter((rowNo) => Number(rowNo) > 1)
+  );
   const successCount = totalCount - failedRowNos.size;
 
   return {
@@ -440,10 +603,6 @@ export function appendImportLog(payload) {
     errorCount: payload.errorCount || 0,
     status: payload.errorCount ? '部分成功' : '成功'
   });
-}
-
-export function getTemplateFields(matchForm) {
-  return matchForm === '团体' ? TEAM_IMPORT_FIELDS : PERSONAL_IMPORT_FIELDS;
 }
 
 export function getItemMatchForm(matchId, itemId) {
