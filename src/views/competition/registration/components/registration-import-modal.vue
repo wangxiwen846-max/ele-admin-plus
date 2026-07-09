@@ -130,31 +130,78 @@
     </el-form>
 
     <el-alert
-      v-if="!validated"
+      v-if="!parsedRows.length"
       type="info"
       show-icon
       :closable="false"
-      title="导入前请选择比赛和设项，并可按需选择导入范围（学校 / 年级 / 班级）。选择到班级时按班导入，模板无需填写学校、年级、班级；否则为跨班导入，模板需填写这些字段。上传后请点击「校验数据」，如有错误请修改 Excel 后重新上传。"
+      title="导入前请选择比赛和设项，并可按需选择导入范围（学校 / 年级 / 班级）。已选择的范围字段无需在模板中填写，未选择的字段需在模板中填写。参赛编号可留空，导入后由系统自动生成。上传后点击「校验数据」，可在下方表格中直接修改错误数据并重新校验，全部通过后方可确认导入。"
     />
 
-    <template v-if="validated">
+    <template v-if="parsedRows.length">
       <div class="validate-summary">
         <span>总数据量：{{ summary.totalCount }}</span>
         <span>校验通过：{{ summary.successCount }}</span>
         <span :class="{ danger: summary.errorCount > 0 }">校验失败：{{ summary.errorCount }}</span>
       </div>
       <el-alert
-        :type="summary.errorCount ? 'warning' : 'success'"
+        :type="alertType"
         show-icon
         :closable="false"
         :title="validateMessage"
         class="validate-alert"
       />
+
+      <div class="preview-table-wrap">
+        <div class="preview-table-title">
+          导入预览（可直接修改后点击「重新校验」）
+        </div>
+        <el-table
+          :data="parsedRows"
+          border
+          size="small"
+          max-height="280"
+          :row-class-name="rowClassName"
+        >
+          <el-table-column type="index" label="序号" width="56" align="center" />
+          <el-table-column
+            v-for="col in previewColumns"
+            :key="col.key"
+            :label="col.label"
+            min-width="120"
+          >
+            <template #default="{ row }">
+              <el-input
+                v-model="row[col.key]"
+                size="small"
+                :class="{ 'cell-error': hasCellError(row.rowNo, col.key) }"
+                :title="cellErrorText(row.rowNo, col.key)"
+                @input="markDirty"
+              />
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
       <div v-if="summary.errors.length" class="error-table-wrap">
         <div class="error-table-title">错误明细</div>
-        <el-table :data="summary.errors" border size="small" max-height="240">
-          <el-table-column prop="rowNo" label="行号" width="80" align="center" />
-          <el-table-column prop="fieldName" label="字段名称" width="120" />
+        <el-table :data="summary.errors" border size="small" max-height="220">
+          <el-table-column prop="rowNo" label="行号" width="70" align="center">
+            <template #default="{ row }">{{ row.rowNo > 1 ? row.rowNo : '-' }}</template>
+          </el-table-column>
+          <el-table-column
+            v-if="isTeamForm"
+            prop="teamName"
+            label="队伍名称"
+            width="130"
+            show-overflow-tooltip
+          />
+          <el-table-column :label="isTeamForm ? '成员姓名' : '学生姓名'" width="100">
+            <template #default="{ row }">{{ row.name || '-' }}</template>
+          </el-table-column>
+          <el-table-column prop="classNo" label="班内序号" width="80" align="center">
+            <template #default="{ row }">{{ row.classNo || '-' }}</template>
+          </el-table-column>
+          <el-table-column prop="fieldName" label="错误字段" width="110" />
           <el-table-column prop="reason" label="错误原因" min-width="220" show-overflow-tooltip />
         </el-table>
       </div>
@@ -162,7 +209,9 @@
 
     <template #footer>
       <el-button @click="emit('update:visible', false)">取消</el-button>
-      <el-button :disabled="!uploadFile" @click="handleValidate">校验数据</el-button>
+      <el-button :disabled="!uploadFile && !parsedRows.length" @click="handleValidate">
+        {{ parsedRows.length ? '重新校验' : '校验数据' }}
+      </el-button>
       <el-button type="primary" :disabled="!canConfirm" @click="handleConfirmImport">确认导入</el-button>
     </template>
   </el-dialog>
@@ -175,6 +224,7 @@
     appendImportLog,
     confirmImportRows,
     downloadImportTemplate,
+    getTemplateColumns,
     getTemplateFields,
     parseImportFile,
     validateImportRows
@@ -201,6 +251,7 @@
   const form = reactive({ matchId: '', itemId: '', school: '', grade: '', className: '' });
   const uploadFile = ref(null);
   const validated = ref(false);
+  const dirty = ref(false);
   const parsedRows = ref([]);
   const summary = reactive({
     totalCount: 0,
@@ -225,11 +276,39 @@
   const templateFields = computed(() =>
     selectedItem.value?.matchForm ? getTemplateFields(selectedItem.value.matchForm, scope.value) : []
   );
+  const isTeamForm = computed(() => selectedItem.value?.matchForm === '团体');
+  const previewColumns = computed(() =>
+    selectedItem.value?.matchForm ? getTemplateColumns(selectedItem.value.matchForm, scope.value) : []
+  );
+  // rowNo -> { fieldKey: reason }，用于错误单元格标红与提示
+  const errorFieldMap = computed(() => {
+    const map = {};
+    summary.errors.forEach((err) => {
+      if (!err.fieldKey || Number(err.rowNo) <= 1) {
+        return;
+      }
+      if (!map[err.rowNo]) {
+        map[err.rowNo] = {};
+      }
+      map[err.rowNo][err.fieldKey] = err.reason;
+    });
+    return map;
+  });
   const canDownloadTemplate = computed(() => !!(form.matchId && form.itemId && selectedItem.value));
   const canUpload = computed(() => canDownloadTemplate.value);
   const canConfirm = computed(
-    () => validated.value && summary.errorCount === 0 && summary.validRows.length > 0
+    () =>
+      validated.value &&
+      !dirty.value &&
+      summary.errorCount === 0 &&
+      summary.validRows.length > 0
   );
+  const alertType = computed(() => {
+    if (dirty.value) {
+      return 'info';
+    }
+    return summary.errorCount ? 'warning' : 'success';
+  });
 
   const downloadTemplateText = computed(() => {
     if (!selectedItem.value?.matchForm) {
@@ -262,10 +341,13 @@
   });
 
   const validateMessage = computed(() => {
+    if (dirty.value) {
+      return '数据已修改，请点击「重新校验」后再确认导入。';
+    }
     if (!summary.errorCount) {
       return `校验通过，共 ${summary.successCount} 条数据可导入。`;
     }
-    return `校验完成：通过 ${summary.successCount} 条，失败 ${summary.errorCount} 条。请修改 Excel 后重新上传并校验。`;
+    return `校验完成：通过 ${summary.successCount} 条，失败 ${summary.errorCount} 条。请在下方表格中修改错误数据后重新校验。`;
   });
 
   watch(
@@ -283,10 +365,7 @@
     }
   );
 
-  const resetValidation = () => {
-    uploadFile.value = null;
-    parsedRows.value = [];
-    validated.value = false;
+  const clearSummary = () => {
     Object.assign(summary, {
       totalCount: 0,
       successCount: 0,
@@ -294,6 +373,14 @@
       errors: [],
       validRows: []
     });
+  };
+
+  const resetValidation = () => {
+    uploadFile.value = null;
+    parsedRows.value = [];
+    validated.value = false;
+    dirty.value = false;
+    clearSummary();
   };
 
   const handleMatchChange = () => {
@@ -315,27 +402,43 @@
   const handleFileChange = (upload) => {
     uploadFile.value = upload?.raw || null;
     validated.value = false;
+    dirty.value = false;
     parsedRows.value = [];
-    Object.assign(summary, {
-      totalCount: 0,
-      successCount: 0,
-      errorCount: 0,
-      errors: [],
-      validRows: []
-    });
+    clearSummary();
   };
 
   const handleFileRemove = () => {
     uploadFile.value = null;
     validated.value = false;
+    dirty.value = false;
     parsedRows.value = [];
-    Object.assign(summary, {
-      totalCount: 0,
-      successCount: 0,
-      errorCount: 0,
-      errors: [],
-      validRows: []
-    });
+    clearSummary();
+  };
+
+  const markDirty = () => {
+    if (validated.value) {
+      dirty.value = true;
+    }
+  };
+
+  const rowClassName = ({ row }) =>
+    errorFieldMap.value[row.rowNo] ? 'import-error-row' : '';
+
+  const hasCellError = (rowNo, fieldKey) => !!errorFieldMap.value[rowNo]?.[fieldKey];
+
+  const cellErrorText = (rowNo, fieldKey) => errorFieldMap.value[rowNo]?.[fieldKey] || '';
+
+  const runValidation = () => {
+    const result = validateImportRows(
+      parsedRows.value,
+      selectedItem.value.matchForm,
+      form.matchId,
+      form.itemId,
+      scope.value
+    );
+    Object.assign(summary, result);
+    validated.value = true;
+    dirty.value = false;
   };
 
   const handleDownloadTemplate = async () => {
@@ -356,6 +459,12 @@
       EleMessage.error({ message: '请选择比赛和设项', plain: true });
       return;
     }
+    // 已解析过则直接对表格中（可能已修改的）数据重新校验，无需重新上传
+    if (parsedRows.value.length) {
+      runValidation();
+      EleMessage.info({ message: '已重新校验，请查看校验结果。', plain: true });
+      return;
+    }
     if (!uploadFile.value) {
       EleMessage.error({ message: '请先上传 Excel 文件', plain: true });
       return;
@@ -366,18 +475,12 @@
         selectedItem.value.matchForm,
         scope.value
       );
-      const result = validateImportRows(
-        parsedRows.value,
-        selectedItem.value.matchForm,
-        form.matchId,
-        form.itemId,
-        scope.value
-      );
-      Object.assign(summary, result);
-      validated.value = true;
+      runValidation();
       EleMessage.info({ message: '数据校验完成，请查看校验结果。', plain: true });
     } catch (error) {
       validated.value = true;
+      dirty.value = false;
+      parsedRows.value = [];
       Object.assign(summary, {
         totalCount: 0,
         successCount: 0,

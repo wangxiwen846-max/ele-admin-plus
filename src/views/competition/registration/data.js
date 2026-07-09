@@ -944,6 +944,18 @@ export function isStudentRegisteredInItem(matchId, itemId, studentId) {
   );
 }
 
+/** 当前比赛设项已报名人数（个人 + 团体成员，用于导入报名人数限制校验） */
+export function getItemRegisteredCount(matchId, itemId) {
+  seedEntries();
+  const personalCount = registrationStore.personalEntries.filter(
+    (entry) => entry.matchId === matchId && String(entry.itemId) === String(itemId)
+  ).length;
+  const teamMemberCount = registrationStore.teamEntries
+    .filter((team) => team.matchId === matchId && String(team.itemId) === String(itemId))
+    .reduce((total, team) => total + (team.members?.length ?? 0), 0);
+  return personalCount + teamMemberCount;
+}
+
 /** 同一比赛、同一设项下队伍名称是否已存在 */
 export function isTeamNameRegisteredInItem(matchId, itemId, teamName) {
   seedEntries();
